@@ -57,14 +57,18 @@ For SUPPORTED, PARTIAL and CONTRADICTED you MUST give `quote`: a verbatim passag
 `reason` = one short sentence (never empty), naming the missing or wrong detail."""
 
 
-def _norm(s: str) -> str:
-    return re.sub(r"[^a-z0-9]+", " ", s.lower()).strip()
+def _squash(s: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", s.lower())
 
 
 def quote_ok(quote: str, url: str, evidence: list[dict]) -> bool:
-    """Deterministic proof check: the judge's quote must really appear in the cited evidence."""
-    q = _norm(quote)
-    return len(q) >= 20 and any(q in _norm(e["text"]) for e in evidence if e["url"] == url)
+    """Deterministic proof check: every piece of the quote must appear in the cited evidence."""
+    segs = [_squash(s) for s in re.split(r"\.{3}|…", quote)]
+    segs = [s for s in segs if len(s) >= 12]
+    if not segs or sum(len(s) for s in segs) < 20:
+        return False
+    texts = [_squash(e["text"]) for e in evidence if e["url"] == url]
+    return any(all(s in t for s in segs) for t in texts)
 
 
 def check_once(draft: ScriptDraft) -> list[dict]:
