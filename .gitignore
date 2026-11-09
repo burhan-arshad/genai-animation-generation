@@ -5,4 +5,8 @@ __pycache__/
 *.pyc
 jobs.db
 logs/
-"@ | Set-Content .gitignore
+"@ | Set-Content .gitignore*.db
+client_secret.json
+token.json
+*.db
+

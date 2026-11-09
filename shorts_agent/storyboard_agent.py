@@ -69,12 +69,13 @@ def run_check(project: Path) -> tuple[bool, str]:
     return (p.returncode == 0 and "CHECK OK" in p.stdout), out
 
 
-def build_shots(project: Path, max_tries: int = 4) -> None:
+def build_shots(project: Path, max_tries: int = 5) -> None:
     base = build_context(project)
     target = project / "src" / "shots.js"
     prompt, last_code, problems = base, "", []
     for attempt in range(1, max_tries + 1):
-        code = extract_js(generate_text(prompt, system=SYSTEM))
+        task = "storyboard" if attempt <= 3 else "storyboard_hard"
+        code = extract_js(generate_text(prompt, system=SYSTEM, task=task))
         problems = static_check(code)
         if not problems:
             target.write_text(code, encoding="utf-8")

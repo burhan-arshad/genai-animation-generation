@@ -12,6 +12,7 @@ from .runner import run_pipeline
 from .schemas import to_script_json
 from .script_agent import make_project, write_script
 from .storyboard_agent import build_shots
+from .llm import BudgetExceeded
 
 ROOT = Path(r"C:\Users\burha\faceless-shorts")
 DB = Path(__file__).resolve().parent.parent / "jobs.db"
@@ -67,6 +68,9 @@ def run(limit: int) -> None:
         while job["status"] != "rendered":
             try:
                 new = advance(job)
+            except BudgetExceeded as e:
+                print(f"[budget] {e}\nStopping. Re-run later; jobs resume where they stopped.")
+                return
             except (Exception, SystemExit) as e:
                 con.execute("UPDATE jobs SET error=?, updated=? WHERE id=?", (str(e)[:2000], time.time(), job["id"]))
                 con.commit()

@@ -60,3 +60,29 @@ def check_script(d: ScriptDraft, min_words: int = 85, max_words: int = 115) -> l
             if stars != 1:
                 problems.append(f"Line {i}: chunk '{c}' must have exactly one *highlighted word.")
     return problems
+
+
+def _fix_chunk(c: str) -> list[str]:
+    """Make one caption chunk valid: <=3 words, exactly one *highlighted word per piece."""
+    toks = c.split()
+    if not toks:
+        return []
+    plain = [t.lstrip("*") for t in toks]
+    star_at = next((i for i, t in enumerate(toks) if t.startswith("*")), None)
+    out = []
+    for g in range(0, len(plain), 3):
+        group = plain[g:g + 3]
+        if star_at is not None and g <= star_at < g + 3:
+            k = star_at - g
+        else:  # no star here: highlight the longest word
+            k = max(range(len(group)), key=lambda i: len(group[i].strip("?!.,")))
+        group[k] = "*" + group[k]
+        out.append(" ".join(group))
+    return out
+
+
+def repair_caps(d: ScriptDraft) -> ScriptDraft:
+    """Fix mechanical caption problems in code instead of burning LLM retries."""
+    for l in d.lines:
+        l.caps = " | ".join(x for c in l.caps.split("|") for x in _fix_chunk(c.strip()))
+    return d
