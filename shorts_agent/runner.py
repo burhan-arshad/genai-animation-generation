@@ -7,9 +7,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-
-SKILL_DIR = Path(os.getenv("SKILL_DIR", r"D:\AntiGravity\faceless-shorts"))
-SKILL_PY = Path.home() / ".faceless-shorts" / "venv" / "Scripts" / "python.exe"
+from .config import SKILL_DIR, SKILL_PY
 
 
 class StageError(RuntimeError):

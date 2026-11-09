@@ -1,6 +1,7 @@
-@"
 pydantic
 python-dotenv
 google-genai
-"@ | Set-Content requirements.txttzdata
 tzdata
+google-api-python-client
+google-auth-oauthlib
+httpx

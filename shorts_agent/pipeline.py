@@ -13,8 +13,9 @@ from .schemas import to_script_json
 from .script_agent import make_project, write_script
 from .storyboard_agent import build_shots
 from .llm import BudgetExceeded
+from .factcheck_agent import verify_project
+from .config import PROJECTS_ROOT as ROOT
 
-ROOT = Path(r"C:\Users\burha\faceless-shorts")
 DB = Path(__file__).resolve().parent.parent / "jobs.db"
 
 
@@ -49,6 +50,9 @@ def advance(job: dict) -> str:
             json.dumps(to_script_json(draft), indent=2, ensure_ascii=False), encoding="utf-8")
         return "scripted"
     if s == "scripted":
+        verify_project(project)
+        return "verified"
+    if s == "verified":
         run_pipeline(project, "final", only=["voice", "words"])
         return "timed"
     if s == "timed":
@@ -58,8 +62,6 @@ def advance(job: dict) -> str:
         run_pipeline(project, "final", only=["check", "cues", "mix", "video"])
         return "rendered"
     raise ValueError(f"unknown status {s}")
-
-
 def run(limit: int) -> None:
     con = db()
     rows = con.execute("SELECT * FROM jobs WHERE status != 'rendered' ORDER BY id LIMIT ?", (limit,)).fetchall()

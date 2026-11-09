@@ -1,4 +1,4 @@
-"""LLM wrapper: per-task model routing, usage log (SQLite), daily request budget guard."""
+"""LLM layer: per-task model chains, error classification, usage log, daily budget guard."""
 from __future__ import annotations
 
 import os
@@ -20,7 +20,7 @@ _client = None
 
 
 class BudgetExceeded(RuntimeError):
-    pass
+    """Daily/per-minute quota hit on every model in the chain: pause and resume later."""
 
 
 def _con() -> sqlite3.Connection:
@@ -42,11 +42,12 @@ def _get_client():
     return _client
 
 
-def _model_for(task: str) -> str:
-    m = os.getenv(f"GEMINI_MODEL_{task.upper()}") or os.getenv("GEMINI_MODEL")
-    if not m:
-        raise RuntimeError("Set GEMINI_MODEL (and optionally GEMINI_MODEL_<TASK>) in .env")
-    return m
+def _models_for(task: str) -> list[str]:
+    raw = os.getenv(f"GEMINI_MODEL_{task.upper()}") or os.getenv("GEMINI_MODEL") or ""
+    models = [m.strip() for m in raw.split(",") if m.strip()]
+    if not models:
+        raise RuntimeError("Set GEMINI_MODEL (and optionally GEMINI_MODEL_<TASK>=a,b) in .env")
+    return models
 
 
 def _limit_for(model: str) -> int:
@@ -60,7 +61,7 @@ def _limit_for(model: str) -> int:
 
 def _used_today(model: str) -> int:
     with _con() as con:
-        return con.execute("SELECT COUNT(*) FROM llm_calls WHERE day=? AND model=?",
+        return con.execute("SELECT COUNT(*) FROM llm_calls WHERE day=? AND model=? AND ok=1",
                            (_today(), model)).fetchone()[0]
 
 
@@ -73,24 +74,42 @@ def _log(model: str, task: str, resp, ok: bool) -> None:
                     (_today(), time.time(), model, task, tin, tout, int(ok)))
 
 
-def _call(prompt: str, cfg, task: str, retries: int = 2):
-    model = _model_for(task)
-    limit = _limit_for(model)
-    for attempt in range(retries):
-        used = _used_today(model)
+def _classify(e: Exception) -> str:
+    """'quota' (429) | 'transient' (5xx / network) | 'fatal' (bad request, auth, not found)."""
+    code = getattr(e, "code", None)
+    if code == 429:
+        return "quota"
+    if code is None or (isinstance(code, int) and code >= 500):
+        return "transient"
+    return "fatal"
+
+
+def _call(prompt: str, cfg, task: str):
+    last: Exception | None = None
+    for model in _models_for(task):
+        used, limit = _used_today(model), _limit_for(model)
         if used >= limit - SAFETY_MARGIN:
-            raise BudgetExceeded(f"{model}: {used}/{limit} requests used today. Resume after the daily reset.")
-        try:
-            resp = _get_client().models.generate_content(model=model, contents=prompt, config=cfg)
-            _log(model, task, resp, True)
-            return resp
-        except Exception as e:
-            _log(model, task, None, False)
-            if attempt == retries - 1:
-                raise
-            wait = 30 * (attempt + 1)
-            print(f"[llm] {model} error ({type(e).__name__}); retrying in {wait}s")
-            time.sleep(wait)
+            last = BudgetExceeded(f"{model}: {used}/{limit} used today")
+            continue
+        for attempt in range(3):
+            try:
+                resp = _get_client().models.generate_content(model=model, contents=prompt, config=cfg)
+                _log(model, task, resp, True)
+                return resp
+            except Exception as e:
+                _log(model, task, None, False)
+                kind = _classify(e)
+                if kind == "fatal":
+                    raise
+                if kind == "quota":
+                    last = BudgetExceeded(f"{model}: Google returned 429 (check aistudio.google.com/rate-limit)")
+                    print(f"[llm] {model} -> 429, trying next model in chain")
+                    break
+                last = e
+                wait = 5 * 2 ** attempt
+                print(f"[llm] {model} transient error ({type(e).__name__}); retry in {wait}s")
+                time.sleep(wait)
+    raise last or BudgetExceeded("no model available for task " + task)
 
 
 def generate_structured(prompt: str, schema, system: str | None = None,
@@ -102,20 +121,23 @@ def generate_structured(prompt: str, schema, system: str | None = None,
 
 
 def generate_text(prompt: str, system: str | None = None, temperature: float = 0.6,
-                  max_output_tokens: int = 16000, task: str = "storyboard") -> str:
+                  max_output_tokens: int = 16000, task: str = "storyboard",
+                  grounded: bool = False) -> str:
+    extra = {"tools": [types.Tool(google_search=types.GoogleSearch())]} if grounded else {}
     cfg = types.GenerateContentConfig(
-        system_instruction=system, temperature=temperature, max_output_tokens=max_output_tokens)
+        system_instruction=system, temperature=temperature,
+        max_output_tokens=max_output_tokens, **extra)
     return _call(prompt, cfg, task).text or ""
 
 
 def usage_report() -> None:
     with _con() as con:
         rows = con.execute(
-            "SELECT model, COUNT(*), SUM(in_tokens), SUM(out_tokens), SUM(1-ok) "
+            "SELECT model, SUM(ok), SUM(in_tokens), SUM(out_tokens), SUM(1-ok) "
             "FROM llm_calls WHERE day=? GROUP BY model", (_today(),)).fetchall()
     print(f"Quota day (Pacific): {_today()}")
-    for m, n, i, o, f in rows or []:
-        print(f"  {m}: {n}/{_limit_for(m)} calls, {i or 0} in / {o or 0} out tokens, {f or 0} failed")
+    for m, n, i, o, f in rows:
+        print(f"  {m}: {n or 0}/{_limit_for(m)} ok calls, {i or 0} in / {o or 0} out tokens, {f or 0} failed")
     if not rows:
         print("  no calls logged today")
 
@@ -124,7 +146,7 @@ if __name__ == "__main__":
     a = sys.argv[1:]
     if a == ["usage"]:
         usage_report()
-    elif len(a) == 3 and a[0] == "seed":   # python -m shorts_agent.llm seed <model> <n>
+    elif len(a) == 3 and a[0] == "seed":
         for _ in range(int(a[2])):
             with _con() as con:
                 con.execute("INSERT INTO llm_calls(day, ts, model, task, in_tokens, out_tokens, ok) "
