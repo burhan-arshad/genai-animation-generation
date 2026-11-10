@@ -1,19 +1,22 @@
-"""Retrieval-based fact-check: extract claims -> fetch evidence -> judge with verifiable quotes."""
+"""Automatic fact-check: extract claims -> fetch evidence -> judge with verifiable quotes -> auto-trim the script."""
 from __future__ import annotations
 
 import argparse
 import json
 import re
+from dataclasses import replace
 from pathlib import Path
 
 from pydantic import BaseModel
 
+from . import styles
 from .llm import generate_structured
 from .retrieval import collect_evidence
 from .schemas import Line, ScriptDraft, check_script, repair_caps
-from .script_agent import SYSTEM as SCRIPT_SYSTEM
+from .script_agent import system_prompt
 
 VALID = {"SUPPORTED", "PARTIAL", "CONTRADICTED", "NO_EVIDENCE"}
+MAX_WEAK = 1   # unverified claims tolerated after the auto-trim rounds
 
 
 class Claim(BaseModel):
@@ -100,32 +103,48 @@ def check_once(draft: ScriptDraft) -> list[dict]:
     return report
 
 
-def rewrite(draft: ScriptDraft, bad: list[dict]) -> ScriptDraft:
-    flagged = "\n".join(f"- {b['narration_quote']} | problem: {b['reason']} | evidence: {b['source_url']}" for b in bad)
-    prompt = ("Rewrite this script. Every flagged claim is contradicted by evidence: correct it to match the evidence, "
-              "or remove it. Keep tone, structure, 90-110 words and the exact caption format.\n\nScript:\n"
-              + draft.model_dump_json(indent=1) + "\n\nFlagged claims:\n" + flagged)
-    new = repair_caps(generate_structured(prompt, ScriptDraft, system=SCRIPT_SYSTEM, task="script"))
-    problems = check_script(new)
-    if problems:
-        raise FactCheckFailed("Rewrite broke the script format:\n- " + "\n- ".join(problems))
-    return new
+def rewrite(draft: ScriptDraft, bad: list[dict], weak: list[dict]) -> ScriptDraft:
+    asks = []
+    if bad:
+        asks.append("CONTRADICTED claims: correct each to match the evidence, or delete it:\n" + "\n".join(
+            f"- {b['narration_quote']} | evidence says: {b['quote'] or b['reason']} ({b['source_url']})" for b in bad))
+    if weak:
+        asks.append("UNVERIFIED claims (the retrieved evidence does not fully support them): rewrite each so it states ONLY what "
+                    "the evidence supports, or delete it. Never add new facts, never guess:\n" + "\n".join(
+            f"- {w['narration_quote']} | {w['verdict']}: {w['reason']}"
+            + (f" | supported part: {w['quote']}" if w["quote"] else "") for w in weak))
+    base = ("Edit this script.\n\n" + "\n\n".join(asks) +
+            "\n\nKeep the topic, tone and exact caption format. Keep 8-14 lines and 75-115 words in total "
+            "(smooth the flow after deleting a claim).\n\nScript:\n" + draft.model_dump_json(indent=1))
+    st = replace(styles.active(), min_words=70)
+    prompt, problems = base, []
+    for _ in range(3):
+        new = repair_caps(generate_structured(prompt, ScriptDraft, system=system_prompt(), task="script"))
+        problems = check_script(new, st)
+        if not problems:
+            return new
+        prompt = base + "\n\nYour previous edit had problems:\n- " + "\n- ".join(problems) + "\nReturn the full corrected script."
+    raise FactCheckFailed("Could not edit the script cleanly:\n- " + "\n- ".join(problems))
 
 
 def verify_script(draft: ScriptDraft, rounds: int = 2) -> tuple[ScriptDraft, list[dict], str]:
     history: list[dict] = []
+    bad: list[dict] = []
+    weak: list[dict] = []
     for r in range(rounds + 1):
         report = check_once(draft)
         history.append({"round": r, "claims": report})
         bad = [c for c in report if c["verdict"] == "CONTRADICTED"]
         weak = [c for c in report if c["verdict"] in ("NO_EVIDENCE", "PARTIAL")]
-        print(f"[factcheck] round {r}: {len(report)} claims | contradicted {len(bad)} | weak {len(weak)}")
-        if not bad:
-            return draft, history, ("needs_review" if weak else "verified")
+        print(f"[factcheck] round {r}: {len(report)} claims | contradicted {len(bad)} | unverified {len(weak)}")
+        if not bad and not weak:
+            return draft, history, "verified"
         if r == rounds:
             break
-        draft = rewrite(draft, bad)
-    return draft, history, "failed"
+        draft = rewrite(draft, bad, weak)
+    if bad or len(weak) > MAX_WEAK:
+        return draft, history, "failed"
+    return draft, history, "verified_with_notes"
 
 
 def load_draft(project: Path) -> tuple[dict, ScriptDraft]:
@@ -139,12 +158,12 @@ def verify_project(project: Path) -> str:
     draft, history, status = verify_script(draft)
     (project / "factcheck.json").write_text(
         json.dumps({"status": status, "history": history}, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(f"[factcheck] status: {status}")
+    if status == "failed":
+        raise FactCheckFailed("Unresolved claims after auto-trim; see factcheck.json")
     data["title"], data["sources"] = draft.title, draft.sources
     data["lines"] = [l.model_dump() for l in draft.lines]
     (project / "script.json").write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(f"[factcheck] status: {status}")
-    if status == "failed":
-        raise FactCheckFailed("Contradicted claims remain after rewrites; see factcheck.json")
     return status
 
 

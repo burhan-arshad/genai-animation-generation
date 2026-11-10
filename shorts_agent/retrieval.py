@@ -84,3 +84,25 @@ def collect_evidence(claim: str, queries: list[str], cap: int = 6) -> list[dict]
                 seen.add(key)
                 out.append(ev)
     return out[:cap]
+
+def wikipedia_facts(query: str, pages: int = 2, max_chars: int = 900) -> list[dict]:
+    """Research-first retrieval: lead paragraphs + the most number-dense paragraphs of the top pages."""
+    out: list[dict] = []
+    try:
+        hits = _get_json(_http, WIKI, {"action": "query", "list": "search", "srsearch": query,
+                                       "srlimit": pages, "format": "json"})["query"]["search"]
+        for h in hits:
+            t = h["title"]
+            if BLOCK.search(t):
+                continue
+            r = _get_json(_http, WIKI, {"action": "query", "prop": "extracts", "explaintext": 1,
+                                        "titles": t, "redirects": 1, "format": "json"})
+            page = next(iter(r["query"]["pages"].values()))
+            paras = [p.strip() for p in page.get("extract", "").split("\n") if len(p.strip()) > 80]
+            dense = sorted(paras[2:], key=lambda p: len(re.findall(r"\d", p)), reverse=True)[:2]
+            for p in paras[:2] + dense:
+                out.append({"source": "Wikipedia", "title": t,
+                            "url": "https://en.wikipedia.org/wiki/" + t.replace(" ", "_"), "text": p[:max_chars]})
+    except Exception as e:
+        print(f"[retrieval] wikipedia failed for '{query}': {e}")
+    return out

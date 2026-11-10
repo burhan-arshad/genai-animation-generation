@@ -1,0 +1,61 @@
+
+{
+  "channel": {
+    "name": "TBD",
+    "tagline": ""
+  },
+  "character": {
+    "name": "History Student",
+    "preset": "a",
+    "appear": "first",
+    "scale": 1.0,
+    "presets": {
+      "a": {
+      "outfit": "tee", "skin": "#D9A273", "hair": "#2B2118", "hairStyle": "messy",
+      "glasses": true, "beard": false, "headphones": false,
+      "shirt": "#EBDDBF", "vest": "#6B422B", "vestDark": "#4B2D20", "scarf": "#A8322D",
+      "pants": "#6B4F34", "boots": "#4A3425", "belt": "#4B2D20", "buckle": "#C8952F",
+      "buttons": "#C8952F", "satchel": "#8A5A35", "accent": "#A8322D"
+    },
+      "b": {
+        "outfit": "tee",
+        "skin": "#EBC3A0",
+        "hair": "#4A2D1B",
+        "hairStyle": "sidePart",
+        "glasses": true,
+        "beard": false,
+        "top": "#C9A45C",
+        "pants": "#3E4A5C",
+        "shoes": "#6B4F34",
+        "headphones": false,
+        "accent": "#2F7F86"
+      },
+      "c": {
+        "outfit": "tee",
+        "skin": "#8D5A3B",
+        "hair": "#1B1410",
+        "hairStyle": "textured",
+        "glasses": false,
+        "beard": false,
+        "top": "#F3E9D2",
+        "pants": "#5A4635",
+        "shoes": "#2B2118",
+        "headphones": false,
+        "accent": "#C8952F"
+      }
+    }
+  },
+  "voice": {
+    "name": "bm_george",
+    "speed": 1.0,
+    "music": "bed",
+    "fx": ""
+  },
+  "audience": {
+    "regions": [
+      "United States",
+      "Europe"
+    ],
+    "writing_note": "AUDIENCE: viewers in the United States and Europe. Use American English spelling. Add one short clause of context for anything a non-local viewer may not know (where it is, who they were). Avoid slang and idioms that do not travel. Quote units exactly as the evidence does; never convert. Neutral, factual tone; no jokes at any nation's expense."
+  }
+}

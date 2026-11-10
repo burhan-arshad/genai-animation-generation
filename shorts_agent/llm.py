@@ -43,10 +43,31 @@ def _get_client():
 
 
 def _models_for(task: str) -> list[str]:
-    raw = os.getenv(f"GEMINI_MODEL_{task.upper()}") or os.getenv("GEMINI_MODEL") or ""
-    models = [m.strip() for m in raw.split(",") if m.strip()]
+    task_key = task.upper()
+
+    # storyboard_hard -> storyboard
+    if task_key.endswith("_HARD"):
+        base_key = task_key[:-5]
+    else:
+        base_key = task_key
+
+    raw = (
+        os.getenv(f"GEMINI_MODEL_{task_key}")
+        or os.getenv(f"GEMINI_MODEL_{base_key}")
+        or os.getenv("GEMINI_MODEL")
+        or ""
+    )
+
+    # Remove empty entries and duplicate models while preserving order
+    models = list(dict.fromkeys(
+        m.strip() for m in raw.split(",") if m.strip()
+    ))
+
     if not models:
-        raise RuntimeError("Set GEMINI_MODEL (and optionally GEMINI_MODEL_<TASK>=a,b) in .env")
+        raise RuntimeError(
+            f"Set GEMINI_MODEL or GEMINI_MODEL_{base_key} in .env"
+        )
+
     return models
 
 

@@ -59,9 +59,11 @@ def run_pipeline(project: Path, out_name: str = "out", only: list[str] | None = 
         if only and label not in only:
             continue
         timings[label] = run_stage(label, cmd, project, must)
+        if label == "voice":
+            from .brand import apply_voice_fx
+            apply_voice_fx(project)
     print("\nTimings:", {k: round(v, 1) for k, v in timings.items()})
     return project / "renders" / f"{out_name}.mp4"
-
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
