@@ -21,15 +21,21 @@ def send(subject: str, body: str) -> bool:
         msg = EmailMessage()
         msg["From"], msg["To"], msg["Subject"] = user, to, subject
         msg.set_content(body)
-        with smtplib.SMTP_SSL(os.getenv("SMTP_HOST", "smtp.gmail.com"), int(os.getenv("SMTP_PORT", "465")),
-                              context=ssl.create_default_context(), timeout=30) as s:
+        host, port = os.getenv("SMTP_HOST", "smtp.gmail.com"), int(os.getenv("SMTP_PORT", "587"))
+        ctx = ssl.create_default_context()
+        if port == 465:
+            s = smtplib.SMTP_SSL(host, port, context=ctx, timeout=30)
+        else:
+            s = smtplib.SMTP(host, port, timeout=30)
+            s.ehlo()
+            s.starttls(context=ctx)
+            s.ehlo()
+        with s:
             s.login(user, pw.replace(" ", ""))
             s.send_message(msg)
         return True
     except Exception as e:
         print(f"[notify] failed: {type(e).__name__}: {e}")
         return False
-
-
 if __name__ == "__main__":
     print("sent" if send("[shorts-agent] test", "If you can read this, alerts work.") else "not sent")
