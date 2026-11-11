@@ -1,4 +1,4 @@
-"""LLM layer: per-task model chains, error classification, usage log, daily budget guard."""
+"""LLM layer: per-task model chains, error classification, usage log, daily + per-minute budget guard."""
 from __future__ import annotations
 
 import os
@@ -17,10 +17,11 @@ load_dotenv()
 DB = Path(__file__).resolve().parent.parent / "usage.db"
 SAFETY_MARGIN = 2
 _client = None
-
+_cool: dict[str, float] = {}      # model -> time until which we skip it after a 429
+LAST: dict = {}                    # model and finish reason of the most recent successful call (for diagnostics)
 
 class BudgetExceeded(RuntimeError):
-    """Daily/per-minute quota hit on every model in the chain: pause and resume later."""
+    """Quota hit on every model in the chain: pause and resume later."""
 
 
 def _con() -> sqlite3.Connection:
@@ -43,47 +44,42 @@ def _get_client():
 
 
 def _models_for(task: str) -> list[str]:
-    task_key = task.upper()
-
-    # storyboard_hard -> storyboard
-    if task_key.endswith("_HARD"):
-        base_key = task_key[:-5]
-    else:
-        base_key = task_key
-
-    raw = (
-        os.getenv(f"GEMINI_MODEL_{task_key}")
-        or os.getenv(f"GEMINI_MODEL_{base_key}")
-        or os.getenv("GEMINI_MODEL")
-        or ""
-    )
-
-    # Remove empty entries and duplicate models while preserving order
-    models = list(dict.fromkeys(
-        m.strip() for m in raw.split(",") if m.strip()
-    ))
-
+    key = task.upper()
+    base = key[:-5] if key.endswith("_HARD") else key
+    raw = (os.getenv(f"GEMINI_MODEL_{key}") or os.getenv(f"GEMINI_MODEL_{base}") or os.getenv("GEMINI_MODEL") or "")
+    models = list(dict.fromkeys(m.strip() for m in raw.split(",") if m.strip()))
     if not models:
-        raise RuntimeError(
-            f"Set GEMINI_MODEL or GEMINI_MODEL_{base_key} in .env"
-        )
-
+        raise RuntimeError(f"Set GEMINI_MODEL or GEMINI_MODEL_{base} in .env")
     return models
 
 
-def _limit_for(model: str) -> int:
-    for part in os.getenv("DAILY_LIMITS", "").split(","):
+def _env_limit(var: str, model: str, default: int) -> int:
+    for part in os.getenv(var, "").split(","):
         if ":" in part:
             k, v = part.split(":", 1)
             if k.strip() == model:
                 return int(v)
-    return int(os.getenv("DEFAULT_DAILY_LIMIT", "20"))
+    return default
+
+
+def _daily_limit(model: str) -> int:
+    return _env_limit("DAILY_LIMITS", model, int(os.getenv("DEFAULT_DAILY_LIMIT", "20")))
+
+
+def _rpm_limit(model: str) -> int:
+    return _env_limit("RPM_LIMITS", model, int(os.getenv("DEFAULT_RPM_LIMIT", "5")))
 
 
 def _used_today(model: str) -> int:
     with _con() as con:
         return con.execute("SELECT COUNT(*) FROM llm_calls WHERE day=? AND model=? AND ok=1",
                            (_today(), model)).fetchone()[0]
+
+
+def _recent(model: str) -> list[float]:
+    with _con() as con:
+        return [r[0] for r in con.execute("SELECT ts FROM llm_calls WHERE model=? AND ts>? ORDER BY ts",
+                                          (model, time.time() - 60))]
 
 
 def _log(model: str, task: str, resp, ok: bool) -> None:
@@ -94,6 +90,11 @@ def _log(model: str, task: str, resp, ok: bool) -> None:
         con.execute("INSERT INTO llm_calls(day, ts, model, task, in_tokens, out_tokens, ok) VALUES(?,?,?,?,?,?,?)",
                     (_today(), time.time(), model, task, tin, tout, int(ok)))
 
+def _finish(resp) -> str:
+    try:
+        return str(resp.candidates[0].finish_reason)
+    except Exception:
+        return "?"
 
 def _classify(e: Exception) -> str:
     """'quota' (429) | 'transient' (5xx / network) | 'fatal' (bad request, auth, not found)."""
@@ -105,31 +106,60 @@ def _classify(e: Exception) -> str:
     return "fatal"
 
 
-def _call(prompt: str, cfg, task: str):
+def _try_model(model: str, prompt: str, cfg, task: str):
+    """Returns (response, None) or (None, error). 5xx/network: up to 3 tries with backoff. 429: stop and cool the model down."""
     last: Exception | None = None
-    for model in _models_for(task):
-        used, limit = _used_today(model), _limit_for(model)
-        if used >= limit - SAFETY_MARGIN:
-            last = BudgetExceeded(f"{model}: {used}/{limit} used today")
-            continue
-        for attempt in range(3):
-            try:
-                resp = _get_client().models.generate_content(model=model, contents=prompt, config=cfg)
-                _log(model, task, resp, True)
+    for attempt in range(3):
+        try:
+            resp = _get_client().models.generate_content(model=model, contents=prompt, config=cfg)
+            _log(model, task, resp, True)
+            LAST["model"], LAST["finish"] = model, _finish(resp)
+            return resp, None
+        except Exception as e:
+            _log(model, task, None, False)
+            kind = _classify(e)
+            if kind == "fatal":
+                raise
+            if kind == "quota":
+                _cool[model] = time.time() + 60
+                print(f"[llm] {model} -> 429, cooling down 60s, trying the next model")
+                return None, BudgetExceeded(f"{model}: Google returned 429 (check aistudio.google.com/rate-limit)")
+            last = e
+            wait = 5 * 2 ** attempt
+            print(f"[llm] {model} transient error ({type(e).__name__}); retry in {wait}s")
+            time.sleep(wait)
+    return None, last
+
+
+def _call(prompt: str, cfg, task: str):
+    chain = _models_for(task)
+    last: Exception | None = None
+    for _ in range(4):
+        soonest: float | None = None
+        for model in chain:
+            now = time.time()
+            if _cool.get(model, 0) > now:
+                soonest = min(soonest or 1e18, _cool[model])
+                continue
+            used, limit = _used_today(model), _daily_limit(model)
+            if used >= limit - SAFETY_MARGIN:
+                last = BudgetExceeded(f"{model}: {used}/{limit} used today")
+                continue
+            recent, rpm = _recent(model), _rpm_limit(model)
+            if len(recent) >= rpm:                                   # per-minute budget used: skip, do not waste a 429
+                soonest = min(soonest or 1e18, recent[-rpm] + 61)
+                continue
+            resp, err = _try_model(model, prompt, cfg, task)
+            if resp is not None:
                 return resp
-            except Exception as e:
-                _log(model, task, None, False)
-                kind = _classify(e)
-                if kind == "fatal":
-                    raise
-                if kind == "quota":
-                    last = BudgetExceeded(f"{model}: Google returned 429 (check aistudio.google.com/rate-limit)")
-                    print(f"[llm] {model} -> 429, trying next model in chain")
-                    break
-                last = e
-                wait = 5 * 2 ** attempt
-                print(f"[llm] {model} transient error ({type(e).__name__}); retry in {wait}s")
-                time.sleep(wait)
+            last = err
+            if model in _cool:
+                soonest = min(soonest or 1e18, _cool[model])
+        if soonest is None:
+            break
+        wait = min(max(soonest - time.time(), 1), 65)
+        print(f"[llm] every model is rate-limited; waiting {wait:.0f}s")
+        time.sleep(wait)
     raise last or BudgetExceeded("no model available for task " + task)
 
 
@@ -142,7 +172,7 @@ def generate_structured(prompt: str, schema, system: str | None = None,
 
 
 def generate_text(prompt: str, system: str | None = None, temperature: float = 0.6,
-                  max_output_tokens: int = 16000, task: str = "storyboard",
+                  max_output_tokens: int = 32000, task: str = "storyboard",
                   grounded: bool = False) -> str:
     extra = {"tools": [types.Tool(google_search=types.GoogleSearch())]} if grounded else {}
     cfg = types.GenerateContentConfig(
@@ -158,7 +188,7 @@ def usage_report() -> None:
             "FROM llm_calls WHERE day=? GROUP BY model", (_today(),)).fetchall()
     print(f"Quota day (Pacific): {_today()}")
     for m, n, i, o, f in rows:
-        print(f"  {m}: {n or 0}/{_limit_for(m)} ok calls, {i or 0} in / {o or 0} out tokens, {f or 0} failed")
+        print(f"  {m}: {n or 0}/{_daily_limit(m)} ok calls, {i or 0} in / {o or 0} out tokens, {f or 0} failed")
     if not rows:
         print("  no calls logged today")
 

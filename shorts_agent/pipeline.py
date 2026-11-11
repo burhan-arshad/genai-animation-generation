@@ -46,6 +46,8 @@ def advance(job: dict) -> str:
         build_shots(project)
         return "storyboarded"
     if s == "storyboarded":
+        from .storyboard_agent import sync_overlay
+        sync_overlay(project, styles.active())      # pick up brand.json / overlay edits before rendering
         run_pipeline(project, "final", only=["check", "cues", "mix", "video"])
         return "rendered"
     if s == "rendered":
@@ -83,7 +85,7 @@ def run(limit: int, job_id: int | None = None) -> None:
                 new = advance(job)
             except BudgetExceeded as e:
                 print(f"[budget] {e}\nStopping. Re-run later; jobs resume where they stopped.")
-                return
+                return "budget"
             except Drop as e:
                 store.log_event(job["id"], stage, t0, False, str(e))
                 store.set_job(job["id"], status="dropped", error=str(e)[:2000])
@@ -91,6 +93,10 @@ def run(limit: int, job_id: int | None = None) -> None:
                 print(f"[job {job['id']}] DROPPED at '{name}': {str(e)[:300]}")
                 break
             except (Exception, SystemExit) as e:
+                if getattr(e, "code", None) in (500, 502, 503, 504) or type(e).__name__ in ("ServerError", "RemoteProtocolError"):
+                    store.log_event(job["id"], stage, t0, False, "Google overloaded: " + str(e))
+                    print(f"[job {job['id']}] Google is overloaded at '{name}' (not counted as a failure); run again later")
+                    break
                 tries = (job.get("tries") or 0) + 1
                 job["tries"] = tries
                 store.log_event(job["id"], stage, t0, False, str(e))

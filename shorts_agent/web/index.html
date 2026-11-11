@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>shorts-agent</title>
+<style>
+:root{--bg:#f6f3ec;--card:#fffdf8;--ink:#2b2118;--mut:#7a6b5a;--line:#e3d9c6;--acc:#a8322d;--ok:#3f7d4e;--warn:#b7791f}
+@media (prefers-color-scheme:dark){:root{--bg:#1d1812;--card:#26201a;--ink:#f1e8d6;--mut:#a99a84;--line:#3a3128;--acc:#e0725c;--ok:#6fbf86;--warn:#e0b050}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,"Segoe UI",sans-serif}
+header{display:flex;gap:10px;align-items:center;padding:12px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+h1{font-size:18px;margin:0 10px 0 0}h2{font-size:16px;margin:0 0 4px}
+h3{font-size:12px;margin:14px 0 4px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+button,select,input,textarea{font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:6px 10px}
+button{cursor:pointer}button:hover{border-color:var(--acc)}button:disabled{opacity:.5;cursor:default}
+.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
+.tabs .on{border-color:var(--acc);font-weight:600}
+main{display:grid;grid-template-columns:minmax(340px,1fr) 1.3fr;gap:14px;padding:14px 18px}
+@media(max-width:900px){main{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow:auto}
+table{width:100%;border-collapse:collapse}th,td{padding:6px 8px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mut);font-weight:600;font-size:12px}
+#jobs tbody tr{cursor:pointer}#jobs tbody tr:hover,#jobs tbody tr.sel{background:rgba(168,50,45,.09)}
+.b{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;border:1px solid var(--line)}
+.ok{color:var(--ok);border-color:var(--ok)}.bad{color:var(--acc);border-color:var(--acc)}.warn{color:var(--warn);border-color:var(--warn)}
+.mut{color:var(--mut)}.err{color:var(--acc);font-size:12px}
+pre{margin:0;white-space:pre-wrap;word-break:break-word;font:12px/1.4 ui-monospace,Consolas,monospace}
+#log{background:#1a1612;color:#e8dfcc;padding:10px;border-radius:8px;max-height:260px;overflow:auto;min-height:60px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.hide{display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">shorts-agent</h1>
+  <span id="wk" class="b">idle</span>
+  <input id="topic" placeholder="Topic, e.g. The Great Stink of London in 1858" size="42">
+  <button class="pri" id="add">Queue topic</button>
+  <button id="suggest">Suggest + queue 3</button>
+  <button id="runb">Run next</button>
+  <button id="daily">Run daily</button>
+  <button id="upl">Upload ready</button>
+  <span class="tabs" style="margin-left:auto">
+    <button data-t="jobs" class="on">Jobs</button><button data-t="brand">Brand</button><button data-t="usage">LLM usage</button>
+  </span>
+</header>
+
+<main id="p-jobs">
+  <section class="card"><table id="jobs"><thead><tr><th>#</th><th>status</th><th>facts</th><th>qa</th><th>topic</th></tr></thead><tbody></tbody></table></section>
+  <section class="card" id="detail"><span class="mut">Select a job on the left.</span></section>
+  <section class="card" style="grid-column:1/-1"><h3 style="margin-top:0">Worker log</h3><pre id="log"></pre></section>
+</main>
+
+<main id="p-brand" class="hide" style="grid-template-columns:1fr">
+  <section class="card">
+    <h3 style="margin-top:0">brand.json (character preset, host appearance, voice, audience note)</h3>
+    <textarea id="brandtxt" rows="30" style="width:100%;font-family:ui-monospace,Consolas,monospace;font-size:12px"></textarea>
+    <div class="row" style="margin-top:8px"><button class="pri" id="bsave">Save</button><span id="bmsg" class="mut"></span></div>
+  </section>
+</main>
+
+<main id="p-usage" class="hide" style="grid-template-columns:1fr">
+  <section class="card">
+    <h3 style="margin-top:0" id="uday">LLM usage today</h3>
+    <table id="usage"><thead><tr><th>model</th><th>ok / daily limit</th><th>failed</th><th>tokens in</th><th>tokens out</th></tr></thead><tbody></tbody></table>
+  </section>
+</main>
+
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const FLOW=['queued','scripted','verified','timed','storyboarded','rendered','finalized','ready'];
+const cls=s=>['ready','uploaded'].includes(s)?'ok':['dropped','rejected'].includes(s)?'bad':'warn';
+const vcls=v=>v==='SUPPORTED'?'ok':v==='CONTRADICTED'?'bad':'warn';
+let cur=0,curUpd=0,logOff=0,wkStart=null;
+
+async function api(path,json,method){
+  const o=json===undefined?{}:{method:method||'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(json)};
+  const r=await fetch(path,o);
+  if(!r.ok){let m=r.statusText;try{m=(await r.json()).detail||m}catch{}throw new Error(m)}
+  return r.json();
+}
+
+async function loadJobs(){
+  const jobs=await api('/api/jobs');
+  $('#jobs tbody').innerHTML=jobs.map(j=>`<tr data-id="${j.id}" class="${j.id===cur?'sel':''}"><td>${j.id}</td><td><span class="b ${cls(j.status)}">${esc(j.status)}</span></td><td>${esc(j.fact_status||'-')}</td><td>${esc(j.qa_status||'-')}</td><td>${esc(j.topic)}${j.error?`<div class="err">${esc(String(j.error).slice(0,90))}</div>`:''}</td></tr>`).join('');
+  const s=jobs.find(j=>j.id===cur);
+  if(s&&s.updated!==curUpd)loadDetail();
+}
+$('#jobs tbody').onclick=e=>{const tr=e.target.closest('tr');if(tr){cur=+tr.dataset.id;curUpd=0;loadJobs()}};
+
+async function loadDetail(){
+  if(!cur)return;
+  const d=await api('/api/jobs/'+cur),j=d.job;curUpd=j.updated;
+  let h=`<h2>${esc(d.script?d.script.title:j.topic)}</h2><div class="mut">job ${j.id} · ${esc(j.style)} · <span class="b ${cls(j.status)}">${esc(j.status)}</span> · facts: ${esc(d.fact_status||j.fact_status||'-')} · qa: ${esc(j.qa_status||'-')}`;
+  if(j.youtube_id)h+=` · <a href="https://www.youtube.com/watch?v=${esc(j.youtube_id)}" target="_blank">YouTube</a> (${esc(j.note||'')})`;
+  h+='</div>';
+  if(j.error)h+=`<div class="err" style="margin-top:6px">${esc(j.error)}</div>`;
+  h+=`<div class="row" style="margin:10px 0"><button data-a="run">Run this job</button><button data-a="reject">Reject</button><button data-a="retry">Clear error</button><select id="rs">${FLOW.map(s=>`<option>${s}</option>`).join('')}</select><button data-a="reset">Reset to stage</button></div>`;
+  if(d.has_video)h+=`<video controls preload="metadata" src="/api/jobs/${j.id}/video?v=${j.updated}" style="max-height:520px;max-width:100%;border-radius:8px"></video>`;
+  if(d.script){
+    h+='<h3>Script</h3><ol>'+d.script.lines.map(l=>`<li>${esc(l.text)}</li>`).join('')+'</ol>';
+    h+='<h3>Sources</h3><ul>'+d.script.sources.map(s=>`<li>${esc(s)}</li>`).join('')+'</ul>';
+  }
+  if(d.claims.length){
+    h+='<h3>Fact-check (last round)</h3><table><tbody>'+d.claims.map(c=>`<tr><td><span class="b ${vcls(c.verdict)}">${esc(c.verdict)}</span></td><td>${esc(c.narration_quote||c.claim)}<div class="mut">${esc(c.reason)}${c.source_url?` · <a href="${esc(c.source_url)}" target="_blank">source</a>`:''}</div></td></tr>`).join('')+'</tbody></table>';
+  }
+  if(d.qa){
+    h+=`<h3>QA: ${esc(d.qa.status)}</h3><div class="mut">${d.qa.meta?esc(d.qa.meta.duration.toFixed(1))+' s':''}</div>`;
+    if(d.qa.issues.length)h+='<ul>'+d.qa.issues.map(i=>`<li>[${esc(i.level)}] ${esc(i.msg)}</li>`).join('')+'</ul>';
+  }
+  if(d.events.length){
+    h+='<h3>Stages</h3><ul>'+d.events.map(e=>`<li>${esc(e.stage_name)}: ${Math.round(e.ended-e.started)} s · ${e.ok?'ok':'<span class="err">FAILED '+esc(e.error||'')+'</span>'}</li>`).join('')+'</ul>';
+  }
+  $('#detail').innerHTML=h;
+}
+$('#detail').onclick=async e=>{
+  const a=e.target.dataset.a;if(!a)return;
+  try{
+    if(a==='run')await start('run',cur);
+    else await api('/api/jobs/'+cur+'/action',{action:a,status:$('#rs')?$('#rs').value:null});
+    curUpd=0;loadJobs();
+  }catch(x){alert(x.message)}
+};
+
+async function start(cmd,job){
+  try{await api('/api/worker/start',{cmd,job:job||null});logOff=0;pollWorker()}catch(e){alert(e.message)}
+}
+$('#runb').onclick=()=>start('run');
+$('#daily').onclick=()=>start('daily');
+$('#upl').onclick=()=>start('upload');
+$('#add').onclick=async()=>{
+  const t=$('#topic').value.trim();if(!t)return;
+  try{await api('/api/jobs',{topic:t,style:'history'});$('#topic').value='';loadJobs()}catch(e){alert(e.message)}
+};
+$('#suggest').onclick=async e=>{
+  const b=e.target;b.disabled=true;b.textContent='Thinking...';
+  try{const r=await api('/api/topics/suggest',{n:3,queue:true});const n=r.ideas.map(i=>i.topic);alert(n.length?'Queued:\n'+n.join('\n'):'No valid topic found');loadJobs()}
+  catch(x){alert(x.message)}
+  b.disabled=false;b.textContent='Suggest + queue 3';
+};
+
+async function pollWorker(){
+  try{
+    const w=await api('/api/worker'),el=$('#wk');
+    el.textContent=w.running?('running: '+w.cmd):(w.returncode==null?'idle':'last run exit '+w.returncode);
+    el.className='b '+(w.running?'warn':(w.returncode?'bad':'ok'));
+    ['runb','daily','upl'].forEach(i=>$('#'+i).disabled=w.running);
+    if(w.started!==wkStart){wkStart=w.started;logOff=0;$('#log').textContent=''}
+    const l=await api('/api/worker/log?offset='+logOff);
+    if(l.text){const pre=$('#log'),end=pre.scrollTop+pre.clientHeight>=pre.scrollHeight-20;pre.textContent+=l.text;if(end)pre.scrollTop=pre.scrollHeight}
+    logOff=l.offset;
+  }catch(e){}
+}
+
+async function loadBrand(){const r=await api('/api/brand');$('#brandtxt').value=r.text;$('#bmsg').textContent=''}
+$('#bsave').onclick=async()=>{
+  try{await api('/api/brand',{text:$('#brandtxt').value},'PUT');$('#bmsg').textContent='Saved. New videos use it. For an existing video, reset it to "storyboarded" to re-render with the new look.'}
+  catch(e){$('#bmsg').textContent='Error: '+e.message}
+};
+async function loadUsage(){
+  const u=await api('/api/usage');
+  $('#uday').textContent='LLM usage today (quota day, Pacific): '+u.day;
+  $('#usage tbody').innerHTML=u.models.map(m=>`<tr><td>${esc(m.model)}</td><td>${m.ok} / ${m.limit}</td><td>${m.failed}</td><td>${m.in}</td><td>${m.out}</td></tr>`).join('')||'<tr><td colspan="5" class="mut">no calls today</td></tr>';
+}
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  ['jobs','brand','usage'].forEach(t=>$('#p-'+t).classList.toggle('hide',t!==b.dataset.t));
+  if(b.dataset.t==='brand')loadBrand();if(b.dataset.t==='usage')loadUsage();
+});
+
+api('/api/brand').then(r=>{try{$('#title').textContent=JSON.parse(r.text).channel.name+' · dashboard'}catch{}});
+loadJobs();pollWorker();
+setInterval(loadJobs,3000);setInterval(pollWorker,1500);
+setInterval(()=>{if(!$('#p-usage').classList.contains('hide'))loadUsage()},15000);
+</script>
+</body>
+</html>

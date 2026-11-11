@@ -1,9 +1,6 @@
 
 {
-  "channel": {
-    "name": "TBD",
-    "tagline": ""
-  },
+  "channel": { "name": "The Past Paper", "tagline": "Strange but true history in 40 seconds" },
   "character": {
     "name": "History Student",
     "preset": "a",

@@ -67,7 +67,7 @@ STYLES = {
 }
 
 
-def hero_rules(appear: str) -> str:
+def _hero_rules_raw(appear: str) -> str:
     scenes = """
 SCENERY LIBRARY (always use it): `import * as S from './core/props.js';`
 - Every shot after the intro is a FULLY ANIMATED SCENE of what happens in the story, never a talking head. Build each scene with
@@ -89,18 +89,22 @@ SCENERY LIBRARY (always use it): `import * as S from './core/props.js';`
   travel with lt; smoke rises; flames flicker; trees sway).
 - Gold date ribbon (K.ribbon) opens each new era; K.slip carries names and numbers. Never draw gore or violence."""
     if appear == "none":
-        return "\n\nNO HOST CHARACTER: do not import hero.js and never draw a host." + scenes
-    where = {"first": "ONLY in the first shot (S01)", "first_last": "ONLY in the first shot (S01) and in the last shot"}[appear]
+        return "\n\nNO HOST CHARACTER: never draw a person as a host and never import hero.js." + scenes
+    last = (" The host is also added automatically to the LAST shot (bottom right): keep x > 600, y > 800 of the last shot free of "
+            "important objects." if appear == "first_last" else "")
     return f"""
 
-CHANNEL HOST: `import * as H from './core/hero.js';`
-- A human host appears {where}, never in any other shot, and he is not part of the story. H.hero({{ x, y, s, dir, mood, talk, eye, blink,
-  arm, armL, walk, hop, t }}): y = his feet; at s=1 he is 640 px tall; mood 'happy'|'wow'|'worried'|'smug'|'thinking';
-  arm/armL 'down'|'wave'|'point'|'hip'|'think'|'up'; talk 0..1 opens the mouth (use Math.abs(Math.sin(lt * 9)) while he speaks);
-  eye -1..1 looks left/right; hop 0..1 jumps; walk = phase for the leg swing; t = film time.
-- First shot (the hook line): a backdrop of the topic (S.stage + 2-3 era-correct props that hint at it) with the host in front of it: feet y
-  1380-1450, s 1.1-1.3, x 300-780. He greets the viewer (arm 'wave' with talk), then points ('point') at something in the backdrop. Keep him
-  on screen the whole first shot.""" + scenes
+CHANNEL HOST (added automatically by the engine, NEVER draw him yourself): a human host is drawn on top of the FIRST shot (S01),
+standing on the right side, and then he is gone.{last}
+- Shot S01 is the intro backdrop of the topic: S.stage plus 3-4 era-correct props that hint at the story (buildings, trees, a cart,
+  barrels), packed into the LEFT 60% of the frame (x < 650). Keep the right 40% (x > 650, y > 700) free for the host: only sky and ground there.
+  Do not draw any person in S01.
+- Never import hero.js, host.js or call H.hero.""" + scenes
+
+def hero_rules(appear: str) -> str:
+    """The scenery library is imported as SC so it can never be shadowed by the shots array `S`."""
+    return _hero_rules_raw(appear).replace("S.", "SC.").replace("as S from", "as SC from")
+
 _PA = STYLES["paper-atlas"]
 STYLES["history"] = replace(_PA, key="history", engine="paper-atlas", use_brand=True, hero=True)
 _active: str | None = None
