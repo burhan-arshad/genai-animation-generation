@@ -59,6 +59,18 @@ def advance(job: dict) -> str:
         store.set_job(job["id"], qa_status=qa["status"])
         if qa["status"] == "failed":
             raise Drop("QA failed: " + "; ".join(i["msg"] for i in qa["issues"] if i["level"] == "FAIL"))
+        from .storyboard_agent import story_year
+        from .visionqa import vision_check
+        try:
+            vq = vision_check(project, story_year(project))
+        except Exception as e:                       # the vision check must never block a video by itself failing
+            vq = {"status": "error", "reason": str(e)[:200]}
+        store.set_job(job["id"], vision_status=vq["status"])
+        print(f"[vision] {vq['status']} score={vq.get('score')} {str(vq.get('summary', vq.get('reason', '')))[:160]}")
+        for i in vq.get("issues", []):
+            print(f"   frame {i['frame']} [{i['severity']}] {i['problem']}")
+        if vq["status"] == "blockers" and os.getenv("VISION_QA") == "gate":
+            raise Drop("vision QA found blockers: " + "; ".join(i["problem"] for i in vq["issues"] if i["severity"].lower() == "blocker"))
         return "ready"
     raise ValueError(f"unknown status {s}")
 

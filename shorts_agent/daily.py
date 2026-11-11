@@ -1,11 +1,12 @@
-"""Daily automation entry point: keep the queue stocked, make a video that passes every gate, upload it."""
+"""Daily automation entry point: keep the queue stocked, make a video that passes every gate, upload it, e-mail a summary."""
 from __future__ import annotations
 
 import os
 import sys
 import time
+import traceback
 
-from . import store, topics, uploader
+from . import notify, store, topics, uploader
 from .config import REPO
 from .pipeline import run as run_jobs
 
@@ -25,11 +26,19 @@ def count(where: str) -> int:
     return store.db().execute(f"SELECT COUNT(*) FROM jobs WHERE {where}").fetchone()[0]
 
 
+def dropped_today():
+    return store.db().execute("SELECT id, topic, error FROM jobs WHERE status='dropped' "
+                              "AND date(updated,'unixepoch','localtime')=date('now','localtime')").fetchall()
+
+
 def main() -> int:
     print(time.strftime("=== daily run %Y-%m-%d %H:%M:%S ==="))
     if not acquire():
         print("another run is active (lock younger than 4 h). Exiting.")
         return 0
+    notes: list[str] = []
+    urls: list[str] = []
+    code = 0
     try:
         need = TARGET - count("status='uploaded' AND date(updated,'unixepoch','localtime')=date('now','localtime')")
         if need <= 0:
@@ -41,19 +50,30 @@ def main() -> int:
             if count(f"status NOT IN {OPEN}") == 0:
                 topics.enqueue(3)
             if run_jobs(1) == "budget":
-                print("LLM budget reached: will resume on the next run.")
+                notes.append("LLM budget reached: the run will continue tomorrow.")
                 break
         try:
-            uploader.upload_ready(need)
+            urls = uploader.upload_ready(need)
         except uploader.AuthError as e:
-            print("[AUTH]", e)
-            return 2
+            notes.append(f"YOUTUBE LOGIN PROBLEM: {e}")
+            code = 2
         except uploader.UploadError as e:
-            print("[UPLOAD]", e)
-            return 3
-        return 0
+            notes.append(f"UPLOAD FAILED: {e}")
+            code = 3
+    except Exception:
+        notes.append("CRASH:\n" + traceback.format_exc())
+        code = 1
     finally:
         LOCK.unlink(missing_ok=True)
+    notes += [f"Uploaded: {u}" for u in urls]
+    for r in dropped_today():
+        notes.append(f"Dropped job {r['id']} ({r['topic']}): {str(r['error'])[:200]}")
+    if not urls and code == 0:
+        notes.append("No video was uploaded today.")
+    subject = "[shorts-agent] OK: " + ", ".join(urls) if urls else f"[shorts-agent] ATTENTION (exit {code})"
+    print("\n".join(notes))
+    notify.send(subject, "\n".join(notes) or "done")
+    return code
 
 
 if __name__ == "__main__":

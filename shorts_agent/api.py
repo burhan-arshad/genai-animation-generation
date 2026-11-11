@@ -72,7 +72,7 @@ def job_detail(job_id: int):
         e["stage_name"] = STAGE_NAME.get(e["stage"], e["stage"])
     return {"job": job, "script": _read_json(p / "script.json"), "fact_status": fc.get("status"),
             "claims": [{k: v for k, v in c.items() if k != "evidence"} for c in claims],
-            "qa": _read_json(p / "qa.json"), "events": events,
+            "qa": _read_json(p / "qa.json"), "vision": _read_json(p / "vision.json"), "events": events,
             "has_video": (p / "renders" / "final_norm.mp4").exists()}
 
 

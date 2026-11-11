@@ -109,6 +109,10 @@ async function loadDetail(){
     h+=`<h3>QA: ${esc(d.qa.status)}</h3><div class="mut">${d.qa.meta?esc(d.qa.meta.duration.toFixed(1))+' s':''}</div>`;
     if(d.qa.issues.length)h+='<ul>'+d.qa.issues.map(i=>`<li>[${esc(i.level)}] ${esc(i.msg)}</li>`).join('')+'</ul>';
   }
+    if(d.vision){
+    h+=`<h3>Vision QA: ${esc(d.vision.status)} · score ${esc(d.vision.score)}</h3><div class="mut">${esc(d.vision.summary)}</div>`;
+    if(d.vision.issues.length)h+='<ul>'+d.vision.issues.map(i=>`<li>frame ${esc(i.frame)} [${esc(i.severity)}] ${esc(i.problem)}</li>`).join('')+'</ul>';
+  }
   if(d.events.length){
     h+='<h3>Stages</h3><ul>'+d.events.map(e=>`<li>${esc(e.stage_name)}: ${Math.round(e.ended-e.started)} s · ${e.ok?'ok':'<span class="err">FAILED '+esc(e.error||'')+'</span>'}</li>`).join('')+'</ul>';
   }

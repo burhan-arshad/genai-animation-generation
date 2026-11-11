@@ -17,6 +17,8 @@ BANNED = ["fetch(", "XMLHttpRequest", "eval(", "new Function", "import(", "requi
 RETURN_RE = re.compile(r"return\s*\{\s*shots\s*:\s*(\w+)\s*,\s*cues\s*:\s*(\w+)\s*\}")
 EXPORT_RE = re.compile(r"export\s+(?:function|const)\s+buildShots")
 PROPS_RE = re.compile(r"import\s*\*\s*as\s+(\w+)\s+from\s+['\"]\./core/props\.js['\"]")
+YEAR_RE = re.compile(r"\b(1[5-9]\d\d)\b")
+ERA = {"train": 1825, "factory": 1780, "lamp": 1807}   # earliest year a prop may appear in a story
 
 COMMON = """You are the shot-list author for a 2D short-video engine. You write exactly ONE file: src/shots.js.
 Output ONLY one ```js code block with the complete file. No explanation.
@@ -46,6 +48,20 @@ def read(p: Path) -> str:
     return p.read_text(encoding="utf-8")
 
 
+def story_year(project: Path) -> int | None:
+    """The year the story happens in, taken from the topic or the title (None if neither contains one)."""
+    texts = []
+    r = project / "research.json"
+    if r.exists():
+        texts.append(json.loads(read(r)).get("topic", ""))
+    texts.append(json.loads(read(project / "script.json")).get("title", ""))
+    for t in texts:
+        m = YEAR_RE.search(t)
+        if m:
+            return int(m.group(1))
+    return None
+
+
 def sync_overlay(project: Path, st: styles.Style) -> None:
     """Re-copy our overlay files (hero, props, host...) into the project and regenerate brand.js, so edits apply to old projects too."""
     ov = REPO / "overlay" / st.key
@@ -55,12 +71,13 @@ def sync_overlay(project: Path, st: styles.Style) -> None:
         brand.write_js(project)
 
 
-def build_context(project: Path) -> str:
+def build_context(project: Path, year: int | None = None) -> str:
     st = styles.active()
     sdir = SKILL_DIR / "styles" / (st.engine or st.key)
     script = json.loads(read(project / "script.json"))
     lines = "\n".join(f'{i}: "{l["text"]}"' for i, l in enumerate(script["lines"]))
     extra = f"=== src/core/props.js (scenery library, imported as SC) ===\n{read(project / 'src/core/props.js')}\n\n" if st.hero else ""
+    yr = f"STORY YEAR: {year} (every prop, building and costume must belong to this time)\n" if year else ""
     return (
         f"=== STYLE.md ===\n{read(sdir / 'STYLE.md')}\n\n"
         f"=== src/core/lib.js ===\n{read(project / 'src/core/lib.js')}\n\n"
@@ -68,7 +85,7 @@ def build_context(project: Path) -> str:
         f"=== src/core/kit.js ===\n{read(project / 'src/core/kit.js')}\n\n"
         f"{extra}"
         f"=== EXAMPLE src/shots.js (different topic; follow its structure, not its look) ===\n{read(sdir / 'example/src/shots.js')}\n\n"
-        f"=== THIS VIDEO: title '{script['title']}', lines (index: spoken text) ===\n{lines}{TAIL}")
+        f"=== THIS VIDEO: title '{script['title']}' ===\n{yr}lines (index: spoken text):\n{lines}{TAIL}")
 
 
 def extract_js(raw: str) -> str:
@@ -84,7 +101,7 @@ def inject_host(code: str) -> str:
         r"return { shots: HOST.withHost(\1), cues: \2 }", code, count=1)
 
 
-def static_check(code: str, st: styles.Style, nlines: int) -> list[str]:
+def static_check(code: str, st: styles.Style, nlines: int, year: int | None = None) -> list[str]:
     if len(code.strip()) < 400:
         return ["Your reply did not contain the complete file. Return the whole src/shots.js in ONE ```js code block, nothing else."]
     problems = [f"Forbidden token in code: {b!r}" for b in BANNED if b in code]
@@ -107,6 +124,10 @@ def static_check(code: str, st: styles.Style, nlines: int) -> list[str]:
             if calls < 2 * nlines:
                 problems.append(f"Scenes are too sparse ({calls} scenery calls for {nlines} lines): use SC.stage in every scene and "
                                 "add houses, trees, crowds, vehicles, fire, smoke or weather so each shot shows the event.")
+            if year:
+                for prop, first in ERA.items():
+                    if year < first and re.search(rf"\b{alias}\.{prop}\(", code):
+                        problems.append(f"Era error: the story happens in {year} but {alias}.{prop} did not exist before {first}. Remove it.")
     return problems
 
 
@@ -120,8 +141,9 @@ def build_shots(project: Path, max_tries: int = 5) -> None:
     st = styles.active()
     sync_overlay(project, st)
     nlines = len(json.loads(read(project / "script.json"))["lines"])
+    year = story_year(project)
     system = COMMON + f"\n\nSTYLE-SPECIFIC RULES ({st.key}):\n" + st.board_rules
-    base = build_context(project)
+    base = build_context(project, year)
     target = project / "src" / "shots.js"
     logs = project / "logs"
     logs.mkdir(exist_ok=True)
@@ -132,7 +154,7 @@ def build_shots(project: Path, max_tries: int = 5) -> None:
         code = extract_js(raw)
         via = f"via {llm.LAST.get('model', '?')}, finish={llm.LAST.get('finish', '?')}"
         (logs / f"shots_attempt{attempt}.js").write_text(code, encoding="utf-8")
-        problems = static_check(code, st, nlines)
+        problems = static_check(code, st, nlines, year)
         if not problems:
             target.write_text(inject_host(code) if st.hero else code, encoding="utf-8")
             ok, out = run_check(project)

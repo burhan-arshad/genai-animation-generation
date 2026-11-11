@@ -9,7 +9,7 @@ from pathlib import Path
 DB = Path(__file__).resolve().parent.parent / "jobs.db"
 EXTRA_COLUMNS = {"style": "TEXT DEFAULT 'history'", "fact_status": "TEXT", "qa_status": "TEXT",
                  "approved": "INTEGER DEFAULT 0", "note": "TEXT", "youtube_id": "TEXT",
-                 "tries": "INTEGER DEFAULT 0"}
+                 "tries": "INTEGER DEFAULT 0", "vision_status": "TEXT"}
 
 
 def db() -> sqlite3.Connection:

@@ -164,11 +164,12 @@ def _call(prompt: str, cfg, task: str):
 
 
 def generate_structured(prompt: str, schema, system: str | None = None,
-                        temperature: float = 0.8, task: str = "script"):
+                        temperature: float = 0.8, task: str = "script", images: list[bytes] | None = None):
     cfg = types.GenerateContentConfig(
         system_instruction=system, response_mime_type="application/json",
         response_schema=schema, temperature=temperature)
-    return schema.model_validate_json(_call(prompt, cfg, task).text)
+    contents = prompt if not images else [types.Part.from_bytes(data=b, mime_type="image/jpeg") for b in images] + [prompt]
+    return schema.model_validate_json(_call(contents, cfg, task).text)
 
 
 def generate_text(prompt: str, system: str | None = None, temperature: float = 0.6,

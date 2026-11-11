@@ -44,9 +44,8 @@ def test_inject_host_wraps_returned_shots():
 
 
 def test_static_check_rejects_llm_drawn_host():
-    code = CODE + "import * as H from './core/hero.js';\nH.hero({});\n"
+    code = CODE + "import * as H from './core/hero.js';\nH.hero({});\n" + "// pad\n" * 80
     assert any("host" in p.lower() for p in static_check(code, STYLES["history"], 3))
-
 
 def test_metadata_limits(tmp_path):
     (tmp_path / "script.json").write_text(json.dumps(
