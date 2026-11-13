@@ -1,4 +1,4 @@
-# shorts-agent
+# Automated Short Generator and Uploader
 
 Python agentic pipeline that turns a topic into a finished vertical short (script → voice → word timing → storyboard → render), with a resumable SQLite job queue.
 
