@@ -37,5 +37,7 @@ def send(subject: str, body: str) -> bool:
     except Exception as e:
         print(f"[notify] failed: {type(e).__name__}: {e}")
         return False
+
+
 if __name__ == "__main__":
     print("sent" if send("[shorts-agent] test", "If you can read this, alerts work.") else "not sent")

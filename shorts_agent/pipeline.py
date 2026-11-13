@@ -15,22 +15,29 @@ from .llm import BudgetExceeded
 from .qa import run_qa
 from .runner import run_pipeline
 from .script_agent import generate
-from .storyboard_agent import build_shots
+from .storyboard_agent import build_shots, story_year, sync_overlay
 
 TERMINAL = ("ready", "uploaded", "dropped", "rejected", "awaiting_approval", "approved")
 FLOW = ["queued", "scripted", "verified", "timed", "storyboarded", "rendered", "finalized", "ready"]
 STAGE_NAME = {"queued": "research+script", "scripted": "fact-check", "verified": "voice+timing",
               "timed": "storyboard", "storyboarded": "render", "rendered": "loudness", "finalized": "qa"}
 MAX_TRIES = 3
+OVERLOAD_CODES = (500, 502, 503, 504)
+OVERLOAD_NAMES = ("ServerError", "RemoteProtocolError", "ReadTimeout", "ConnectError", "ConnectTimeout")
 
 
 class Drop(RuntimeError):
     """A gate failed in a way retrying will not fix: drop the video."""
 
 
+def is_overload(e: BaseException) -> bool:
+    """A provider that is overloaded is not the video's fault: do not count it as a failed try."""
+    return getattr(e, "code", None) in OVERLOAD_CODES or type(e).__name__ in OVERLOAD_NAMES
+
+
 def advance(job: dict) -> str:
     """Run exactly one stage; return the new status."""
-    styles.set_active(job["style"] or "history")
+    styles.set_active(job["style"] or styles.default_key())
     project = ROOT / job["slug"]
     s = job["status"]
     if s == "queued":
@@ -46,7 +53,6 @@ def advance(job: dict) -> str:
         build_shots(project)
         return "storyboarded"
     if s == "storyboarded":
-        from .storyboard_agent import sync_overlay
         sync_overlay(project, styles.active())      # pick up brand.json / overlay edits before rendering
         run_pipeline(project, "final", only=["check", "cues", "mix", "video"])
         return "rendered"
@@ -59,23 +65,25 @@ def advance(job: dict) -> str:
         store.set_job(job["id"], qa_status=qa["status"])
         if qa["status"] == "failed":
             raise Drop("QA failed: " + "; ".join(i["msg"] for i in qa["issues"] if i["level"] == "FAIL"))
-        from .storyboard_agent import story_year
-        from .visionqa import vision_check
-        try:
-            vq = vision_check(project, story_year(project))
-        except Exception as e:                       # the vision check must never block a video by itself failing
-            vq = {"status": "error", "reason": str(e)[:200]}
-        store.set_job(job["id"], vision_status=vq["status"])
-        print(f"[vision] {vq['status']} score={vq.get('score')} {str(vq.get('summary', vq.get('reason', '')))[:160]}")
-        for i in vq.get("issues", []):
-            print(f"   frame {i['frame']} [{i['severity']}] {i['problem']}")
-        if vq["status"] == "blockers" and os.getenv("VISION_QA") == "gate":
-            raise Drop("vision QA found blockers: " + "; ".join(i["problem"] for i in vq["issues"] if i["severity"].lower() == "blocker"))
+        if os.getenv("VISION_QA", "off") != "off":
+            from .visionqa import vision_check
+            try:
+                vq = vision_check(project, story_year(project))
+            except Exception as e:                   # the vision check must never block a video by itself failing
+                vq = {"status": "error", "reason": str(e)[:200]}
+            store.set_job(job["id"], vision_status=vq["status"])
+            print(f"[vision] {vq['status']} score={vq.get('score')} {str(vq.get('summary', vq.get('reason', '')))[:160]}")
+            for i in vq.get("issues", []):
+                print(f"   frame {i['frame']} [{i['severity']}] {i['problem']}")
+            if vq["status"] == "blockers" and os.getenv("VISION_QA") == "gate":
+                raise Drop("vision QA found blockers: "
+                           + "; ".join(i["problem"] for i in vq["issues"] if i["severity"].lower() == "blocker"))
         return "ready"
     raise ValueError(f"unknown status {s}")
 
 
-def run(limit: int, job_id: int | None = None) -> None:
+def run(limit: int, job_id: int | None = None) -> str | None:
+    """Advance jobs until they are ready or dropped. Returns 'budget' if the LLM budget stopped the run."""
     con = store.db()
     marks = ",".join("?" * len(TERMINAL))
     if job_id:
@@ -83,11 +91,9 @@ def run(limit: int, job_id: int | None = None) -> None:
     else:  # fresh jobs first, previously failed ones after
         rows = con.execute(f"SELECT * FROM jobs WHERE status NOT IN ({marks}) "
                            "ORDER BY (error IS NOT NULL), id LIMIT ?", (*TERMINAL, limit)).fetchall()
-
     if not rows:
         print("no job to run (see `pipeline list`)")
-        return
-    
+        return None
     for r in rows:
         job = dict(r)
         while job["status"] not in TERMINAL:
@@ -105,13 +111,13 @@ def run(limit: int, job_id: int | None = None) -> None:
                 print(f"[job {job['id']}] DROPPED at '{name}': {str(e)[:300]}")
                 break
             except (Exception, SystemExit) as e:
-                if getattr(e, "code", None) in (500, 502, 503, 504) or type(e).__name__ in ("ServerError", "RemoteProtocolError"):
-                    store.log_event(job["id"], stage, t0, False, "Google overloaded: " + str(e))
-                    print(f"[job {job['id']}] Google is overloaded at '{name}' (not counted as a failure); run again later")
-                    break
+                store.log_event(job["id"], stage, t0, False, str(e))
+                if is_overload(e):
+                    store.set_job(job["id"], error=str(e)[:500])
+                    print(f"[job {job['id']}] the model provider is overloaded at '{name}' (not counted as a failure); run again later")
+                    return "overload"
                 tries = (job.get("tries") or 0) + 1
                 job["tries"] = tries
-                store.log_event(job["id"], stage, t0, False, str(e))
                 if tries >= MAX_TRIES:
                     store.set_job(job["id"], status="dropped", error=str(e)[:2000], tries=tries)
                     job["status"] = "dropped"
@@ -131,15 +137,17 @@ def run(limit: int, job_id: int | None = None) -> None:
             print(f"[job {job['id']}] {name} done in {time.time() - t0:.0f}s -> {new}")
         if job["status"] == "ready":
             print(f"[job {job['id']}] READY: {ROOT / job['slug'] / 'renders' / 'final_norm.mp4'}")
+    return None
 
 
 def list_jobs() -> None:
     n = store.db().execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
-    print(f"db: {store.DB} ({n} jobs)")
-    print(f"{'id':>3} {'status':<13} {'facts':<20} {'qa':<21} {'try':>3}  topic")
+    print(f"db: {store.DB} ({n} jobs) | active niche: {styles.default_key()}")
+    print(f"{'id':>3} {'status':<13} {'niche':<11} {'facts':<20} {'qa':<21} {'try':>3}  topic")
     for r in store.db().execute("SELECT * FROM jobs ORDER BY id"):
-        print(f"{r['id']:>3} {r['status']:<13} {(r['fact_status'] or '-'):<20} {(r['qa_status'] or '-'):<21} "
-              f"{(r['tries'] or 0):>3}  {r['topic']}" + (f"  !! {r['error'][:60]}" if r["error"] else ""))
+        print(f"{r['id']:>3} {r['status']:<13} {(r['style'] or '-'):<11} {(r['fact_status'] or '-'):<20} "
+              f"{(r['qa_status'] or '-'):<21} {(r['tries'] or 0):>3}  {r['topic']}"
+              + (f"  !! {r['error'][:60]}" if r["error"] else ""))
 
 
 def events(job_id: int) -> None:
@@ -153,7 +161,7 @@ if __name__ == "__main__":
     sub = ap.add_subparsers(dest="cmd", required=True)
     a = sub.add_parser("add")
     a.add_argument("topics", nargs="+")
-    a.add_argument("--style", default=os.getenv("STYLE", "history"))
+    a.add_argument("--niche", "--style", dest="style", default=None, help="niche pack name (default: NICHE from .env)")
     r = sub.add_parser("run")
     r.add_argument("--limit", type=int, default=1)
     r.add_argument("--job", type=int)
@@ -168,9 +176,10 @@ if __name__ == "__main__":
     z.add_argument("status", choices=FLOW)
     args = ap.parse_args()
     if args.cmd == "add":
-        styles.set_active(args.style)
+        key = args.style or styles.default_key()
+        styles.set_active(key)
         for t in args.topics:
-            print(f"queued job {store.add_job(t, args.style)} [{args.style}]: {t}")
+            print(f"queued job {store.add_job(t, key)} [{key}]: {t}")
     elif args.cmd == "run":
         run(args.limit, args.job)
     elif args.cmd == "list":

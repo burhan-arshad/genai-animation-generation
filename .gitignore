@@ -1,13 +1,14 @@
-@"
-.venv/
+# secrets and local state: never commit these
 .env
-__pycache__/
-*.pyc
-jobs.db
-logs/
-"@ | Set-Content .gitignore*.db
 client_secret.json
 token.json
 *.db
-
 daily.lock
+logs/
+# python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# generated
+brand/assets/*.wav

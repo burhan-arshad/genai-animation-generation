@@ -1,0 +1,61 @@
+{
+ "duration": 49.624,
+ "voice": "bm_fable",
+ "speed": 1.0,
+ "lines": [
+  {
+   "i": 0,
+   "text": "In eighteen fifty-eight, a suffocating smell rose across central London.",
+   "start": 0.4,
+   "end": 4.959
+  },
+  {
+   "i": 1,
+   "text": "Hot summer weather exacerbated the stench of untreated human waste along the River Thames.",
+   "start": 5.259,
+   "end": 10.788
+  },
+  {
+   "i": 2,
+   "text": "For years, an inadequate sewer system had emptied directly into the waterway.",
+   "start": 11.088,
+   "end": 15.896
+  },
+  {
+   "i": 3,
+   "text": "People believed that miasma from the effluent transmitted contagious diseases.",
+   "start": 16.196,
+   "end": 21.423
+  },
+  {
+   "i": 4,
+   "text": "Three outbreaks of cholera had already been blamed on the ongoing river problems.",
+   "start": 21.723,
+   "end": 26.573
+  },
+  {
+   "i": 5,
+   "text": "The crisis finally forced parliament to accept a proposal from civil engineer Joseph Bazalgette.",
+   "start": 26.873,
+   "end": 33.151
+  },
+  {
+   "i": 6,
+   "text": "He designed a vast network of intercepting sewers to move effluent eastward.",
+   "start": 33.451,
+   "end": 38.205
+  },
+  {
+   "i": 7,
+   "text": "Massive pumping stations were built to lift the sewage into new outfall pipes.",
+   "start": 38.505,
+   "end": 43.433
+  },
+  {
+   "i": 8,
+   "text": "This monumental engineering achievement ultimately cleansed the river.",
+   "start": 43.733,
+   "end": 48.224
+  }
+ ]
+}

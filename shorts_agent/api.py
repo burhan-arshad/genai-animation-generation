@@ -12,7 +12,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
 
-from . import brand, store, styles
+from . import brand, niche, store, styles
 from .config import PROJECTS_ROOT, REPO
 from .pipeline import FLOW, STAGE_NAME
 
@@ -46,6 +46,11 @@ def _running() -> bool:
 @app.get("/", response_class=HTMLResponse)
 def index():
     return (WEB / "index.html").read_text(encoding="utf-8")
+
+
+@app.get("/api/niche")
+def active_niche():
+    return {"active": styles.default_key(), "available": niche.available()}
 
 
 # ───────────── jobs ─────────────
@@ -90,7 +95,7 @@ def video(job_id: int):
 
 class NewJob(BaseModel):
     topic: str
-    style: str = "history"
+    style: str | None = None      # ignored: new jobs always use the active niche (NICHE in .env)
 
 
 @app.post("/api/jobs")
@@ -98,11 +103,7 @@ def add_job(b: NewJob):
     topic = b.topic.strip()
     if len(topic) < 5:
         raise HTTPException(400, "topic too short")
-    try:
-        styles.set_active(b.style)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-    return {"id": store.add_job(topic, b.style)}
+    return {"id": store.add_job(topic, styles.default_key())}
 
 
 class Action(BaseModel):
@@ -139,7 +140,7 @@ def suggest(b: Suggest):
         ideas = topics.suggest(max(1, min(b.n, 6)))
     except Exception as e:
         raise HTTPException(502, str(e)[:300])
-    ids = [store.add_job(i.topic, os.getenv("STYLE", "history")) for i in ideas] if b.queue else []
+    ids = [store.add_job(i.topic, styles.default_key()) for i in ideas] if b.queue else []
     return {"ideas": [i.model_dump() for i in ideas], "queued": ids}
 
 

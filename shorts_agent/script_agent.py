@@ -9,7 +9,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from . import brand, styles
+from . import brand, niche, styles
 from .config import REPO, SKILL_DIR
 from .llm import generate_structured
 from .retrieval import wikipedia_facts
@@ -45,7 +45,7 @@ def caption_rules(st: styles.Style) -> str:
 
 
 def system_prompt() -> str:
-    """Style-aware prompt for plain script rewrites (used by the fact-check rewrite)."""
+    """Style-aware prompt for plain script rewrites (used by the fact-check auto-trim)."""
     st = styles.active()
     return f"You edit scripts for 40-second faceless Shorts in the '{st.key}' style.\n{st.write_rules}\n{caption_rules(st)}"
 
@@ -61,8 +61,14 @@ def writer_system(st: styles.Style) -> str:
             f"- `music`: one of {list(st.music_options)} ('tension' only for disasters or dark events).")
 
 
+def plan_system() -> str:
+    st = styles.active()
+    hint = niche.load(st.niche).get("research", {}).get("plan_hint", "") if st.niche else ""
+    return PLAN_SYSTEM + ("\n" + hint if hint else "")
+
+
 def gather(topic: str) -> list[dict]:
-    plan = generate_structured(f"Topic: {topic}", Plan, system=PLAN_SYSTEM, temperature=0.2, task="research")
+    plan = generate_structured(f"Topic: {topic}", Plan, system=plan_system(), temperature=0.2, task="research")
     seen, items = set(), []
     for q in plan.queries[:5]:
         for ev in wikipedia_facts(q):
@@ -104,8 +110,9 @@ def check_research(r: RScript, ev: dict[str, dict]) -> list[str]:
             if n2 and not re.search(rf"(?<!\d){re.escape(n2)}(?!\d)", blob):
                 problems.append(f"Line {i}: number {n} is not stated in cited evidence {ids}. "
                                 "Use only numbers present in the evidence, or leave the number out.")
-    if len({e for l in r.lines for e in l.evidence if e in ev}) < 2:
-        problems.append("Cite at least 2 different evidence items overall.")
+    urls = {ev[e]["url"] for l in r.lines for e in l.evidence if e in ev}
+    if len(urls) < 2:
+        problems.append("Cite evidence from at least 2 DIFFERENT pages (different titles/urls), not just 2 items of the same page.")
     return problems
 
 
@@ -135,9 +142,11 @@ def generate(topic: str, project: Path) -> None:
     r, draft = write_from_evidence(topic, items)
     if not project.exists():
         shutil.copytree(SKILL_DIR / "styles" / (st.engine or st.key) / "example", project)
-        overlay = REPO / "overlay" / st.key
-        if overlay.exists():
-            shutil.copytree(overlay, project, dirs_exist_ok=True)
+    overlay = REPO / "overlay" / (st.niche or st.key)
+    if not overlay.exists():
+        overlay = REPO / "overlay" / "history"          # every niche shares the same scenery and host code by default
+    if overlay.exists():
+        shutil.copytree(overlay, project, dirs_exist_ok=True)
     brand.write_js(project)
     music = r.music if r.music in st.music_options else st.music
     (project / "script.json").write_text(
@@ -147,11 +156,12 @@ def generate(topic: str, project: Path) -> None:
         "lines": [{"text": d.text, "evidence": l.evidence, "numbers": l.numbers}
                   for d, l in zip(draft.lines, r.lines)]}, indent=2, ensure_ascii=False), encoding="utf-8")
 
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("topic")
     ap.add_argument("--project", type=Path, required=True)
-    ap.add_argument("--style", default=None)
+    ap.add_argument("--style", "--niche", dest="style", default=None)
     a = ap.parse_args()
     if a.style:
         styles.set_active(a.style)

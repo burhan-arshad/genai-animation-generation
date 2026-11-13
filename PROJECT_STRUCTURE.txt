@@ -1,0 +1,81 @@
+
+003-the-great-stink-of-1858
+    src
+        core
+            brand.js
+            hero.js
+            host.js
+            props.js
+brand
+    assets
+        avatar.png
+        avatar_98px_preview.png
+        banner.jpg
+        banner.png
+        voice_am_adam.wav
+        voice_am_michael.wav
+        voice_bf_emma.wav
+        voice_bm_daniel.wav
+        voice_bm_fable.wav
+        voice_bm_george.wav
+        voice_bm_lewis.wav
+    brand.json
+logs
+    worker.log
+niches
+    _template.json
+    history.json
+    inventions.json
+overlay
+    history
+        src
+            core
+                hero.js
+                host.js
+                props.js
+shorts_agent
+    web
+        index.html
+    __init__.py
+    api.py
+    audition.py
+    brand.py
+    brandkit.py
+    config.py
+    daily.py
+    diag.py
+    doctor.py
+    factcheck_agent.py
+    finalize.py
+    hosttest.py
+    llm.py
+    niche.py
+    notify.py
+    pipeline.py
+    qa.py
+    retrieval.py
+    runner.py
+    schemas.py
+    script_agent.py
+    smoke.py
+    store.py
+    storyboard_agent.py
+    styles.py
+    topics.py
+    uploader.py
+    visionqa.py
+tests
+    test_core.py
+    test_llm.py
+    test_niche.py
+.env
+.env.example
+.gitignore
+client_secret.json
+jobs.db
+PROJECT_STRUCTURE.txt
+README.md
+requirements.txt
+run_daily.ps1
+token.json
+usage.db

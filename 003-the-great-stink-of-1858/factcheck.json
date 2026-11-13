@@ -1,0 +1,567 @@
+{
+  "status": "verified",
+  "history": [
+    {
+      "round": 0,
+      "claims": [
+        {
+          "id": 0,
+          "line": 0,
+          "narration_quote": "In eighteen fifty-eight, a suffocating smell brought central London to a standstill.",
+          "claim": "In 1858, a suffocating smell brought central London to a standstill.",
+          "verdict": "PARTIAL",
+          "reason": "The evidence does not state that the smell brought central London to a standstill.",
+          "quote": "The Great Stink was an event in Central London during July and August 1858 in which the hot weather exacerbated the smell of untreated human waste",
+          "source_url": "https://en.wikipedia.org/wiki/Great_Stink",
+          "evidence": [
+            {
+              "source": "Wikipedia",
+              "title": "Great Stink",
+              "url": "https://en.wikipedia.org/wiki/Great_Stink",
+              "text": "The Great Stink was an event in Central London during July and August 1858 in which the hot weather exacerbated the smell of untreated human waste and industrial effluent that was present on the banks of the River Thames. The problem had been mounting for several years, with an ageing and inadequate sewer system that emptied directly into the Thames. It was thought that the miasma from the effluent transmitted contagious diseases, and three outbreaks of cholera before the Great Stink were blamed on the ongoing problems with the river."
+            },
+            {
+              "source": "Wikipedia",
+              "title": "Great Stink",
+              "url": "https://en.wikipedia.org/wiki/Great_Stink",
+              "text": "The smell, and fears of its possible effects, prompted action by the national and local administrators who had been considering possible solutions to the problem. The authorities accepted a proposal from the civil engineer Joseph Bazalgette to move the effluent eastwards along a series of interconnecting sewers that sloped towards outfalls beyond the metropolitan area. Work on high-, mid- and low-level systems for the new Northern and Southern Outfall Sewers started at the beginning of 1859 and lasted until 1875. To aid the drainage, pumping stations were built to lift the sewage from lower levels into higher pipes. Two of the more ornate stations, Abbey Mills in Stratford and Crossness on t"
+            },
+            {
+              "source": "Wikipedia",
+              "title": "Big Stink",
+              "url": "https://en.wikipedia.org/wiki/Big_Stink",
+              "text": "The Great Stink, or the Big Stink, was a time in the summer of 1858 during which the smell of untreated human waste was very strong in central London."
+            },
+            {
+              "source": "PubMed",
+              "title": "Britain's harnessing of Thames river from the perspective of peace studies and its enlightenment-research based on the background of great stink in London.",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/37416657/",
+              "text": "In recent years, novel coronavirus has been rampant all over the world, and environmental pollution has increasingly become an unavoidable problem. The history of human development seems to be always accompanied by environmental pollution. In 1858, the appearance of the big stink in London reflected the serious pollution of Thames River in the process of industrialization. The pollution of the Thames River has aroused widespread concern of all groups in Britain, and the long road of pollution control in Britain has brought profound historical lessons. However, what future generations need to really learn from it is to get rid of the dilemma of pollution before treatment. This study takes the Thames River as an analogy, positioning human destruction of nature as the intertwined of history, and pushing the debate on environmental science, peace science, and history to a climax in order to "
+            },
+            {
+              "source": "PubMed",
+              "title": "Carbolic Acid before Joseph Lister: Rail Ties, Sewage, Manure, and the Great Stink.",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/32223794/",
+              "text": "Before Joseph Lister's landmark Lancet publications on the use of carbolic acid wound dressings in 1867, surgeons Jules Lemaire in France and Enrico Bottini in Italy had already used carbolic acid on hundreds of patients to control suppurative wounds. After Friedlieb Runge isolated it from coal tar in 1834, a number of scientists recognized the efficacy of carbolic acid in preventing decay and neutralizing the stench of dead animals and human cadavers. Frederick Calvert, Alexander McDougall, and Angus Smith in Manchester promoted a powdered form of carbolic acid as a deodorizing agent to treat municipal sewage across the United Kingdom, most notably during London's famous \"Great Stink\" of 1858. Edmond Corne in France introduced his formulation, which Alfred-Armand-Louis-Marie Velpeau, Ferdinand LeBeuf, and Lemaire adapted for clinical use in 1859. Lemaire wrote extensively on carbolic ac"
+            }
+          ]
+        },
+        {
+          "id": 1,
+          "line": 1,
+          "narration_quote": "Hot summer weather exacerbated the stench of untreated waste on the banks of the River Thames.",
+          "claim": "Hot summer weather exacerbated the stench of untreated waste on the banks of the River Thames.",
+          "verdict": "SUPPORTED",
+          "reason": "no reason given",
+          "quote": "The Great Stink was an event in Central London during July and August 1858 in which the hot weather exacerbated the smell of untreated human waste and industrial effluent that was present on the banks of the River Thames.",
+          "source_url": "https://en.wikipedia.org/wiki/Great_Stink",
+          "evidence": [
+            {
+              "source": "Wikipedia",
+              "title": "Great Stink",
+              "url": "https://en.wikipedia.org/wiki/Great_Stink",
+              "text": "The Great Stink was an event in Central London during July and August 1858 in which the hot weather exacerbated the smell of untreated human waste and industrial effluent that was present on the banks of the River Thames. The problem had been mounting for several years, with an ageing and inadequate sewer system that emptied directly into the Thames. It was thought that the miasma from the effluent transmitted contagious diseases, and three outbreaks of cholera before the Great Stink were blamed on the ongoing problems with the river."
+            },
+            {
+              "source": "Wikipedia",
+              "title": "Great Stink",
+              "url": "https://en.wikipedia.org/wiki/Great_Stink",
+              "text": "By mid-1858 the problems with the Thames had been building for several years. In his novel Little Dorrit—published as a serial between 1855 and 1857—Charles Dickens wrote that the Thames was \"a deadly sewer ... in the place of a fine, fresh river\". In a letter to a friend, Dickens said: \"I can certify that the offensive smells, even in that short whiff, have been of a most head-and-stomach-distending nature\", while the social scientist and journalist George Godwin wrote that \"in parts the deposit is more than six feet deep\" on the Thames foreshore, and that \"the whole of this is thickly impregnated with impure matter\". In June 1858 the temperatures in the shade in London averaged 34–36 °C (9"
+            },
+            {
+              "source": "Wikipedia",
+              "title": "River Thames",
+              "url": "https://en.wikipedia.org/wiki/River_Thames",
+              "text": "As early as the 1300s, the Thames was used to dispose of waste matter produced in the city of London, thus turning the river into an open sewer. In 1357, Edward III described the state of the river in a proclamation: \"... dung and other filth had accumulated in divers places upon the banks of the river with ... fumes and other abominable stenches arising therefrom.\""
+            },
+            {
+              "source": "Wikipedia",
+              "title": "River Thames",
+              "url": "https://en.wikipedia.org/wiki/River_Thames",
+              "text": "However, untreated sewage still often enters the Thames during wet weather. When London's sewerage system was built, sewers were designed to overflow through discharge points along the river during heavy storms. Originally, this would happen once or twice a year; however, overflows now happen once a week on average. In 2013, over 55m tonnes of dilute raw sewage overflowed into the tidal Thames. These discharge events kill fish, leave raw sewage on the riverbanks, and decrease the water quality of the river. A 2022 investigation by the Environment Agency found \"widespread and serious non-compliance with the relevant regulations\". Thames Water has also published an interactive map showing disc"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "line": 2,
+          "narration_quote": "For years, an inadequate sewer system had emptied directly into the waterway.",
+          "claim": "For years, an inadequate sewer system had emptied directly into the waterway.",
+          "verdict": "SUPPORTED",
+          "reason": "no reason given",
+          "quote": "The problem had been mounting for several years, with an ageing and inadequate sewer system that emptied directly into the Thames.",
+          "source_url": "https://en.wikipedia.org/wiki/Great_Stink",
+          "evidence": [
+            {
+              "source": "Wikipedia",
+              "title": "London sewer system",
+              "url": "https://en.wikipedia.org/wiki/London_sewer_system",
+              "text": "The need to handle increasing amounts of sewage, being dumped via sewer overflows directly into the Thames untreated during storms, led to studies being conducted in 2001. After some years of deliberation, the Thames Tideway Tunnel was approved in 2014. It consists of a wide diameter (7.2 m) storage-and-transfer tunnel, 25 km long, underneath the riverbed of the Thames. The tunnel runs between Acton in the west and the Lee Tunnel in the east, the latter connecting directly to Beckton Sewage Treatment Works. The cost of the megaproject was £5 billion and it was completed in February 2025."
+            },
+            {
+              "source": "Wikipedia",
+              "title": "London sewer system",
+              "url": "https://en.wikipedia.org/wiki/London_sewer_system",
+              "text": "During the early 19th century the River Thames was an open sewer, with disastrous consequences for public health in London, including cholera epidemics. These were caused by enterotoxin-producing strains of the bacterium Vibrio cholerae. Although the contamination of the water supply was correctly diagnosed by Dr John Snow in 1849 as the method of communication, up to the outbreak of 1866 it was believed that miasma, or bad air, was responsible. Proposals to modernise the sewerage system had been made in the early 1700s but the costs of such a project deterred progress. Further proposals followed in 1856, but were again neglected due to the costs. However, after the Great Stink of 1858, Parl"
+            },
+            {
+              "source": "Wikipedia",
+              "title": "River Thames",
+              "url": "https://en.wikipedia.org/wiki/River_Thames",
+              "text": "As early as the 1300s, the Thames was used to dispose of waste matter produced in the city of London, thus turning the river into an open sewer. In 1357, Edward III described the state of the river in a proclamation: \"... dung and other filth had accumulated in divers places upon the banks of the river with ... fumes and other abominable stenches arising therefrom.\""
+            },
+            {
+              "source": "Wikipedia",
+              "title": "River Thames",
+              "url": "https://en.wikipedia.org/wiki/River_Thames",
+              "text": "The lower Thames in the Roman era was a shallow waterway winding through marshes. But centuries of human intervention have transformed it into a deep tidal canal flowing between 200 miles of solid walls; these defend a floodplain where 1.5 million people work and live."
+            },
+            {
+              "source": "Wikipedia",
+              "title": "Great Stink",
+              "url": "https://en.wikipedia.org/wiki/Great_Stink",
+              "text": "The Great Stink was an event in Central London during July and August 1858 in which the hot weather exacerbated the smell of untreated human waste and industrial effluent that was present on the banks of the River Thames. The problem had been mounting for several years, with an ageing and inadequate sewer system that emptied directly into the Thames. It was thought that the miasma from the effluent transmitted contagious diseases, and three outbreaks of cholera before the Great Stink were blamed on the ongoing problems with the river."
+            },
+            {
+              "source": "Wikipedia",
+              "title": "Great Stink",
+              "url": "https://en.wikipedia.org/wiki/Great_Stink",
+              "text": "Brick sewers had been built in London from the 17th century when sections of the Fleet and Walbrook rivers were covered for that purpose. In the century preceding 1856, over a hundred sewers were constructed in London, and at that date the city had around 200,000 cesspits and 360 sewers. Some cesspits leaked methane and other gases, which often caught fire and exploded, while many of the sewers were in a poor state of repair. During the early 19th century improvements had been undertaken in the supply of water to Londoners, and by 1858 many of the city's medieval wooden water pipes were being replaced with iron ones. This, combined with the introduction of flushing toilets and the rising of "
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "line": 3,
+          "narration_quote": "Authorities feared that bad air transmitted contagious diseases like cholera.",
+          "claim": "Authorities feared that bad air transmitted contagious diseases like cholera.",
+          "verdict": "NO_EVIDENCE",
+          "reason": "downgraded: quote not found in cited evidence (no reason given)",
+          "quote": "It was thought that the miasma from the effluent transmitted contagious diseases, and three outbreaks of cholera before the Great Stink were blamed on the ongoing problems with the river.",
+          "source_url": "https://en.wikipedia.org/wiki/Great_Stink",
+          "evidence": [
+            {
+              "source": "Wikipedia",
+              "title": "Miasma theory",
+              "url": "https://en.wikipedia.org/wiki/Miasma_theory",
+              "text": "The miasma theory (also called the miasmic theory) is an abandoned medical theory that held that diseases—such as cholera, chlamydia, or plague—were caused by a miasma (μίασμα, Ancient Greek for pollution), a noxious form of \"bad air\", also known as night air. The theory held that epidemics were caused by miasma, emanating from rotting organic matter, the breath of humans and animals, and other odors. The theory explained why epidemics tend to happen in places with high population density, such as cities, as well as in swampy or hot and humid climates; and it addressed correlations between contagious diseases and lacking hygiene, lack of fresh air, and contacting the sick."
+            },
+            {
+              "source": "Wikipedia",
+              "title": "Miasma theory",
+              "url": "https://en.wikipedia.org/wiki/Miasma_theory",
+              "text": "In the 1850s, miasma was used to explain the spread of cholera in London and Paris, partly justifying Haussmann's later renovation of the French capital. The disease was said to be preventable by cleansing and scouring of the body and items. Dr. William Farr, the assistant commissioner for the 1851 London census, was an important supporter of the miasma theory. He believed that cholera was transmitted by air, and that a deadly concentration of miasmata existed near the River Thames' banks. Such a belief was in part accepted because of the general lack of air quality in urbanized areas. The wide acceptance of miasma theory during the cholera outbreaks overshadowed the partially correct theory"
+            },
+            {
+              "source": "Wikipedia",
+              "title": "1854 Broad Street cholera outbreak",
+              "url": "https://en.wikipedia.org/wiki/1854_Broad_Street_cholera_outbreak",
+              "text": "Snow was sceptical of the prevailing miasma theory, which held that diseases such as cholera or the Black Death were caused by pollution or a noxious form of \"bad air\". The germ theory was not yet established (Louis Pasteur proposed it in 1861). Snow did not understand the mechanism by which disease was transmitted, but the evidence led him to believe that it was not foul air. Based on the pattern of illness among residents, he hypothesized that cholera was spread by an agent in contaminated water. He first published his theory in 1849, in an essay titled \"On the Mode of Communication of Cholera\". In 1855 he published a second edition, including a more elaborate investigation of the effect o"
+            },
+            {
+              "source": "Wikipedia",
+              "title": "1854 Broad Street cholera outbreak",
+              "url": "https://en.wikipedia.org/wiki/1854_Broad_Street_cholera_outbreak",
+              "text": "A severe outbreak of cholera occurred in 1854 near Broad Street (now Broadwick Street) and Golden Square in Soho, London, England, during the worldwide 1846–1860 cholera pandemic. The outbreak (also known as Golden Square outbreak), which killed 420 people, is best known for the physician John Snow's study of its causes and his hypothesis that germ-contaminated water was the cause, rather than something in the air called \"miasma\". This discovery influenced public health and the construction of improved sanitation facilities beginning in the mid-19th century. Later, the term \"focus of infection\" was used to describe sites, such as the Broad Street pump, where conditions are favourable for tra"
+            },
+            {
+              "source": "PubMed",
+              "title": "Cholera.",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/27726771/",
+              "text": "Cholera is an acute disease of the gastrointestinal tract caused by Vibrio cholerae. Cholera was localized in Asia until 1817, when a first pandemic spread from India to several other regions of the world. After this appearance, six additional major pandemics occurred during the 19th and 20th centuries, the latest of which originated in Indonesia in the 1960s and is still ongoing. In 1854, a cholera outbreak in Soho, London, was investigated by the English physician John Snow (1813 to 1858). He described the time course of the outbreak, managed to understand its routes of transmission, and suggested effective measures to stop its spread, giving rise to modern infectious disease epidemiology. The germ responsible for cholera was discovered twice: first by the Italian physician Filippo Pacini during an outbreak in Florence, Italy, in 1854, and then independently by Robert Koch in India in "
+            },
+            {
+              "source": "PubMed",
+              "title": "[Four cholera epidemics in nineteenth-century London].",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/11609122/",
+              "text": "Asiatic cholera originated in India and spread to Europe in the early years of the nineteenth-century. In Britain the first cases were diagnosed late in 1831. The epidemic, reached London in February 1832. The authorities were poorly prepared for the invasion of a new epidemic and the doctors disagreed bitterly on the measures to be taken. There was little co-operation between the authorities, and the fact that the urban poor mistrusted the medical profession did not improve the situation. All this resulted in several cholera riots. These riots were not, however, as violent as those in several other cities in Europe. The 1832-33 cholera epidemic claimed 4,000 to 7,000 victims in London. It seems probable that several isolated cases of cholera occurred in London in 1852. It was not, however, until September 1853 that it was officially announced by the British authorities that a cholera ep"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "line": 4,
+          "narration_quote": "Previous outbreaks had already claimed thousands of lives across the capital.",
+          "claim": "Previous outbreaks had already claimed thousands of lives across London.",
+          "verdict": "SUPPORTED",
+          "reason": "no reason given",
+          "quote": "London had already had a \"series of debilitating cholera outbreaks\".",
+          "source_url": "https://en.wikipedia.org/wiki/1854_Broad_Street_cholera_outbreak",
+          "evidence": [
+            {
+              "source": "Wikipedia",
+              "title": "1854 Broad Street cholera outbreak",
+              "url": "https://en.wikipedia.org/wiki/1854_Broad_Street_cholera_outbreak",
+              "text": "In the mid-19th century, Soho in London had a serious problem with filth due to a large influx of people and lack of proper sanitary services: the London sewer system had not reached Soho. Cowsheds, slaughterhouses and grease-boiling dens lined the streets and contributed animal droppings, rotting fluids and other contaminants to Soho's primitive sewer system. Many cellars had cesspools beneath their floorboards, which formed from the sewers and filth seeping in from outside. With the cesspools overrunning, London's government decided to dump the waste into the River Thames, contaminating the water supply. London had already had a \"series of debilitating cholera outbreaks\". These included ou"
+            },
+            {
+              "source": "Wikipedia",
+              "title": "1854 Broad Street cholera outbreak",
+              "url": "https://en.wikipedia.org/wiki/1854_Broad_Street_cholera_outbreak",
+              "text": "At the same time, an investigation of cholera transmission was being conducted in Deptford. Around 90 people died within a few days in that town, where the water was known to be clean, and there had been no previous outbreaks of cholera. Snow was informed that the water had recently turned impure. Before using it, residents had to let it run until the sudsy, sewer-like water turned clear. Snow, finding that the water the residents were using was no different from the usual water from their pump, determined that the outbreak must be caused by a leak in the pipes that allowed surrounding sewage and its contaminants to seep in to the water supply. This was similar to the Broad Street outbreak. "
+            },
+            {
+              "source": "Wikipedia",
+              "title": "2010s Haiti cholera outbreak",
+              "url": "https://en.wikipedia.org/wiki/2010s_Haiti_cholera_outbreak",
+              "text": "Malnutrition of the population, another pre-existing condition that was exacerbated by the earthquake, may have also contributed to the severity of the outbreak. Research from previous outbreaks shows that duration of diarrhea can be prolonged by up to 70% in individuals suffering from severe malnutrition. Furthermore, Haitians had no biological immunity to the strain of cholera introduced since they had no previous exposure to it. Therefore, physiological factors including malnutrition and lack of immunity may have allowed cholera to spread rapidly throughout the country."
+            },
+            {
+              "source": "Wikipedia",
+              "title": "2010s Haiti cholera outbreak",
+              "url": "https://en.wikipedia.org/wiki/2010s_Haiti_cholera_outbreak",
+              "text": "In 2013, the Government of Haiti launched an oral cholera vaccination (OCV) campaign in two regions: Cerca Carvajal and Petite Anse. These regions were chosen because of particularly high attack rates, sanitation infrastructure, and access to healthcare. This vaccination effort was slightly controversial because the WHO guidelines at the time did not encourage mass vaccination campaigns in areas where outbreaks had already occurred. Prior to the 2010 outbreak in Haiti, vaccination campaigns were thought to detract from more important prevention measures like water treatment and good hygiene. Relative success rates (up to 65% or higher protective effectiveness 5 years after vaccination) in re"
+            },
+            {
+              "source": "PubMed",
+              "title": "Global burden of chronic respiratory diseases and risk factors, 1990-2019: an update from the Global Burden of Disease Study 2019.",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/37229504/",
+              "text": "Updated data on chronic respiratory diseases (CRDs) are vital in their prevention, control, and treatment in the path to achieving the third UN Sustainable Development Goals (SDGs), a one-third reduction in premature mortality from non-communicable diseases by 2030. We provided global, regional, and national estimates of the burden of CRDs and their attributable risks from 1990 to 2019. Using data from the Global Burden of Diseases, Injuries, and Risk Factors Study (GBD) 2019, we estimated mortality, years lived with disability, years of life lost, disability-adjusted life years (DALYs), prevalence, and incidence of CRDs, i.e. chronic obstructive pulmonary disease (COPD), asthma, pneumoconiosis, interstitial lung disease and pulmonary sarcoidosis, and other CRDs, from 1990 to 2019 by sex, age, region, and Socio-demographic Index (SDI) in 204 countries and territories. Deaths and DALYs fr"
+            },
+            {
+              "source": "PubMed",
+              "title": "The Global, Regional, and National Burden of Adult Lip, Oral, and Pharyngeal Cancer in 204 Countries and Territories: A Systematic Analysis for the Global Burden of Disease Study 2019.",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/37676656/",
+              "text": "Lip, oral, and pharyngeal cancers are important contributors to cancer burden worldwide, and a comprehensive evaluation of their burden globally, regionally, and nationally is crucial for effective policy planning. To analyze the total and risk-attributable burden of lip and oral cavity cancer (LOC) and other pharyngeal cancer (OPC) for 204 countries and territories and by Socio-demographic Index (SDI) using 2019 Global Burden of Diseases, Injuries, and Risk Factors (GBD) Study estimates. The incidence, mortality, and disability-adjusted life years (DALYs) due to LOC and OPC from 1990 to 2019 were estimated using GBD 2019 methods. The GBD 2019 comparative risk assessment framework was used to estimate the proportion of deaths and DALYs for LOC and OPC attributable to smoking, tobacco, and alcohol consumption in 2019. In 2019, 370 000 (95% uncertainty interval [UI], 338 000-401 000) cases"
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "line": 5,
+          "narration_quote": "The crisis finally forced parliament to accept a proposal from civil engineer Joseph Bazalgette.",
+          "claim": "The crisis finally forced parliament to accept a proposal from civil engineer Joseph Bazalgette.",
+          "verdict": "SUPPORTED",
+          "reason": "no reason given",
+          "quote": "The authorities accepted a proposal from the civil engineer Joseph Bazalgette to move the effluent eastwards",
+          "source_url": "https://en.wikipedia.org/wiki/Great_Stink",
+          "evidence": [
+            {
+              "source": "Wikipedia",
+              "title": "Joseph Bazalgette",
+              "url": "https://en.wikipedia.org/wiki/Joseph_Bazalgette",
+              "text": "Sir Joseph William Bazalgette (; 28 March 1819 – 15 March 1891) was a British civil engineer. As Chief Engineer of London's Metropolitan Board of Works, his major achievement was the creation of the London Main Drainage, the sewerage system for central London, in response to the Great Stink of 1858, which was instrumental in relieving the city of cholera epidemics, while beginning to clean the River Thames."
+            },
+            {
+              "source": "Wikipedia",
+              "title": "Joseph Bazalgette",
+              "url": "https://en.wikipedia.org/wiki/Joseph_Bazalgette",
+              "text": "Championed by fellow engineer Isambard Kingdom Brunel, Bazalgette was promoted Chief Engineer of the Commission's successor, the Metropolitan Board of Works, in 1856 (a post which he retained until the MBW was abolished and replaced by London County Council in 1889). In 1858, the year of the Great Stink, Parliament passed an Enabling Act, despite the colossal expense of the project, and Bazalgette's proposals to revolutionise London's sewerage system began to be implemented. The expectation was that enclosed sewers would eliminate the miasma that was thought to be the cause of cholera and, as a result, eliminate cholera epidemics."
+            },
+            {
+              "source": "Wikipedia",
+              "title": "London sewer system",
+              "url": "https://en.wikipedia.org/wiki/London_sewer_system",
+              "text": "Joseph Bazalgette, a civil engineer and Chief Engineer of the Metropolitan Board of Works, was given responsibility for the work. The BBC states, \"Bazalgette drove himself to the limits in realising his subterranean dream\". He and his colleagues, including William Haywood, designed an extensive underground sewerage system that diverted waste to the Thames Estuary, downstream of the main centre of population. Six main interceptor sewers, totalling almost 100 miles (160 km) in length, were constructed, some incorporating stretches of London's \"lost\" rivers. Three of these sewers were north of the river, the southernmost, low-level one being incorporated in the Thames Embankment. The Embankment"
+            },
+            {
+              "source": "Wikipedia",
+              "title": "London sewer system",
+              "url": "https://en.wikipedia.org/wiki/London_sewer_system",
+              "text": "\"Construction of London's Victorian sewers: the vital role of Joseph Bazalgette,\" by G C Cook, The Fellowship of Postgraduate Medicine"
+            },
+            {
+              "source": "Wikipedia",
+              "title": "Great Stink",
+              "url": "https://en.wikipedia.org/wiki/Great_Stink",
+              "text": "The smell, and fears of its possible effects, prompted action by the national and local administrators who had been considering possible solutions to the problem. The authorities accepted a proposal from the civil engineer Joseph Bazalgette to move the effluent eastwards along a series of interconnecting sewers that sloped towards outfalls beyond the metropolitan area. Work on high-, mid- and low-level systems for the new Northern and Southern Outfall Sewers started at the beginning of 1859 and lasted until 1875. To aid the drainage, pumping stations were built to lift the sewage from lower levels into higher pipes. Two of the more ornate stations, Abbey Mills in Stratford and Crossness on t"
+            },
+            {
+              "source": "Wikipedia",
+              "title": "Great Stink",
+              "url": "https://en.wikipedia.org/wiki/Great_Stink",
+              "text": "In August 1849 the MCS appointed Joseph Bazalgette to the position of assistant surveyor. He had been working as a consultant engineer in the railway industry until overwork had brought about a serious breakdown in his health; his appointment to the commission was his first position on his return to employment. Working under the chief engineer, Frank Foster, he began to develop a more systematic plan for the city's sewers. The stress of the position was too much for Foster and he died in 1852; Bazalgette was promoted into his position, and continued refining and developing the plans for the development of the sewerage system. The Metropolis Management Act 1855 replaced the commission with th"
+            }
+          ]
+        },
+        {
+          "id": 6,
+          "line": 6,
+          "narration_quote": "He designed a vast network of intercepting sewers to move effluent eastward.",
+          "claim": "Joseph Bazalgette designed a vast network of intercepting sewers to move effluent eastward.",
+          "verdict": "SUPPORTED",
+          "reason": "no reason given",
+          "quote": "Bazalgette's solution (similar to a proposal made by painter John Martin 25 years earlier) was to construct a network of 82 miles (132 km) of enclosed underground brick main sewers to intercept sewage outflows",
+          "source_url": "https://en.wikipedia.org/wiki/Joseph_Bazalgette",
+          "evidence": [
+            {
+              "source": "Wikipedia",
+              "title": "Great Stink",
+              "url": "https://en.wikipedia.org/wiki/Great_Stink",
+              "text": "The smell, and fears of its possible effects, prompted action by the national and local administrators who had been considering possible solutions to the problem. The authorities accepted a proposal from the civil engineer Joseph Bazalgette to move the effluent eastwards along a series of interconnecting sewers that sloped towards outfalls beyond the metropolitan area. Work on high-, mid- and low-level systems for the new Northern and Southern Outfall Sewers started at the beginning of 1859 and lasted until 1875. To aid the drainage, pumping stations were built to lift the sewage from lower levels into higher pipes. Two of the more ornate stations, Abbey Mills in Stratford and Crossness on t"
+            },
+            {
+              "source": "Wikipedia",
+              "title": "Great Stink",
+              "url": "https://en.wikipedia.org/wiki/Great_Stink",
+              "text": "The southern system, across the less populated suburbs of London, was the smaller and easier part of the system to build. Three main sewers ran from Putney, Wandsworth and Norwood until they linked together in Deptford. At that point a pumping station lifted the effluent 21 feet (6.4 m) into the main outflow sewer, which ran to the Crossness Pumping Station on the Erith Marshes, where it was discharged into the Thames at high tide. The newly built station at Crossness was designed by Bazalgette and a consultant engineer, Charles Driver, a proponent of the use of cast iron as a building material. The building was in a Romanesque style and the interior contains architectural cast ironwork whic"
+            },
+            {
+              "source": "Wikipedia",
+              "title": "London sewer system",
+              "url": "https://en.wikipedia.org/wiki/London_sewer_system",
+              "text": "Joseph Bazalgette, a civil engineer and Chief Engineer of the Metropolitan Board of Works, was given responsibility for the work. The BBC states, \"Bazalgette drove himself to the limits in realising his subterranean dream\". He and his colleagues, including William Haywood, designed an extensive underground sewerage system that diverted waste to the Thames Estuary, downstream of the main centre of population. Six main interceptor sewers, totalling almost 100 miles (160 km) in length, were constructed, some incorporating stretches of London's \"lost\" rivers. Three of these sewers were north of the river, the southernmost, low-level one being incorporated in the Thames Embankment. The Embankment"
+            },
+            {
+              "source": "Wikipedia",
+              "title": "London sewer system",
+              "url": "https://en.wikipedia.org/wiki/London_sewer_system",
+              "text": "\"Construction of London's Victorian sewers: the vital role of Joseph Bazalgette,\" by G C Cook, The Fellowship of Postgraduate Medicine"
+            },
+            {
+              "source": "Wikipedia",
+              "title": "Joseph Bazalgette",
+              "url": "https://en.wikipedia.org/wiki/Joseph_Bazalgette",
+              "text": "At that time, the River Thames was little more than an open sewer, empty of any fish or other wildlife, and an apparent public health hazard to Londoners. Bazalgette's solution (similar to a proposal made by painter John Martin 25 years earlier) was to construct a network of 82 miles (132 km) of enclosed underground brick main sewers to intercept sewage outflows, and 1,100 miles (1,800 km) of street sewers, to divert the raw sewage which flowed freely through the streets and thoroughfares of London to the river. The innovative use of Portland cement has ensured the tunnels were in good order 150 years later."
+            },
+            {
+              "source": "Wikipedia",
+              "title": "Joseph Bazalgette",
+              "url": "https://en.wikipedia.org/wiki/Joseph_Bazalgette",
+              "text": "\"Construction of London's Victorian sewers: the vital role of Joseph Bazalgette,\" by G C Cook, The Fellowship of Postgraduate Medicine"
+            }
+          ]
+        },
+        {
+          "id": 7,
+          "line": 7,
+          "narration_quote": "Massive pumping stations were built to lift the sewage into new outfall pipes.",
+          "claim": "Massive pumping stations were built to lift the sewage into new outfall pipes.",
+          "verdict": "SUPPORTED",
+          "reason": "no reason given",
+          "quote": "To aid the drainage, pumping stations were built to lift the sewage from lower levels into higher pipes.",
+          "source_url": "https://en.wikipedia.org/wiki/Great_Stink",
+          "evidence": [
+            {
+              "source": "Wikipedia",
+              "title": "Pumping station",
+              "url": "https://en.wikipedia.org/wiki/Pumping_station",
+              "text": "Pumping stations in sewage collection systems are normally designed to handle raw sewage that is fed from underground gravity pipelines (pipes that are sloped so that a liquid can flow in one direction under gravity). Sewage is fed into and stored in a pit, commonly known as a wet well. The well is equipped with electrical instrumentation to detect the level of sewage present. When the sewage level rises to a predetermined point, a pump will be started to lift the sewage upward through a pressurized pipe system called a sewer force main if the sewage is transported some significant distance. The pumping station may be called a lift station if the pump merely discharges into a nearby gravity "
+            },
+            {
+              "source": "Wikipedia",
+              "title": "Pumping station",
+              "url": "https://en.wikipedia.org/wiki/Pumping_station",
+              "text": "Sewage pumping stations are typically designed so that one pump or one set of pumps will handle normal peak flow conditions. Redundancy is built into the system so that in the event that any one pump is out of service, the remaining pump or pumps will handle the designed flow. The storage volume of the wet well between the \"pump on\" and \"pump off\" settings is designed to minimize pump starts and stops, but is not so long a retention time as to allow the sewage in the wet well to go septic."
+            },
+            {
+              "source": "Wikipedia",
+              "title": "Great Stink",
+              "url": "https://en.wikipedia.org/wiki/Great_Stink",
+              "text": "The smell, and fears of its possible effects, prompted action by the national and local administrators who had been considering possible solutions to the problem. The authorities accepted a proposal from the civil engineer Joseph Bazalgette to move the effluent eastwards along a series of interconnecting sewers that sloped towards outfalls beyond the metropolitan area. Work on high-, mid- and low-level systems for the new Northern and Southern Outfall Sewers started at the beginning of 1859 and lasted until 1875. To aid the drainage, pumping stations were built to lift the sewage from lower levels into higher pipes. Two of the more ornate stations, Abbey Mills in Stratford and Crossness on t"
+            },
+            {
+              "source": "Wikipedia",
+              "title": "Great Stink",
+              "url": "https://en.wikipedia.org/wiki/Great_Stink",
+              "text": "By June 1856 Bazalgette completed his definitive plans, which provided for small, local sewers about 3 feet (0.9 m) in diameter to feed into a series of larger sewers until they drained into main outflow pipes 11 feet (3.4 m) high. A Northern and Southern Outfall Sewer were planned to manage the waste for each side of the river. London was mapped into high-, middle- and low-level areas, with a main sewer servicing each; a series of pumping stations was planned to remove the waste towards the east of the city. Bazalgette's plan was based on that of Foster, but was larger in scale, and allowed for more of a rise in population than Foster's – from 3 to 4.5 million. Bazalgette submitted his plan"
+            },
+            {
+              "source": "Wikipedia",
+              "title": "Joseph Bazalgette",
+              "url": "https://en.wikipedia.org/wiki/Joseph_Bazalgette",
+              "text": "The plan included major pumping stations at Deptford (1864) and at Crossness (1865) on the Erith marshes, both on the south side of the Thames and at Abbey Mills (in the River Lea valley, 1868) and on the Chelsea Embankment (close to Grosvenor Bridge; 1875), north of the river. The outflows were diverted downstream, where they were collected in two large sewage outfall systems on the north and south sides of the Thames, called the Northern and Southern Outfall Sewers. The sewage from the Outfall Sewers was originally collected in balancing tanks in Beckton and Crossness, then dumped, untreated, into the Thames at high tide. The system was opened by Albert Edward, Prince of Wales in 1865, alt"
+            },
+            {
+              "source": "Wikipedia",
+              "title": "Joseph Bazalgette",
+              "url": "https://en.wikipedia.org/wiki/Joseph_Bazalgette",
+              "text": "Partly as a result of the Princess Alice disaster, extensive sewage treatment facilities were built to replace the balancing tanks in Beckton and Crossness in 1900. The biological treatment of sewage was first undertaken in 1885 by William Dibdin, chief chemist for the Metropolitan Board of Works, based on a proposal by Edward Frankland."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "claims": [
+        {
+          "id": 0,
+          "line": 0,
+          "narration_quote": "In eighteen fifty-eight, a suffocating smell rose across central London.",
+          "claim": "In 1858, a suffocating smell rose across central London.",
+          "verdict": "SUPPORTED",
+          "reason": "no reason given",
+          "quote": "The Great Stink was an event in Central London during July and August 1858 in which the hot weather exacerbated the smell of untreated human waste and industrial effluent",
+          "source_url": "https://en.wikipedia.org/wiki/Great_Stink",
+          "evidence": [
+            {
+              "source": "Wikipedia",
+              "title": "Great Stink",
+              "url": "https://en.wikipedia.org/wiki/Great_Stink",
+              "text": "The Great Stink was an event in Central London during July and August 1858 in which the hot weather exacerbated the smell of untreated human waste and industrial effluent that was present on the banks of the River Thames. The problem had been mounting for several years, with an ageing and inadequate sewer system that emptied directly into the Thames. It was thought that the miasma from the effluent transmitted contagious diseases, and three outbreaks of cholera before the Great Stink were blamed on the ongoing problems with the river."
+            },
+            {
+              "source": "Wikipedia",
+              "title": "Great Stink",
+              "url": "https://en.wikipedia.org/wiki/Great_Stink",
+              "text": "The smell, and fears of its possible effects, prompted action by the national and local administrators who had been considering possible solutions to the problem. The authorities accepted a proposal from the civil engineer Joseph Bazalgette to move the effluent eastwards along a series of interconnecting sewers that sloped towards outfalls beyond the metropolitan area. Work on high-, mid- and low-level systems for the new Northern and Southern Outfall Sewers started at the beginning of 1859 and lasted until 1875. To aid the drainage, pumping stations were built to lift the sewage from lower levels into higher pipes. Two of the more ornate stations, Abbey Mills in Stratford and Crossness on t"
+            },
+            {
+              "source": "Wikipedia",
+              "title": "1858",
+              "url": "https://en.wikipedia.org/wiki/1858",
+              "text": "A bill is passed to create a modern sewage system in London as a result of the Great Stink, when the heat of the summer made the smell from sewage in the Thames unbearable."
+            },
+            {
+              "source": "Wikipedia",
+              "title": "1858",
+              "url": "https://en.wikipedia.org/wiki/1858",
+              "text": "January 25 – The Wedding March by Felix Mendelssohn becomes a popular wedding recessional, after it is played on this day at the marriage of Queen Victoria's daughter Victoria, Princess Royal, to Prince Friedrich of Prussia in St James's Palace, London."
+            },
+            {
+              "source": "PubMed",
+              "title": "Nature and human well-being: The olfactory pathway.",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/38748806/",
+              "text": "The world is undergoing massive atmospheric and ecological change, driving unprecedented challenges to human well-being. Olfaction is a key sensory system through which these impacts occur. The sense of smell influences quality of and satisfaction with life, emotion, emotion regulation, cognitive function, social interactions, dietary choices, stress, and depressive symptoms. Exposures via the olfactory pathway can also lead to (anti-)inflammatory outcomes. Increased understanding is needed regarding the ways in which odorants generated by nature (i.e., natural olfactory environments) affect human well-being. With perspectives from a range of health, social, and natural sciences, we provide an overview of this unique sensory system, four consensus statements regarding olfaction and the environment, and a conceptual framework that integrates the olfactory pathway into an understanding of "
+            },
+            {
+              "source": "PubMed",
+              "title": "Examination of olfactory training effectiveness in relation to its complexity and the cause of olfactory loss.",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/29114936/",
+              "text": "Although the effectiveness of olfactory training (OT) had already been documented, the optimal regimen for such training remains unexplored. We examined whether the complexity of OT, namely alteration of odor quantity and quality, increases its effectiveness. One-hundred eight patients (Mage = 60.1 ± 1) with postinfectious (n = 57) or idiopathic (n = 51) olfactory dysfunction underwent OT preceded and followed by examination of olfactory function. Subjects were randomly assigned to one of the three experimental conditions: 1) simple training comprising four basic, single-molecule substances; 2) complex training involving four odor mixtures; and 3) odor-altering training in which patients changed sets of mixtures every 2 months. The analysis of variance revealed that the benefit seen in this sample was not affected by the complexity of OT with regard to odor mixtures or alteration of odor"
+            }
+          ]
+        },
+        {
+          "id": 1,
+          "line": 4,
+          "narration_quote": "Three outbreaks of cholera had already been blamed on the ongoing river problems.",
+          "claim": "Three outbreaks of cholera had already been blamed on the ongoing river problems.",
+          "verdict": "SUPPORTED",
+          "reason": "no reason given",
+          "quote": "three outbreaks of cholera before the Great Stink were blamed on the ongoing problems with the river.",
+          "source_url": "https://en.wikipedia.org/wiki/Great_Stink",
+          "evidence": [
+            {
+              "source": "Wikipedia",
+              "title": "1854 Broad Street cholera outbreak",
+              "url": "https://en.wikipedia.org/wiki/1854_Broad_Street_cholera_outbreak",
+              "text": "In the mid-19th century, Soho in London had a serious problem with filth due to a large influx of people and lack of proper sanitary services: the London sewer system had not reached Soho. Cowsheds, slaughterhouses and grease-boiling dens lined the streets and contributed animal droppings, rotting fluids and other contaminants to Soho's primitive sewer system. Many cellars had cesspools beneath their floorboards, which formed from the sewers and filth seeping in from outside. With the cesspools overrunning, London's government decided to dump the waste into the River Thames, contaminating the water supply. London had already had a \"series of debilitating cholera outbreaks\". These included ou"
+            },
+            {
+              "source": "Wikipedia",
+              "title": "1854 Broad Street cholera outbreak",
+              "url": "https://en.wikipedia.org/wiki/1854_Broad_Street_cholera_outbreak",
+              "text": "At the same time, an investigation of cholera transmission was being conducted in Deptford. Around 90 people died within a few days in that town, where the water was known to be clean, and there had been no previous outbreaks of cholera. Snow was informed that the water had recently turned impure. Before using it, residents had to let it run until the sudsy, sewer-like water turned clear. Snow, finding that the water the residents were using was no different from the usual water from their pump, determined that the outbreak must be caused by a leak in the pipes that allowed surrounding sewage and its contaminants to seep in to the water supply. This was similar to the Broad Street outbreak. "
+            },
+            {
+              "source": "Wikipedia",
+              "title": "Great Stink",
+              "url": "https://en.wikipedia.org/wiki/Great_Stink",
+              "text": "The Great Stink was an event in Central London during July and August 1858 in which the hot weather exacerbated the smell of untreated human waste and industrial effluent that was present on the banks of the River Thames. The problem had been mounting for several years, with an ageing and inadequate sewer system that emptied directly into the Thames. It was thought that the miasma from the effluent transmitted contagious diseases, and three outbreaks of cholera before the Great Stink were blamed on the ongoing problems with the river."
+            },
+            {
+              "source": "Wikipedia",
+              "title": "Great Stink",
+              "url": "https://en.wikipedia.org/wiki/Great_Stink",
+              "text": "Brick sewers had been built in London from the 17th century when sections of the Fleet and Walbrook rivers were covered for that purpose. In the century preceding 1856, over a hundred sewers were constructed in London, and at that date the city had around 200,000 cesspits and 360 sewers. Some cesspits leaked methane and other gases, which often caught fire and exploded, while many of the sewers were in a poor state of repair. During the early 19th century improvements had been undertaken in the supply of water to Londoners, and by 1858 many of the city's medieval wooden water pipes were being replaced with iron ones. This, combined with the introduction of flushing toilets and the rising of "
+            },
+            {
+              "source": "PubMed",
+              "title": "The Great Stench or the fool's argument.",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/1814064/",
+              "text": "The eight weeks of the \"Great Stench\" in London in June-July 1858 had a lasting effect on the city. Today's embankments were planned then, and the huge oval brick sewers of London were designed and constructed as a direct result of the stench. The event occurred before the bacteriological era, when fear of cholera caused by a miasma gripped the city. This article, through quotations from The Times, Punch, and the medical press, traces the various reactions to the stink and explores the reasons why there wasn't more of a public reaction to the plague threat."
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "line": 5,
+          "narration_quote": "The crisis finally forced parliament to accept a proposal from civil engineer Joseph Bazalgette.",
+          "claim": "The crisis finally forced parliament to accept a proposal from civil engineer Joseph Bazalgette.",
+          "verdict": "SUPPORTED",
+          "reason": "no reason given",
+          "quote": "In 1858, the year of the Great Stink, Parliament passed an Enabling Act, despite the colossal expense of the project, and Bazalgette's proposals to revolutionise London's sewerage system began to be implemented.",
+          "source_url": "https://en.wikipedia.org/wiki/Joseph_Bazalgette",
+          "evidence": [
+            {
+              "source": "Wikipedia",
+              "title": "Joseph Bazalgette",
+              "url": "https://en.wikipedia.org/wiki/Joseph_Bazalgette",
+              "text": "Sir Joseph William Bazalgette (; 28 March 1819 – 15 March 1891) was a British civil engineer. As Chief Engineer of London's Metropolitan Board of Works, his major achievement was the creation of the London Main Drainage, the sewerage system for central London, in response to the Great Stink of 1858, which was instrumental in relieving the city of cholera epidemics, while beginning to clean the River Thames."
+            },
+            {
+              "source": "Wikipedia",
+              "title": "Joseph Bazalgette",
+              "url": "https://en.wikipedia.org/wiki/Joseph_Bazalgette",
+              "text": "Championed by fellow engineer Isambard Kingdom Brunel, Bazalgette was promoted Chief Engineer of the Commission's successor, the Metropolitan Board of Works, in 1856 (a post which he retained until the MBW was abolished and replaced by London County Council in 1889). In 1858, the year of the Great Stink, Parliament passed an Enabling Act, despite the colossal expense of the project, and Bazalgette's proposals to revolutionise London's sewerage system began to be implemented. The expectation was that enclosed sewers would eliminate the miasma that was thought to be the cause of cholera and, as a result, eliminate cholera epidemics."
+            },
+            {
+              "source": "Wikipedia",
+              "title": "London sewer system",
+              "url": "https://en.wikipedia.org/wiki/London_sewer_system",
+              "text": "Joseph Bazalgette, a civil engineer and Chief Engineer of the Metropolitan Board of Works, was given responsibility for the work. The BBC states, \"Bazalgette drove himself to the limits in realising his subterranean dream\". He and his colleagues, including William Haywood, designed an extensive underground sewerage system that diverted waste to the Thames Estuary, downstream of the main centre of population. Six main interceptor sewers, totalling almost 100 miles (160 km) in length, were constructed, some incorporating stretches of London's \"lost\" rivers. Three of these sewers were north of the river, the southernmost, low-level one being incorporated in the Thames Embankment. The Embankment"
+            },
+            {
+              "source": "Wikipedia",
+              "title": "London sewer system",
+              "url": "https://en.wikipedia.org/wiki/London_sewer_system",
+              "text": "\"Construction of London's Victorian sewers: the vital role of Joseph Bazalgette,\" by G C Cook, The Fellowship of Postgraduate Medicine"
+            },
+            {
+              "source": "Wikipedia",
+              "title": "Great Stink",
+              "url": "https://en.wikipedia.org/wiki/Great_Stink",
+              "text": "The smell, and fears of its possible effects, prompted action by the national and local administrators who had been considering possible solutions to the problem. The authorities accepted a proposal from the civil engineer Joseph Bazalgette to move the effluent eastwards along a series of interconnecting sewers that sloped towards outfalls beyond the metropolitan area. Work on high-, mid- and low-level systems for the new Northern and Southern Outfall Sewers started at the beginning of 1859 and lasted until 1875. To aid the drainage, pumping stations were built to lift the sewage from lower levels into higher pipes. Two of the more ornate stations, Abbey Mills in Stratford and Crossness on t"
+            },
+            {
+              "source": "Wikipedia",
+              "title": "Great Stink",
+              "url": "https://en.wikipedia.org/wiki/Great_Stink",
+              "text": "In August 1849 the MCS appointed Joseph Bazalgette to the position of assistant surveyor. He had been working as a consultant engineer in the railway industry until overwork had brought about a serious breakdown in his health; his appointment to the commission was his first position on his return to employment. Working under the chief engineer, Frank Foster, he began to develop a more systematic plan for the city's sewers. The stress of the position was too much for Foster and he died in 1852; Bazalgette was promoted into his position, and continued refining and developing the plans for the development of the sewerage system. The Metropolis Management Act 1855 replaced the commission with th"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "line": 6,
+          "narration_quote": "He designed a vast network of intercepting sewers to move effluent eastward.",
+          "claim": "Joseph Bazalgette designed a vast network of intercepting sewers to move effluent eastward.",
+          "verdict": "SUPPORTED",
+          "reason": "no reason given",
+          "quote": "The authorities accepted a proposal from the civil engineer Joseph Bazalgette to move the effluent eastwards along a series of interconnecting sewers that sloped towards outfalls beyond the metropolitan area.",
+          "source_url": "https://en.wikipedia.org/wiki/Great_Stink",
+          "evidence": [
+            {
+              "source": "Wikipedia",
+              "title": "Joseph Bazalgette",
+              "url": "https://en.wikipedia.org/wiki/Joseph_Bazalgette",
+              "text": "At that time, the River Thames was little more than an open sewer, empty of any fish or other wildlife, and an apparent public health hazard to Londoners. Bazalgette's solution (similar to a proposal made by painter John Martin 25 years earlier) was to construct a network of 82 miles (132 km) of enclosed underground brick main sewers to intercept sewage outflows, and 1,100 miles (1,800 km) of street sewers, to divert the raw sewage which flowed freely through the streets and thoroughfares of London to the river. The innovative use of Portland cement has ensured the tunnels were in good order 150 years later."
+            },
+            {
+              "source": "Wikipedia",
+              "title": "Joseph Bazalgette",
+              "url": "https://en.wikipedia.org/wiki/Joseph_Bazalgette",
+              "text": "\"Construction of London's Victorian sewers: the vital role of Joseph Bazalgette,\" by G C Cook, The Fellowship of Postgraduate Medicine"
+            },
+            {
+              "source": "Wikipedia",
+              "title": "London sewer system",
+              "url": "https://en.wikipedia.org/wiki/London_sewer_system",
+              "text": "Joseph Bazalgette, a civil engineer and Chief Engineer of the Metropolitan Board of Works, was given responsibility for the work. The BBC states, \"Bazalgette drove himself to the limits in realising his subterranean dream\". He and his colleagues, including William Haywood, designed an extensive underground sewerage system that diverted waste to the Thames Estuary, downstream of the main centre of population. Six main interceptor sewers, totalling almost 100 miles (160 km) in length, were constructed, some incorporating stretches of London's \"lost\" rivers. Three of these sewers were north of the river, the southernmost, low-level one being incorporated in the Thames Embankment. The Embankment"
+            },
+            {
+              "source": "Wikipedia",
+              "title": "London sewer system",
+              "url": "https://en.wikipedia.org/wiki/London_sewer_system",
+              "text": "\"Construction of London's Victorian sewers: the vital role of Joseph Bazalgette,\" by G C Cook, The Fellowship of Postgraduate Medicine"
+            },
+            {
+              "source": "Wikipedia",
+              "title": "Great Stink",
+              "url": "https://en.wikipedia.org/wiki/Great_Stink",
+              "text": "The smell, and fears of its possible effects, prompted action by the national and local administrators who had been considering possible solutions to the problem. The authorities accepted a proposal from the civil engineer Joseph Bazalgette to move the effluent eastwards along a series of interconnecting sewers that sloped towards outfalls beyond the metropolitan area. Work on high-, mid- and low-level systems for the new Northern and Southern Outfall Sewers started at the beginning of 1859 and lasted until 1875. To aid the drainage, pumping stations were built to lift the sewage from lower levels into higher pipes. Two of the more ornate stations, Abbey Mills in Stratford and Crossness on t"
+            },
+            {
+              "source": "Wikipedia",
+              "title": "Great Stink",
+              "url": "https://en.wikipedia.org/wiki/Great_Stink",
+              "text": "The southern system, across the less populated suburbs of London, was the smaller and easier part of the system to build. Three main sewers ran from Putney, Wandsworth and Norwood until they linked together in Deptford. At that point a pumping station lifted the effluent 21 feet (6.4 m) into the main outflow sewer, which ran to the Crossness Pumping Station on the Erith Marshes, where it was discharged into the Thames at high tide. The newly built station at Crossness was designed by Bazalgette and a consultant engineer, Charles Driver, a proponent of the use of cast iron as a building material. The building was in a Romanesque style and the interior contains architectural cast ironwork whic"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

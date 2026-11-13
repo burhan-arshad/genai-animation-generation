@@ -1,0 +1,39 @@
+{
+  "_help": "Copy this file to niches/<yourname>.json (no leading underscore) and set NICHE=<yourname> in .env. Sections: writing (how the script is written), research (hint for the search planner), topics (the topic agent), storyboard (extra rules for the scene designer; 'era.props' maps a prop name to the first year it may appear, or {} to disable the era check), upload (YouTube defaults). The visual style stays the engine's cut-paper look.",
+  "label": "One line describing the channel",
+  "engine": "paper-atlas",
+  "writing": {
+    "music_options": [
+      "bed"
+    ],
+    "min_words": 85,
+    "max_words": 115,
+    "rules": "- Describe the narration voice and the story structure here.\n- 95-110 words.\n- Write numbers as spoken words in `text`."
+  },
+  "research": {
+    "plan_hint": "Tell the search planner what kind of Wikipedia pages to look for."
+  },
+  "topics": {
+    "system": "Describe the topics to propose. Each topic: one specific, well-documented subject with its own Wikipedia article. Return `year` (use 0 if years do not matter) and `region`.",
+    "regions": [],
+    "year_min": null,
+    "year_max": null,
+    "min_evidence": 4,
+    "block_regex": "cancer|saccharin|sweeten|medic|health|\\bdiet|poison|toxic|nutrition|genocide|massacre|terror|suicide|\\brape|torture",
+    "formats": [
+      "a surprising fact with a simple explanation"
+    ]
+  },
+  "storyboard": {
+    "rules": "\n- Describe what the scenes should show for this niche.",
+    "era": {
+      "props": {}
+    }
+  },
+  "upload": {
+    "category_id": "27",
+    "hashtags": "#shorts",
+    "tags": [],
+    "footer": "Narrated and animated with AI tools."
+  }
+}

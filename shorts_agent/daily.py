@@ -49,8 +49,12 @@ def main() -> int:
                 break
             if count(f"status NOT IN {OPEN}") == 0:
                 topics.enqueue(3)
-            if run_jobs(1) == "budget":
+            stop = run_jobs(1)
+            if stop == "budget":
                 notes.append("LLM budget reached: the run will continue tomorrow.")
+                break
+            if stop == "overload":
+                notes.append("The model provider was overloaded: the run will continue at the next schedule.")
                 break
         try:
             urls = uploader.upload_ready(need)

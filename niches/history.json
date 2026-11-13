@@ -1,0 +1,55 @@
+{
+  "label": "Strange but true history for viewers in the United States and Europe",
+  "engine": "paper-atlas",
+  "writing": {
+    "music_options": [
+      "bed",
+      "tension"
+    ],
+    "min_words": 85,
+    "max_words": 115,
+    "rules": "- Calm, curious, vivid documentary narration; full flowing sentences with connecting words.\n- 95-110 words. Each entry in `lines` is one CUT (2-4 s): split sentences into 1-3 lines at natural pauses.\n- Structure: surprising outcome first (hook), where and when, how it unfolded (cause and effect), the turning point,\n  the consequences, a punchy last line that echoes the hook.\n- Tell it with objects, places and consequences. Nothing graphic: no gore, no described violence, no invented quotes or dialogue.\n- Write years and numbers as spoken words in `text` (\"sixteen sixty-six\"); `caps` may use digits.\n- Only well-documented events. If the evidence shows historians disagree, say so briefly or pick another angle."
+  },
+  "research": {
+    "plan_hint": "Prefer the page about the specific event, person or place over generic pages."
+  },
+  "topics": {
+    "system": "You propose topics for 40-second history Shorts for viewers in the United States and Europe.\nEach topic is ONE specific, well-documented event, place or invention that has its own Wikipedia article, told as a surprising true story\n(cause and effect, not a list of facts). Rules:\n- Year between 1500 and 1990; region is exactly 'United States' or 'Europe'.\n- Nothing graphic, political, religious, medical, criminal, about war atrocities or about living people. No contested claims.\n- `topic` is a plain noun phrase with the year, e.g. 'The Great Molasses Flood of 1919'.\n- Be varied: different centuries, countries and kinds of events. Never repeat or closely resemble a topic that was already used.",
+    "regions": [
+      "United States",
+      "Europe"
+    ],
+    "year_min": 1500,
+    "year_max": 1990,
+    "min_evidence": 4,
+    "block_regex": "genocide|massacre|holocaust|terror|suicide|\\brape|torture|execut|assassinat|slave|nazi|\\bisis\\b|9/11|covid|pandemic|vaccin|election|president|prime minister|trump|biden|religio|crusade|abortion|\\bdrug|cocaine|opium|\\bsex\\b|murder|serial killer|\\bbomb|war crime|concentration camp|\\bcult\\b|\\bplague|epidemic|cholera|disease|cancer|saccharin|sweeten|medic|health|\\bdiet|poison|toxic|nutrition",
+    "formats": [
+      "a strange accident or disaster with a surprising cause (non-graphic)",
+      "an unexpected invention or discovery",
+      "a clever loophole, law or ban that backfired",
+      "an engineering or construction feat",
+      "a famous myth versus what really happened",
+      "an odd tradition, record or coincidence"
+    ]
+  },
+  "storyboard": {
+    "rules": "\n- ERA CHECK (strict): use only props, buildings and costumes that existed in the story's year. No trains before 1825, no factories or tall\n  smoking chimney stacks before about 1780, no street lamps before about 1810, no castles as living buildings after the 1700s.\n  If unsure, leave the prop out. Crowds are ordinary period people (never kings, queens or guards).\n- Show what happens with objects and period people: streets full of houses, trees, crowds, vehicles crossing the frame, fire and smoke,\n  weather. Never draw gore or violence.",
+    "era": {
+      "props": {
+        "train": 1825,
+        "factory": 1780,
+        "lamp": 1807
+      }
+    }
+  },
+  "upload": {
+    "category_id": "27",
+    "hashtags": "#shorts #history #historyfacts",
+    "tags": [
+      "history",
+      "history facts",
+      "true story"
+    ],
+    "footer": "Narrated and animated with AI tools. The script is written from the sources above."
+  }
+}

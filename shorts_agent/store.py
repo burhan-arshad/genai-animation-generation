@@ -1,4 +1,4 @@
-"""SQLite store for jobs and stage events. Shared by the CLI, the pipeline and, later, the API."""
+"""SQLite store for jobs and stage events. Shared by the CLI, the pipeline and the dashboard API."""
 from __future__ import annotations
 
 import re

@@ -8,7 +8,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from . import brand, llm, styles
+from . import brand, llm, niche, styles
 from .config import REPO, SKILL_DIR
 from .llm import generate_text
 
@@ -17,8 +17,7 @@ BANNED = ["fetch(", "XMLHttpRequest", "eval(", "new Function", "import(", "requi
 RETURN_RE = re.compile(r"return\s*\{\s*shots\s*:\s*(\w+)\s*,\s*cues\s*:\s*(\w+)\s*\}")
 EXPORT_RE = re.compile(r"export\s+(?:function|const)\s+buildShots")
 PROPS_RE = re.compile(r"import\s*\*\s*as\s+(\w+)\s+from\s+['\"]\./core/props\.js['\"]")
-YEAR_RE = re.compile(r"\b(1[5-9]\d\d)\b")
-ERA = {"train": 1825, "factory": 1780, "lamp": 1807}   # earliest year a prop may appear in a story
+YEAR_RE = re.compile(r"\b(1[0-9]\d\d|20[0-2]\d)\b")
 
 COMMON = """You are the shot-list author for a 2D short-video engine. You write exactly ONE file: src/shots.js.
 Output ONLY one ```js code block with the complete file. No explanation.
@@ -48,6 +47,13 @@ def read(p: Path) -> str:
     return p.read_text(encoding="utf-8")
 
 
+def era_props(st: styles.Style) -> dict:
+    """prop name -> first year it may appear (from the niche pack; {} disables the era check)."""
+    if not st.niche:
+        return {}
+    return niche.load(st.niche).get("storyboard", {}).get("era", {}).get("props", {}) or {}
+
+
 def story_year(project: Path) -> int | None:
     """The year the story happens in, taken from the topic or the title (None if neither contains one)."""
     texts = []
@@ -62,10 +68,18 @@ def story_year(project: Path) -> int | None:
     return None
 
 
+def overlay_dir(st: styles.Style) -> Path | None:
+    for name in (st.niche, st.key, "history"):
+        d = REPO / "overlay" / name if name else None
+        if d and d.exists():
+            return d
+    return None
+
+
 def sync_overlay(project: Path, st: styles.Style) -> None:
     """Re-copy our overlay files (hero, props, host...) into the project and regenerate brand.js, so edits apply to old projects too."""
-    ov = REPO / "overlay" / st.key
-    if ov.exists():
+    ov = overlay_dir(st)
+    if ov:
         shutil.copytree(ov, project, dirs_exist_ok=True)
     if st.use_brand:
         brand.write_js(project)
@@ -77,7 +91,7 @@ def build_context(project: Path, year: int | None = None) -> str:
     script = json.loads(read(project / "script.json"))
     lines = "\n".join(f'{i}: "{l["text"]}"' for i, l in enumerate(script["lines"]))
     extra = f"=== src/core/props.js (scenery library, imported as SC) ===\n{read(project / 'src/core/props.js')}\n\n" if st.hero else ""
-    yr = f"STORY YEAR: {year} (every prop, building and costume must belong to this time)\n" if year else ""
+    yr = f"STORY YEAR: {year} (every prop, building and costume must belong to this time)\n" if year and era_props(st) else ""
     return (
         f"=== STYLE.md ===\n{read(sdir / 'STYLE.md')}\n\n"
         f"=== src/core/lib.js ===\n{read(project / 'src/core/lib.js')}\n\n"
@@ -125,7 +139,7 @@ def static_check(code: str, st: styles.Style, nlines: int, year: int | None = No
                 problems.append(f"Scenes are too sparse ({calls} scenery calls for {nlines} lines): use SC.stage in every scene and "
                                 "add houses, trees, crowds, vehicles, fire, smoke or weather so each shot shows the event.")
             if year:
-                for prop, first in ERA.items():
+                for prop, first in era_props(st).items():
                     if year < first and re.search(rf"\b{alias}\.{prop}\(", code):
                         problems.append(f"Era error: the story happens in {year} but {alias}.{prop} did not exist before {first}. Remove it.")
     return problems
@@ -176,7 +190,7 @@ def build_shots(project: Path, max_tries: int = 5) -> None:
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("project", type=Path)
-    ap.add_argument("--style", default=None)
+    ap.add_argument("--style", "--niche", dest="style", default=None)
     a = ap.parse_args()
     if a.style:
         styles.set_active(a.style)

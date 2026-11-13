@@ -10,15 +10,7 @@ import sys
 import time
 from pathlib import Path
 
-from google.auth.exceptions import RefreshError
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
-from googleapiclient.http import MediaFileUpload
-
-from . import store
+from . import niche, store, styles
 from .config import PROJECTS_ROOT, REPO
 
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
@@ -38,6 +30,11 @@ class QuotaError(UploadError):
 
 
 def get_service(interactive: bool = False):
+    from google.auth.exceptions import RefreshError
+    from google.auth.transport.requests import Request
+    from google.oauth2.credentials import Credentials
+    from google_auth_oauthlib.flow import InstalledAppFlow
+    from googleapiclient.discovery import build
     creds = Credentials.from_authorized_user_file(str(TOKEN), SCOPES) if TOKEN.exists() else None
     if creds and creds.expired and creds.refresh_token:
         try:
@@ -54,17 +51,22 @@ def get_service(interactive: bool = False):
     return build("youtube", "v3", credentials=creds, cache_discovery=False)
 
 
-def build_metadata(project: Path) -> dict:
+def upload_defaults(key: str | None = None) -> dict:
+    return niche.load(key or styles.default_key()).get("upload", {}) if (key or styles.default_key()) in niche.available() else {}
+
+
+def build_metadata(project: Path, key: str | None = None) -> dict:
+    u = upload_defaults(key)
     s = json.loads((project / "script.json").read_text(encoding="utf-8"))
     title = re.sub(r"\s+", " ", s["title"]).strip()
     if len(title) > 95:
         title = title[:95].rsplit(" ", 1)[0]
-    desc = (s["lines"][0]["text"] + "\n\nSources:\n" + "\n".join(f"- {x}" for x in s["sources"])
-            + "\n\nNarrated and animated with AI tools. The script is written from the sources above.\n\n"
-              "#shorts #history #historyfacts")
+    footer = u.get("footer", "Narrated and animated with AI tools. The script is written from the sources above.")
+    hashtags = u.get("hashtags", "#shorts")
+    desc = s["lines"][0]["text"] + "\n\nSources:\n" + "\n".join(f"- {x}" for x in s["sources"]) + f"\n\n{footer}\n\n{hashtags}"
     words = [w.lower() for w in re.findall(r"[A-Za-z]{4,}", s["title"])][:4]
     tags, total = [], 0
-    for t in ["history", "shorts", "history facts", "true story"] + words:
+    for t in ["shorts"] + list(u.get("tags", [])) + words:
         if total + len(t) + 1 > 450:
             break
         tags.append(t)
@@ -81,6 +83,8 @@ def next_publish_time(hour_utc: int) -> str:
 
 
 def _insert(svc, body: dict, video: Path) -> dict:
+    from googleapiclient.errors import HttpError
+    from googleapiclient.http import MediaFileUpload
     media = MediaFileUpload(str(video), mimetype="video/mp4", chunksize=8 * 1024 * 1024, resumable=True)
     req = svc.videos().insert(part="snippet,status", body=body, media_body=media)
     resp, retries = None, 0
@@ -103,13 +107,14 @@ def _insert(svc, body: dict, video: Path) -> dict:
     return resp
 
 
-def upload(svc, video: Path, meta: dict, privacy: str, publish_at: str | None, synthetic: bool) -> dict:
+def upload(svc, video: Path, meta: dict, privacy: str, publish_at: str | None, synthetic: bool, category: str = "27") -> dict:
+    from googleapiclient.errors import HttpError
     status = {"privacyStatus": "private" if publish_at else privacy, "selfDeclaredMadeForKids": False}
     if publish_at:
         status["publishAt"] = publish_at
     if synthetic:
         status["containsSyntheticMedia"] = True
-    body = {"snippet": {**meta, "categoryId": os.getenv("CATEGORY_ID", "27")}, "status": status}
+    body = {"snippet": {**meta, "categoryId": category}, "status": status}
     try:
         return _insert(svc, body, video)
     except HttpError as e:
@@ -139,10 +144,11 @@ def upload_ready(limit: int = 1) -> list[str]:
         if not video.exists():
             store.set_job(r["id"], error="final_norm.mp4 missing")
             continue
-        meta = build_metadata(project)
+        meta = build_metadata(project, r["style"])
+        category = os.getenv("CATEGORY_ID") or upload_defaults(r["style"]).get("category_id", "27")
         publish_at = next_publish_time(int(hour)) if (hour and privacy == "public") else None
         print(f"[job {r['id']}] uploading '{meta['title']}' as {'private + publishAt ' + publish_at if publish_at else privacy}")
-        resp = upload(svc, video, meta, privacy, publish_at, synthetic)
+        resp = upload(svc, video, meta, privacy, publish_at, synthetic, category)
         real = resp.get("status", {}).get("privacyStatus", "?")
         url = f"https://www.youtube.com/watch?v={resp['id']}"
         store.set_job(r["id"], status="uploaded", youtube_id=resp["id"], note=f"privacy={real}", error=None)

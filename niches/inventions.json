@@ -1,0 +1,53 @@
+{
+  "label": "How everyday things were invented: accidents, rivals and happy mistakes",
+  "engine": "paper-atlas",
+  "writing": {
+    "music_options": [
+      "bed"
+    ],
+    "min_words": 85,
+    "max_words": 115,
+    "rules": "- Warm, curious storyteller voice; full flowing sentences with connecting words.\n- 95-110 words. Each entry in `lines` is one CUT (2-4 s): split sentences into 1-3 lines at natural pauses.\n- Structure: the surprising result first (hook), the everyday problem, the odd attempt or the accident, the insight that made it work,\n  how it spread, a punchy last line that echoes the hook.\n- Keep to documented facts: who, where, when. No invented quotes or dialogue. Nothing graphic.\n- Write years and numbers as spoken words in `text`; `caps` may use digits.\n- If the evidence shows historians disagree about who invented it, say so in one short clause or pick another angle."
+  },
+  "research": {
+    "plan_hint": "Prefer the page about the specific invention or inventor; include a page about the year or place if it helps."
+  },
+  "topics": {
+    "system": "You propose topics for 40-second Shorts about the origin of everyday inventions, for viewers in the United States and Europe.\nEach topic is ONE specific invention, product or discovery with its own Wikipedia article and a surprising origin story\n(an accident, a rivalry, a misunderstanding, a lucky mistake). Rules:\n- Year between 1600 and 1990; region is exactly 'United States' or 'Europe'.\n- No weapons, medicine, drugs, food-health claims, politics, religion or living people. No contested origin claims.\n- `topic` is a plain noun phrase with the year, e.g. 'The invention of the Post-it note in 1974'.\n- Be varied: different centuries, countries and kinds of objects. Never repeat or closely resemble a topic that was already used.",
+    "regions": [
+      "United States",
+      "Europe"
+    ],
+    "year_min": 1600,
+    "year_max": 1990,
+    "min_evidence": 4,
+    "block_regex": "genocide|massacre|terror|suicide|\\brape|torture|execut|assassinat|slave|nazi|weapon|\\bgun\\b|\\bbomb|explosive|nuclear|atomic|election|president|religio|abortion|\\bdrug|cocaine|opium|\\bsex\\b|murder|vaccin|cure|therap|surgery|antibiotic|pill|cancer|saccharin|sweeten|medic|health|\\bdiet|poison|toxic|nutrition",
+    "formats": [
+      "an invention born from an accident",
+      "a rivalry over who invented something first",
+      "a failed product that became a hit for another reason",
+      "an everyday object with a surprising original purpose",
+      "a simple fix that solved a famous problem"
+    ]
+  },
+  "storyboard": {
+    "rules": "\n- ERA CHECK (strict): use only props, buildings and costumes that existed in the story's year. No trains before 1825, no factories or tall\n  smoking chimney stacks before about 1780, no street lamps before about 1810, no castles as living buildings after the 1700s.\n  If unsure, leave the prop out. Crowds are ordinary period people (never kings, queens or guards).\n- Show what happens with objects and period people: streets full of houses, trees, crowds, vehicles crossing the frame, fire and smoke,\n  weather. Never draw gore or violence.",
+    "era": {
+      "props": {
+        "train": 1825,
+        "factory": 1780,
+        "lamp": 1807
+      }
+    }
+  },
+  "upload": {
+    "category_id": "27",
+    "hashtags": "#shorts #inventions #howitwasinvented",
+    "tags": [
+      "inventions",
+      "history of inventions",
+      "how it was invented"
+    ],
+    "footer": "Narrated and animated with AI tools. The script is written from the sources above."
+  }
+}
