@@ -128,8 +128,11 @@ def upload(svc, video: Path, meta: dict, privacy: str, publish_at: str | None, s
         raise UploadError(text[:400]) from e
 
 
-def upload_ready(limit: int = 1) -> list[str]:
-    rows = store.db().execute("SELECT * FROM jobs WHERE status='ready' ORDER BY id LIMIT ?", (limit,)).fetchall()
+def upload_ready(limit: int = 1, job_id: int | None = None) -> list[str]:
+    if job_id:
+        rows = store.db().execute("SELECT * FROM jobs WHERE id=? AND status='ready'", (job_id,)).fetchall()
+    else:
+        rows = store.db().execute("SELECT * FROM jobs WHERE status='ready' ORDER BY id LIMIT ?", (limit,)).fetchall()
     if not rows:
         print("no ready videos to upload")
         return []
@@ -165,6 +168,7 @@ if __name__ == "__main__":
     sub.add_parser("login")
     r = sub.add_parser("run")
     r.add_argument("--limit", type=int, default=1)
+    r.add_argument("--job", type=int)
     args = ap.parse_args()
     try:
         if args.cmd == "login":
@@ -172,6 +176,6 @@ if __name__ == "__main__":
             get_service(interactive=True)
             print("Logged in. Token saved to", TOKEN)
         else:
-            upload_ready(args.limit)
+            upload_ready(args.limit, args.job)
     except UploadError as e:
         sys.exit(f"UPLOAD FAILED: {e}")

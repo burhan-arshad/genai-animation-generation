@@ -1,0 +1,38 @@
+{
+  "label": "Psychology: famous experiments and everyday mind effects",
+  "engine": "paper-atlas",
+  "props": {
+    "mode": "generate",
+    "theme": "Psychology. Design symbolic, non-clinical objects: paper head silhouette, brain, light bulb, maze with a mouse, bell, clock, mirror, speech bubbles, puzzle pieces, plate with a marshmallow, books, a table and chairs, simple flat paper people (neutral clothes).",
+    "required": ["brain", "head", "lightbulb", "maze", "speechBubble"],
+    "style_note": "Warm paper tones, one teal accent. Calm classroom or lab backdrop variants. No medical or clinical imagery."
+  },
+  "writing": {
+    "music_options": ["bed"],
+    "min_words": 85,
+    "max_words": 115,
+    "rules": "- Warm, curious explainer voice; full flowing sentences with connecting words.\n- 95-110 words. Each entry in `lines` is one CUT (2-4 s): split sentences into 1-3 lines at natural pauses.\n- Structure: the surprising result first (hook), who ran the study or noticed the effect and when, what they did, what they found, why it matters in daily life, a punchy last line that echoes the hook.\n- Say 'researchers found', never promise cures or give personal advice. If later studies disagree, say so in one short clause or pick another angle.\n- Write years and numbers as spoken words in `text`; `caps` may use digits."
+  },
+  "research": {
+    "plan_hint": "Prefer the page about the specific experiment, effect or researcher."
+  },
+  "topics": {
+    "system": "You propose topics for 40-second psychology Shorts. Each topic is ONE specific, well-documented experiment or effect with its own Wikipedia article (e.g. 'The bystander effect', 'Pavlov's dogs', 'The Stroop effect'). Rules:\n- `year` is the year of the study (use 0 if unknown); `region` is the country.\n- No clinical disorders, therapy, medication, abuse, ethically harmful experiments or contested findings.\n- Be varied. Never repeat a used topic.",
+    "regions": [],
+    "year_min": null,
+    "year_max": null,
+    "min_evidence": 4,
+    "block_regex": "suicide|self[- ]harm|abuse|torture|trauma|addict|\\bdrug|disorder|schizo|depress|anxiety|diagnos|therap|medic|psychiatr|\\bsex|\\brape|murder|\\bcult\\b|religio|politic|election|genocide|terror|stanford prison|little albert|monster study",
+    "formats": ["a classic experiment", "a mind trick everyone can try", "a bias that fools us daily", "a surprising finding about memory or attention"]
+  },
+  "storyboard": {
+    "rules": "\n- Show experiments with symbolic NP props (maze, bell, clock, plate, bubbles) and neutral paper people. Nothing clinical or graphic.",
+    "era": { "props": {} }
+  },
+  "upload": {
+    "category_id": "27",
+    "hashtags": "#shorts #psychology #psychologyfacts",
+    "tags": ["psychology", "psychology facts", "experiments"],
+    "footer": "Narrated and animated with AI tools. The script is written from the sources above."
+  }
+}

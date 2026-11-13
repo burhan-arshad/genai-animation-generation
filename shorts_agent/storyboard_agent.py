@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 from pathlib import Path
+from .props_agent import ALLOWED_SC, build_props, exports_of
 
 from . import brand, llm, niche, styles
 from .config import REPO, SKILL_DIR
@@ -17,14 +18,16 @@ BANNED = ["fetch(", "XMLHttpRequest", "eval(", "new Function", "import(", "requi
 RETURN_RE = re.compile(r"return\s*\{\s*shots\s*:\s*(\w+)\s*,\s*cues\s*:\s*(\w+)\s*\}")
 EXPORT_RE = re.compile(r"export\s+(?:function|const)\s+buildShots")
 PROPS_RE = re.compile(r"import\s*\*\s*as\s+(\w+)\s+from\s+['\"]\./core/props\.js['\"]")
+NP_RE = re.compile(r"import\s*\*\s*as\s+(\w+)\s+from\s+['\"]\./core/niche_props\.js['\"]")
 YEAR_RE = re.compile(r"\b(1[0-9]\d\d|20[0-2]\d)\b")
 
 COMMON = """You are the shot-list author for a 2D short-video engine. You write exactly ONE file: src/shots.js.
 Output ONLY one ```js code block with the complete file. No explanation.
 
 Rules:
-- Same structure as the example shots.js: imports ONLY from './core/lib.js', './core/timing.js', './core/kit.js' and, when the style rules
-  say so, './core/props.js' imported EXACTLY as `import * as SC from './core/props.js';` (scenery is always `SC`). Use ONLY names that
+- Same structure as the example shots.js: - Same structure as the example shots.js: imports ONLY from './core/lib.js', './core/timing.js', './core/kit.js' and, when the style rules
+  say so, the scenery libraries named there, each imported EXACTLY with the alias given there (`SC` for props.js, `NP` for niche_props.js).
+  Use ONLY names that really exist in those files. `export function buildShots()` builds ... Use ONLY names that
   really exist in those files. `export function buildShots()` builds the shot list and cue list like the example and ends with
   `return { shots: S, cues: CUES };`. Inside buildShots, `S` is the array of shots and `CUES` the array of cues (as in the example):
   never use `S` or any variable named like an import for anything else; `cut` is defined exactly as in the example.
@@ -90,7 +93,12 @@ def build_context(project: Path, year: int | None = None) -> str:
     sdir = SKILL_DIR / "styles" / (st.engine or st.key)
     script = json.loads(read(project / "script.json"))
     lines = "\n".join(f'{i}: "{l["text"]}"' for i, l in enumerate(script["lines"]))
-    extra = f"=== src/core/props.js (scenery library, imported as SC) ===\n{read(project / 'src/core/props.js')}\n\n" if st.hero else ""
+    if st.hero and st.props_mode == "generate":
+        extra = f"=== src/core/niche_props.js (this video's scenery library, imported as NP) ===\n{read(project / 'src/core/niche_props.js')}\n\n"
+    elif st.hero:
+        extra = f"=== src/core/props.js (scenery library, imported as SC) ===\n{read(project / 'src/core/props.js')}\n\n"
+    else:
+        extra = ""
     yr = f"STORY YEAR: {year} (every prop, building and costume must belong to this time)\n" if year and era_props(st) else ""
     return (
         f"=== STYLE.md ===\n{read(sdir / 'STYLE.md')}\n\n"
@@ -115,7 +123,34 @@ def inject_host(code: str) -> str:
         r"return { shots: HOST.withHost(\1), cues: \2 }", code, count=1)
 
 
-def static_check(code: str, st: styles.Style, nlines: int, year: int | None = None) -> list[str]:
+def _check_generated(code: str, nlines: int, names: dict) -> list[str]:
+    problems = []
+    m = NP_RE.search(code)
+    if not m or m.group(1) != "NP":
+        problems.append("Import this video's scenery exactly as `import * as NP from './core/niche_props.js';`.")
+    else:
+        if re.search(r"\b(?:const|let|var)\s+NP\b", code):
+            problems.append("Name collision: `NP` is the scenery import but is also declared as a variable.")
+        used = re.findall(r"\bNP\.(\w+)\(", code)
+        known = names.get("NP")
+        if known:
+            for n in sorted(set(used) - known):
+                problems.append(f"`NP.{n}` does not exist in niche_props.js. Available: {', '.join(sorted(known))}.")
+        if len(used) < 2 * nlines:
+            problems.append(f"Scenes are too sparse ({len(used)} NP calls for {nlines} lines): call NP.backdrop in every scene and "
+                            "add several NP props per scene so each shot shows the story.")
+    m = PROPS_RE.search(code)
+    if m:
+        alias = m.group(1)
+        if alias != "SC":
+            problems.append("Import props.js exactly as `import * as SC from './core/props.js';` (or not at all).")
+        for n in sorted(set(re.findall(rf"\b{alias}\.(\w+)\(", code)) - set(ALLOWED_SC)):
+            problems.append(f"`{alias}.{n}` is historical scenery and is not allowed in this niche: use NP props instead. "
+                            f"Allowed SC helpers: {', '.join(ALLOWED_SC)}.")
+    return problems
+
+
+def static_check(code: str, st: styles.Style, nlines: int, year: int | None = None, names: dict | None = None) -> list[str]:
     if len(code.strip()) < 400:
         return ["Your reply did not contain the complete file. Return the whole src/shots.js in ONE ```js code block, nothing else."]
     problems = [f"Forbidden token in code: {b!r}" for b in BANNED if b in code]
@@ -126,6 +161,9 @@ def static_check(code: str, st: styles.Style, nlines: int, year: int | None = No
     if st.hero:
         if "core/hero.js" in code or "core/host.js" in code or "H.hero(" in code:
             problems.append("Do not import or draw the host: the engine adds him automatically. Remove hero.js/host.js/H.hero.")
+        if st.props_mode == "generate":
+            problems += _check_generated(code, nlines, names or {})
+            return problems
         m = PROPS_RE.search(code)
         if not m:
             problems.append("Import the scenery library exactly as `import * as SC from './core/props.js';`.")
@@ -144,7 +182,6 @@ def static_check(code: str, st: styles.Style, nlines: int, year: int | None = No
                         problems.append(f"Era error: the story happens in {year} but {alias}.{prop} did not exist before {first}. Remove it.")
     return problems
 
-
 def run_check(project: Path) -> tuple[bool, str]:
     p = subprocess.run(["node", "tools/capture.mjs", "check"], cwd=project,
                        capture_output=True, text=True, encoding="utf-8", errors="replace")
@@ -154,6 +191,10 @@ def run_check(project: Path) -> tuple[bool, str]:
 def build_shots(project: Path, max_tries: int = 5) -> None:
     st = styles.active()
     sync_overlay(project, st)
+    names = {}
+    if st.props_mode == "generate":
+        build_props(project)                      # cached per topic+niche; the LLM designs this video's objects
+        names = {"NP": exports_of(project / "src" / "core" / "niche_props.js")}
     nlines = len(json.loads(read(project / "script.json"))["lines"])
     year = story_year(project)
     system = COMMON + f"\n\nSTYLE-SPECIFIC RULES ({st.key}):\n" + st.board_rules
@@ -168,7 +209,7 @@ def build_shots(project: Path, max_tries: int = 5) -> None:
         code = extract_js(raw)
         via = f"via {llm.LAST.get('model', '?')}, finish={llm.LAST.get('finish', '?')}"
         (logs / f"shots_attempt{attempt}.js").write_text(code, encoding="utf-8")
-        problems = static_check(code, st, nlines, year)
+        problems = static_check(code, st, nlines, year, names)
         if not problems:
             target.write_text(inject_host(code) if st.hero else code, encoding="utf-8")
             ok, out = run_check(project)

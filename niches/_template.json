@@ -1,5 +1,5 @@
 {
-  "_help": "Copy this file to niches/<yourname>.json (no leading underscore) and set NICHE=<yourname> in .env. Sections: writing (how the script is written), research (hint for the search planner), topics (the topic agent), storyboard (extra rules for the scene designer; 'era.props' maps a prop name to the first year it may appear, or {} to disable the era check), upload (YouTube defaults). The visual style stays the engine's cut-paper look.",
+  "_help": "Copy this file to niches/<yourname>.json (no leading underscore) and set NICHE=<yourname> in .env. Sections: writing (how the script is written), research (hint for the search planner), topics (the topic agent), storyboard (extra rules for the scene designer; 'era.props' maps a prop name to the first year it may appear, or {} to disable the era check), props: generate = LLM designs the objects for each video, upload (YouTube defaults). The visual style stays the engine's cut-paper look.",
   "label": "One line describing the channel",
   "engine": "paper-atlas",
   "writing": {
@@ -27,7 +27,12 @@
   "storyboard": {
     "rules": "\n- Describe what the scenes should show for this niche.",
     "era": {
-      "props": {}
+        "props": {
+    "mode": "generate",
+    "theme": "Describe the world of this niche: the places, objects and symbols the LLM should design (e.g. 'Cricket: stadium, bat, ball, stumps...').",
+    "required": ["mainPlace", "mainObject"],
+    "style_note": "Palette and style hints, and what must NOT be copied (real logos, kits, flags)."
+  }
     }
   },
   "upload": {

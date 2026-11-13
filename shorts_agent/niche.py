@@ -1,5 +1,6 @@
 """Niche packs: everything topic-specific lives in niches/<name>.json. Select one with NICHE in .env (default: history)."""
 from __future__ import annotations
+import re
 
 import json
 import os
@@ -22,8 +23,18 @@ def validate(name: str, data: dict) -> list[str]:
             problems.append(f"{name}: missing section '{section}'")
             continue
         problems += [f"{name}: missing '{section}.{k}'" for k in keys if not data[section].get(k)]
+    pr = data.get("props")
+    if pr is not None:
+        mode = pr.get("mode", "library") if isinstance(pr, dict) else None
+        if mode not in ("library", "generate"):
+            problems.append(f"{name}: props.mode must be 'library' or 'generate'")
+        elif mode == "generate":
+            if not str(pr.get("theme", "")).strip():
+                problems.append(f"{name}: props.theme is required when props.mode is 'generate'")
+            bad = [r for r in pr.get("required", []) if not re.fullmatch(r"[a-z][A-Za-z0-9]*", str(r)) or r in ("backdrop", "NC")]
+            if bad:
+                problems.append(f"{name}: props.required names must be camelCase identifiers (not backdrop/NC): {bad}")
     return problems
-
 
 @lru_cache(maxsize=None)
 def load(name: str | None = None) -> dict:

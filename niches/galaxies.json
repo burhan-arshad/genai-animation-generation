@@ -1,0 +1,38 @@
+{
+  "label": "Space and galaxies: how the universe works, in 40 seconds",
+  "engine": "paper-atlas",
+  "props": {
+    "mode": "generate",
+    "theme": "Astronomy. Design: spiral galaxy, elliptical galaxy, star (with glow), ringed planet, rocky planet, moon, comet with tail, nebula cloud, black hole with accretion disc, telescope, satellite, rocket, constellation lines. The backdrop is a starfield (variants: deep blue, purple nebula, dark).",
+    "required": ["galaxy", "planet", "star", "telescope", "blackHole"],
+    "style_note": "Dark navy paper with cream stars; accent colour gold or teal. No ground: objects float, so y is the object's centre."
+  },
+  "writing": {
+    "music_options": ["bed", "tension"],
+    "min_words": 85,
+    "max_words": 115,
+    "rules": "- Awe-filled, clear science-communicator voice; full flowing sentences with connecting words.\n- 95-110 words. Each entry in `lines` is one CUT (2-4 s): split sentences into 1-3 lines at natural pauses.\n- Structure: the mind-bending fact first (hook), what it is and where, how we know, the turning point, what it means, a punchy last line that echoes the hook.\n- Use one simple analogy at most. Only numbers that the evidence states. No invented quotes.\n- Write numbers as spoken words in `text`; `caps` may use digits."
+  },
+  "research": {
+    "plan_hint": "Prefer the Wikipedia page about the specific object, mission or discovery (galaxy, telescope, probe) over generic astronomy pages."
+  },
+  "topics": {
+    "system": "You propose topics for 40-second astronomy Shorts. Each topic is ONE specific, well-documented object, mission or discovery with its own Wikipedia article (e.g. 'The Hubble Deep Field', 'The Andromeda Galaxy', 'Voyager 1'). Rules:\n- `year` is the year of the discovery or event (use 0 if it does not apply); `region` is 'Space' or the country of the mission.\n- No speculation, aliens, astrology, politics or military topics. No contested claims.\n- Be varied: galaxies, planets, missions, telescopes, phenomena. Never repeat a used topic.",
+    "regions": [],
+    "year_min": null,
+    "year_max": null,
+    "min_evidence": 4,
+    "block_regex": "\\bufo|alien|astrolog|zodiac|conspiracy|doomsday|apocalypse|religio|politic|election|weapon|military|\\bwars?\\b|terror|suicide|\\brape|torture",
+    "formats": ["a record-breaking object", "a surprising discovery", "a famous mission", "how astronomers measured something huge", "a phenomenon that looks impossible but is real"]
+  },
+  "storyboard": {
+    "rules": "\n- Space scenes: use NP.backdrop starfield and NP props floating in the frame; show scale with before/after sizes. Keep it scientifically plausible.",
+    "era": { "props": {} }
+  },
+  "upload": {
+    "category_id": "27",
+    "hashtags": "#shorts #space #galaxy #astronomy",
+    "tags": ["space", "galaxies", "astronomy", "universe"],
+    "footer": "Narrated and animated with AI tools. The script is written from the sources above."
+  }
+}

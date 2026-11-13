@@ -1,0 +1,38 @@
+{
+  "label": "Cricket stories: famous matches, records, odd rules and legendary moments",
+  "engine": "paper-atlas",
+  "props": {
+    "mode": "generate",
+    "theme": "Cricket. Design: stadium (stands, floodlight towers, boundary rope, scoreboard), pitch strip with creases, bat, red leather ball with seam, stumps and bails, helmet, gloves, trophy, flags, simple flat paper players in whites and cheering fans.",
+    "required": ["stadium", "bat", "ball", "stumps", "trophy"],
+    "style_note": "Palette: outfield green, pitch tan, white kit, one accent colour per team. No real team logos, kits or flags."
+  },
+  "writing": {
+    "music_options": ["bed", "tension"],
+    "min_words": 85,
+    "max_words": 115,
+    "rules": "- Energetic but clear sports-documentary narration; full flowing sentences with connecting words.\n- 95-110 words. Each entry in `lines` is one CUT (2-4 s): split sentences into 1-3 lines at natural pauses.\n- Structure: the surprising moment first (hook), the match or record and when it happened, how it unfolded, the turning point, the result, a punchy last line that echoes the hook.\n- Explain cricket terms in a few words (a viewer may not know them). No invented quotes or dialogue. Nothing graphic.\n- Write years, scores and numbers as spoken words in `text`; `caps` may use digits."
+  },
+  "research": {
+    "plan_hint": "Prefer the Wikipedia page about the specific match, tournament, record or player over generic cricket pages."
+  },
+  "topics": {
+    "system": "You propose topics for 40-second cricket Shorts. Each topic is ONE specific, well-documented match, record, rule or moment that has its own Wikipedia article, told as a surprising true story. Rules:\n- `region` is the country where it happened.\n- Nothing about match-fixing, betting, injuries, deaths, politics or religion. No contested claims.\n- `topic` is a plain noun phrase with the year, e.g. 'The Tied Test of 1960'.\n- Be varied: different decades, countries and formats. Never repeat a used topic.",
+    "regions": [],
+    "year_min": 1850,
+    "year_max": 2025,
+    "min_evidence": 4,
+    "block_regex": "fixing|betting|gambl|\\briot|terror|suicide|death|died|killed|injur|assassinat|politic|election|religio|\\bdrug|doping|racis|abuse|scandal",
+    "formats": ["a famous match with a dramatic finish", "a record that still stands", "an odd rule or controversy-free quirk of the game", "a legendary single innings or over", "the origin of a trophy or tournament"]
+  },
+  "storyboard": {
+    "rules": "\n- Show the match with NP props: stadium, pitch, bat, ball, stumps, trophy, scoreboard, fans. Never draw violence.",
+    "era": { "props": {} }
+  },
+  "upload": {
+    "category_id": "17",
+    "hashtags": "#shorts #cricket #cricketfacts",
+    "tags": ["cricket", "cricket history", "cricket facts"],
+    "footer": "Narrated and animated with AI tools. The script is written from the sources above."
+  }
+}

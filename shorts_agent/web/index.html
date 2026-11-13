@@ -15,8 +15,10 @@ h3{font-size:12px;margin:14px 0 4px;color:var(--mut);text-transform:uppercase;le
 button,select,input,textarea{font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:6px 10px}
 button{cursor:pointer}button:hover{border-color:var(--acc)}button:disabled{opacity:.5;cursor:default}
 .pri{background:var(--acc);color:#fff;border-color:var(--acc)}
+.danger{border-color:var(--acc);color:var(--acc)}
 .tabs .on{border-color:var(--acc);font-weight:600}
 main{display:grid;grid-template-columns:minmax(340px,1fr) 1.3fr;gap:14px;padding:14px 18px}
+main.one{grid-template-columns:minmax(0,820px)}
 @media(max-width:900px){main{grid-template-columns:1fr}}
 .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow:auto}
 table{width:100%;border-collapse:collapse}th,td{padding:6px 8px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
@@ -24,55 +26,128 @@ th{color:var(--mut);font-weight:600;font-size:12px}
 #jobs tbody tr{cursor:pointer}#jobs tbody tr:hover,#jobs tbody tr.sel{background:rgba(168,50,45,.09)}
 .b{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;border:1px solid var(--line)}
 .ok{color:var(--ok);border-color:var(--ok)}.bad{color:var(--acc);border-color:var(--acc)}.warn{color:var(--warn);border-color:var(--warn)}
-.mut{color:var(--mut)}.err{color:var(--acc);font-size:12px}
+.mut,.hint{color:var(--mut)}.hint{font-size:12px}.err{color:var(--acc);font-size:12px}
 pre{margin:0;white-space:pre-wrap;word-break:break-word;font:12px/1.4 ui-monospace,Consolas,monospace}
 #log{background:#1a1612;color:#e8dfcc;padding:10px;border-radius:8px;max-height:260px;overflow:auto;min-height:60px}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.hide{display:none}
+.field{display:grid;gap:2px;margin:10px 0}.field label{font-weight:600}
+.field input,.field select,.field textarea,.wide{width:100%}
+.item{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line)}
+.item .grow{flex:1;min-width:180px}
+details{margin-top:12px}summary{cursor:pointer;color:var(--mut)}
+#banner{grid-column:1/-1;border-color:var(--warn)}
 </style>
 </head>
 <body>
 <header>
   <h1 id="title">shorts-agent</h1>
   <span id="wk" class="b">idle</span>
-  <input id="topic" placeholder="Topic, e.g. The Great Stink of London in 1858" size="42">
-  <button class="pri" id="add">Queue topic</button>
-  <button id="suggest">Suggest + queue 3</button>
-  <button id="runb">Run next</button>
-  <button id="daily">Run daily</button>
-  <button id="upl">Upload ready</button>
+  <button id="stopb" class="hide danger">Stop</button>
+  <label class="mut">Niche: <select id="nichesel"></select></label>
   <span class="tabs" style="margin-left:auto">
-    <button data-t="jobs" class="on">Jobs</button><button data-t="brand">Brand</button><button data-t="usage">LLM usage</button>
+    <button data-t="jobs" class="on">Videos</button><button data-t="niches">Niches</button><button data-t="brand">Brand</button>
+    <button data-t="youtube">YouTube</button><button data-t="settings">Settings</button><button data-t="usage">AI usage</button>
   </span>
 </header>
 
+<!-- VIDEOS -->
 <main id="p-jobs">
+  <section class="card hide" id="banner"></section>
+  <section class="card" style="grid-column:1/-1">
+    <div class="row">
+      <input id="topic" class="wide" style="flex:1;min-width:260px" placeholder="Type a topic, e.g. The Great Stink of London in 1858">
+      <button class="pri" id="add">Add topic</button>
+      <button id="suggest">Suggest 3 topics</button>
+      <button id="runb">Make next video</button>
+    </div>
+    <div class="hint" id="nichehint" style="margin-top:6px"></div>
+    <div class="row" style="margin-top:8px">
+      <span class="mut">Clean up:</span>
+      <select id="clrsel"><option value="failed">Failed / rejected</option><option value="uploaded">Already uploaded</option><option value="waiting">Waiting (not started)</option><option value="all">Everything</option></select>
+      <button id="clrb" class="danger">Remove</button>
+      <label class="hint"><input type="checkbox" id="clrfiles" checked> also delete video files</label>
+    </div>
+  </section>
   <section class="card"><table id="jobs"><thead><tr><th>#</th><th>status</th><th>facts</th><th>qa</th><th>topic</th></tr></thead><tbody></tbody></table></section>
-  <section class="card" id="detail"><span class="mut">Select a job on the left.</span></section>
-  <section class="card" style="grid-column:1/-1"><h3 style="margin-top:0">Worker log</h3><pre id="log"></pre></section>
+  <section class="card" id="detail"><span class="mut">Select a video on the left. Steps: add a topic, press "Make next video", wait until it says ready, then upload from the YouTube tab.</span></section>
 </main>
 
-<main id="p-brand" class="hide" style="grid-template-columns:1fr">
-  <section class="card">
-    <h3 style="margin-top:0">brand.json (character preset, host appearance, voice, audience note)</h3>
-    <textarea id="brandtxt" rows="30" style="width:100%;font-family:ui-monospace,Consolas,monospace;font-size:12px"></textarea>
-    <div class="row" style="margin-top:8px"><button class="pri" id="bsave">Save</button><span id="bmsg" class="mut"></span></div>
+<!-- NICHES -->
+<main id="p-niches" class="hide one">
+  <section class="card"><h2>Your niches</h2><div class="hint">A niche = a topic area (cricket, galaxies, psychology...). "Use" makes it the active one for new videos.</div><div id="nlist"></div>
+    <details id="nedwrap" class="hide" open><summary>Edit niche file (advanced)</summary>
+      <textarea id="nedit" rows="18" class="wide" style="font-family:ui-monospace,Consolas,monospace;font-size:12px"></textarea>
+      <div class="row" style="margin-top:8px"><button class="pri" id="nsave">Save changes</button><span id="nmsg2" class="mut"></span></div>
+    </details>
+  </section>
+  <section class="card"><h2>Create a new niche</h2>
+    <div class="field"><label>Short name</label><input id="n-name" placeholder="cricket"><span class="hint">Small letters, numbers, - or _</span></div>
+    <div class="field"><label>One-line description</label><input id="n-label" placeholder="Cricket stories: famous matches and records"></div>
+    <div class="field"><label>What should the AI draw?</label><textarea id="n-theme" rows="3" placeholder="Cricket: stadium with stands and floodlights, pitch, bat, red ball, stumps, trophy, simple paper players and fans."></textarea><span class="hint">The AI designs these objects for every video. The host character stays the same.</span></div>
+    <div class="field"><label>Main objects (optional)</label><input id="n-obj" placeholder="stadium, bat, ball, stumps, trophy"></div>
+    <div class="field"><label>What topics should videos be about?</label><textarea id="n-topics" rows="2" placeholder="famous cricket matches, records and unusual rules"></textarea></div>
+    <div class="field"><label>Words to avoid (optional)</label><input id="n-avoid" placeholder="betting, fixing, injury"></div>
+    <div class="row"><button class="pri" id="ncreate">Create niche</button><span id="nmsg" class="mut"></span></div>
   </section>
 </main>
 
-<main id="p-usage" class="hide" style="grid-template-columns:1fr">
-  <section class="card">
-    <h3 style="margin-top:0" id="uday">LLM usage today</h3>
-    <table id="usage"><thead><tr><th>model</th><th>ok / daily limit</th><th>failed</th><th>tokens in</th><th>tokens out</th></tr></thead><tbody></tbody></table>
+<!-- BRAND -->
+<main id="p-brand" class="hide one">
+  <section class="card"><h2>Channel and host</h2>
+    <div class="field"><label>Channel name</label><input id="bname"></div>
+    <div class="field"><label>Tagline</label><input id="btag"></div>
+    <div class="field"><label>Host look</label><select id="bpreset"></select></div>
+    <div class="field"><label>Host appears</label><select id="bappear"><option value="first">Only at the start</option><option value="first_last">Start and end</option><option value="none">Never</option></select></div>
+    <div class="field"><label>Voice</label><div class="row"><select id="bvoice" style="flex:1"></select><button id="bplay">Listen</button></div></div>
+    <div class="field"><label>Voice speed</label><input id="bspeed" type="number" step="0.05" min="0.6" max="1.5"></div>
+    <div class="field"><label>Audience and writing note</label><textarea id="bnote" rows="4"></textarea><span class="hint">Applies to every niche. Change it to match your viewers (country, language style).</span></div>
+    <details><summary>Advanced: full brand.json (colours of the host)</summary><textarea id="badv" rows="20" class="wide" style="font-family:ui-monospace,Consolas,monospace;font-size:12px"></textarea></details>
+    <div class="row" style="margin-top:10px"><button class="pri" id="bsave">Save</button><span id="bmsg" class="mut"></span></div>
   </section>
 </main>
+
+<!-- YOUTUBE -->
+<main id="p-youtube" class="hide one">
+  <section class="card"><h2>1. Connect your YouTube channel</h2>
+    <div id="ytstatus"></div>
+    <div class="item"><span class="grow"><b>Step A:</b> upload your <code>client_secret.json</code> (from Google Cloud, OAuth "Desktop app").</span><input type="file" id="ytfile" accept=".json"></div>
+    <div class="item"><span class="grow"><b>Step B:</b> log in. A Google window opens on the computer that runs this dashboard.</span><button id="ytlogin">Log in to YouTube</button><button id="ytlogout">Log out</button></div>
+  </section>
+  <section class="card"><h2>2. Upload rules</h2><div id="s-youtube"></div>
+    <div class="row"><button class="pri" data-save>Save</button><span class="mut save-msg"></span></div></section>
+  <section class="card"><h2>3. Videos</h2><h3 style="margin-top:0">Ready to upload</h3><div id="ytready"></div>
+    <h3>Uploaded</h3><div id="ytdone"></div>
+    <div class="row" style="margin-top:12px"><button id="daily">Run full daily routine (make + upload)</button></div></section>
+</main>
+
+<!-- SETTINGS -->
+<main id="p-settings" class="hide one">
+  <section class="card"><h2>AI</h2><div id="s-ai"></div>
+    <div class="row"><button id="testkey">Test AI key</button><span id="keymsg" class="mut"></span></div></section>
+  <section class="card"><h2>Folders</h2><div id="s-paths"></div></section>
+  <section class="card"><h2>Email alerts (optional)</h2><div id="s-email"></div></section>
+  <section class="card"><details><summary>Advanced</summary><div id="s-adv"></div></details></section>
+  <section class="card"><div class="row"><button class="pri" data-save>Save settings</button><span class="mut save-msg"></span></div></section>
+  <section class="card"><h2>Setup check</h2><button id="hbtn">Run check</button><div id="hres" style="margin-top:8px"></div></section>
+</main>
+
+<!-- USAGE -->
+<main id="p-usage" class="hide one">
+  <section class="card"><h3 style="margin-top:0" id="uday">AI usage today</h3>
+    <table id="usage"><thead><tr><th>model</th><th>ok / daily limit</th><th>failed</th><th>tokens in</th><th>tokens out</th></tr></thead><tbody></tbody></table></section>
+</main>
+
+<main class="one"><details id="logbox" class="card" style="margin:0"><summary>Activity log</summary><pre id="log" style="margin-top:8px"></pre></details></main>
 
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const mem={get(){try{return JSON.parse(localStorage.getItem('sa')||'{}')}catch{return{}}},set(o){localStorage.setItem('sa',JSON.stringify({...mem.get(),...o}))}};
 const FLOW=['queued','scripted','verified','timed','storyboarded','rendered','finalized','ready'];
+const TABS=['jobs','niches','brand','youtube','settings','usage'];
 const cls=s=>['ready','uploaded'].includes(s)?'ok':['dropped','rejected'].includes(s)?'bad':'warn';
 const vcls=v=>v==='SUPPORTED'?'ok':v==='CONTRADICTED'?'bad':'warn';
-let cur=0,curUpd=0,logOff=0,wkStart=null;
+let cur=mem.get().job||0,curUpd=0,logOff=0,wkStart=null,wasRunning=false,JOBS=[],NICHES=[],ACTIVE='';
 
 async function api(path,json,method){
   const o=json===undefined?{}:{method:method||'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(json)};
@@ -80,76 +155,101 @@ async function api(path,json,method){
   if(!r.ok){let m=r.statusText;try{m=(await r.json()).detail||m}catch{}throw new Error(m)}
   return r.json();
 }
+const say=(sel,t,bad)=>{const e=typeof sel==='string'?$(sel):sel;e.textContent=t;e.style.color=bad?'var(--acc)':'var(--mut)'};
 
-async function loadJobs(){
-  const jobs=await api('/api/jobs');
-  $('#jobs tbody').innerHTML=jobs.map(j=>`<tr data-id="${j.id}" class="${j.id===cur?'sel':''}"><td>${j.id}</td><td><span class="b ${cls(j.status)}">${esc(j.status)}</span></td><td>${esc(j.fact_status||'-')}</td><td>${esc(j.qa_status||'-')}</td><td>${esc(j.topic)}${j.error?`<div class="err">${esc(String(j.error).slice(0,90))}</div>`:''}</td></tr>`).join('');
-  const s=jobs.find(j=>j.id===cur);
-  if(s&&s.updated!==curUpd)loadDetail();
+/* ---------- tabs ---------- */
+function openTab(t){
+  TABS.forEach(x=>{$('#p-'+x).classList.toggle('hide',x!==t);document.querySelector(`.tabs [data-t="${x}"]`).classList.toggle('on',x===t)});
+  mem.set({tab:t});
+  ({niches:loadNiches,brand:loadBrand,youtube:loadYT,settings:loadSettings,usage:loadUsage})[t]?.();
 }
-$('#jobs tbody').onclick=e=>{const tr=e.target.closest('tr');if(tr){cur=+tr.dataset.id;curUpd=0;loadJobs()}};
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>openTab(b.dataset.t));
+
+/* ---------- videos ---------- */
+async function loadJobs(){
+  JOBS=await api('/api/jobs');
+  $('#jobs tbody').innerHTML=JOBS.map(j=>`<tr data-id="${j.id}" class="${j.id===cur?'sel':''}"><td>${j.id}</td><td><span class="b ${cls(j.status)}">${esc(j.status)}</span></td><td>${esc(j.fact_status||'-')}</td><td>${esc(j.qa_status||'-')}</td><td>${esc(j.topic)}${j.error?`<div class="err">${esc(String(j.error).slice(0,90))}</div>`:''}</td></tr>`).join('');
+  const s=JOBS.find(j=>j.id===cur);
+  if(s&&s.updated!==curUpd)loadDetail();
+  if(!$('#p-youtube').classList.contains('hide'))renderYTJobs();
+}
+$('#jobs tbody').onclick=e=>{const tr=e.target.closest('tr');if(tr){cur=+tr.dataset.id;curUpd=0;mem.set({job:cur});loadJobs()}};
 
 async function loadDetail(){
   if(!cur)return;
-  const d=await api('/api/jobs/'+cur),j=d.job;curUpd=j.updated;
-  let h=`<h2>${esc(d.script?d.script.title:j.topic)}</h2><div class="mut">job ${j.id} · ${esc(j.style)} · <span class="b ${cls(j.status)}">${esc(j.status)}</span> · facts: ${esc(d.fact_status||j.fact_status||'-')} · qa: ${esc(j.qa_status||'-')}`;
+  let d;try{d=await api('/api/jobs/'+cur)}catch{return}
+  const j=d.job;curUpd=j.updated;
+  let h=`<h2>${esc(d.script?d.script.title:j.topic)}</h2><div class="mut">video ${j.id} · ${esc(j.style)} · <span class="b ${cls(j.status)}">${esc(j.status)}</span> · facts: ${esc(d.fact_status||j.fact_status||'-')} · qa: ${esc(j.qa_status||'-')}`;
   if(j.youtube_id)h+=` · <a href="https://www.youtube.com/watch?v=${esc(j.youtube_id)}" target="_blank">YouTube</a> (${esc(j.note||'')})`;
   h+='</div>';
   if(j.error)h+=`<div class="err" style="margin-top:6px">${esc(j.error)}</div>`;
-  h+=`<div class="row" style="margin:10px 0"><button data-a="run">Run this job</button><button data-a="reject">Reject</button><button data-a="retry">Clear error</button><select id="rs">${FLOW.map(s=>`<option>${s}</option>`).join('')}</select><button data-a="reset">Reset to stage</button></div>`;
+  h+=`<div class="row" style="margin:10px 0"><button data-a="run">Make this video</button>${j.status==='ready'?'<button class="pri" data-a="upload">Upload to YouTube</button>':''}<button data-a="reject">Reject</button><button data-a="delete" class="danger">Delete</button><button data-a="retry">Clear error</button><details style="margin:0"><summary>More</summary><select id="rs">${FLOW.map(s=>`<option>${s}</option>`).join('')}</select> <button data-a="reset">Go back to this step</button></details></div>`;
   if(d.has_video)h+=`<video controls preload="metadata" src="/api/jobs/${j.id}/video?v=${j.updated}" style="max-height:520px;max-width:100%;border-radius:8px"></video>`;
   if(d.script){
     h+='<h3>Script</h3><ol>'+d.script.lines.map(l=>`<li>${esc(l.text)}</li>`).join('')+'</ol>';
     h+='<h3>Sources</h3><ul>'+d.script.sources.map(s=>`<li>${esc(s)}</li>`).join('')+'</ul>';
   }
-  if(d.claims.length){
-    h+='<h3>Fact-check (last round)</h3><table><tbody>'+d.claims.map(c=>`<tr><td><span class="b ${vcls(c.verdict)}">${esc(c.verdict)}</span></td><td>${esc(c.narration_quote||c.claim)}<div class="mut">${esc(c.reason)}${c.source_url?` · <a href="${esc(c.source_url)}" target="_blank">source</a>`:''}</div></td></tr>`).join('')+'</tbody></table>';
-  }
-  if(d.qa){
-    h+=`<h3>QA: ${esc(d.qa.status)}</h3><div class="mut">${d.qa.meta?esc(d.qa.meta.duration.toFixed(1))+' s':''}</div>`;
-    if(d.qa.issues.length)h+='<ul>'+d.qa.issues.map(i=>`<li>[${esc(i.level)}] ${esc(i.msg)}</li>`).join('')+'</ul>';
-  }
-    if(d.vision){
-    h+=`<h3>Vision QA: ${esc(d.vision.status)} · score ${esc(d.vision.score)}</h3><div class="mut">${esc(d.vision.summary)}</div>`;
-    if(d.vision.issues.length)h+='<ul>'+d.vision.issues.map(i=>`<li>frame ${esc(i.frame)} [${esc(i.severity)}] ${esc(i.problem)}</li>`).join('')+'</ul>';
-  }
-  if(d.events.length){
-    h+='<h3>Stages</h3><ul>'+d.events.map(e=>`<li>${esc(e.stage_name)}: ${Math.round(e.ended-e.started)} s · ${e.ok?'ok':'<span class="err">FAILED '+esc(e.error||'')+'</span>'}</li>`).join('')+'</ul>';
-  }
+  if(d.claims.length)h+='<h3>Fact-check</h3><table><tbody>'+d.claims.map(c=>`<tr><td><span class="b ${vcls(c.verdict)}">${esc(c.verdict)}</span></td><td>${esc(c.narration_quote||c.claim)}<div class="mut">${esc(c.reason)}${c.source_url?` · <a href="${esc(c.source_url)}" target="_blank">source</a>`:''}</div></td></tr>`).join('')+'</tbody></table>';
+  if(d.qa){h+=`<h3>Quality check: ${esc(d.qa.status)}</h3>`;if(d.qa.issues.length)h+='<ul>'+d.qa.issues.map(i=>`<li>[${esc(i.level)}] ${esc(i.msg)}</li>`).join('')+'</ul>'}
+  if(d.vision){h+=`<h3>Vision check: ${esc(d.vision.status)} · score ${esc(d.vision.score)}</h3><div class="mut">${esc(d.vision.summary)}</div>`}
+  if(d.events.length)h+='<h3>Steps</h3><ul>'+d.events.map(e=>`<li>${esc(e.stage_name)}: ${Math.round(e.ended-e.started)} s · ${e.ok?'ok':'<span class="err">FAILED '+esc(e.error||'')+'</span>'}</li>`).join('')+'</ul>';
   $('#detail').innerHTML=h;
 }
 $('#detail').onclick=async e=>{
   const a=e.target.dataset.a;if(!a)return;
   try{
     if(a==='run')await start('run',cur);
+    else if(a==='upload')await start('upload',cur);
+    else if(a==='delete'){
+      if(!confirm('Delete this video and its files? This cannot be undone.'))return;
+      await api('/api/jobs/'+cur+'?files=1',{},'DELETE');
+      cur=0;mem.set({job:0});$('#detail').innerHTML='<span class="mut">Deleted.</span>';
+    }
     else await api('/api/jobs/'+cur+'/action',{action:a,status:$('#rs')?$('#rs').value:null});
     curUpd=0;loadJobs();
   }catch(x){alert(x.message)}
 };
-
 async function start(cmd,job){
-  try{await api('/api/worker/start',{cmd,job:job||null});logOff=0;pollWorker()}catch(e){alert(e.message)}
+  try{await api('/api/worker/start',{cmd,job:job||null});logOff=0;$('#logbox').open=true;pollWorker()}catch(e){alert(e.message)}
 }
 $('#runb').onclick=()=>start('run');
 $('#daily').onclick=()=>start('daily');
-$('#upl').onclick=()=>start('upload');
+$('#stopb').onclick=async()=>{
+  if(!confirm('Stop the current work? Finished steps are kept; the current step starts again next time.'))return;
+  try{await api('/api/worker/stop',{});pollWorker();loadJobs()}catch(e){alert(e.message)}
+};
+$('#clrb').onclick=async()=>{
+  const s=$('#clrsel').value,txt=$('#clrsel').selectedOptions[0].text;
+  if(!confirm('Remove: '+txt+'?'+($('#clrfiles').checked?' Video files are deleted too.':'')+' This cannot be undone.'))return;
+  try{
+    const r=await api('/api/jobs/clear',{scope:s,files:$('#clrfiles').checked});
+    alert('Removed: '+r.deleted);cur=0;mem.set({job:0});
+    $('#detail').innerHTML='<span class="mut">Select a video on the left.</span>';loadJobs();
+  }catch(e){alert(e.message)}
+};
+$('#topic').value=mem.get().topic||'';
+$('#topic').oninput=()=>mem.set({topic:$('#topic').value});
 $('#add').onclick=async()=>{
   const t=$('#topic').value.trim();if(!t)return;
-  try{await api('/api/jobs',{topic:t,style:'history'});$('#topic').value='';loadJobs()}catch(e){alert(e.message)}
+  try{await api('/api/jobs',{topic:t});$('#topic').value='';mem.set({topic:''});loadJobs()}catch(e){alert(e.message)}
 };
 $('#suggest').onclick=async e=>{
   const b=e.target;b.disabled=true;b.textContent='Thinking...';
-  try{const r=await api('/api/topics/suggest',{n:3,queue:true});const n=r.ideas.map(i=>i.topic);alert(n.length?'Queued:\n'+n.join('\n'):'No valid topic found');loadJobs()}
+  try{const r=await api('/api/topics/suggest',{n:3,queue:true});const n=r.ideas.map(i=>i.topic);alert(n.length?'Added:\n'+n.join('\n'):'No valid topic found, try again');loadJobs()}
   catch(x){alert(x.message)}
-  b.disabled=false;b.textContent='Suggest + queue 3';
+  b.disabled=false;b.textContent='Suggest 3 topics';
 };
 
+/* ---------- worker ---------- */
 async function pollWorker(){
   try{
     const w=await api('/api/worker'),el=$('#wk');
-    el.textContent=w.running?('running: '+w.cmd):(w.returncode==null?'idle':'last run exit '+w.returncode);
-    el.className='b '+(w.running?'warn':(w.returncode?'bad':'ok'));
-    ['runb','daily','upl'].forEach(i=>$('#'+i).disabled=w.running);
+    el.textContent=w.running?('working: '+w.cmd):(w.stopped?'stopped':(w.returncode==null?'idle':'last run '+(w.returncode?'failed':'ok')));
+    el.className='b '+(w.running?'warn':(w.stopped||w.returncode?'bad':'ok'));
+    $('#stopb').classList.toggle('hide',!w.running);
+    ['runb','daily'].forEach(i=>$('#'+i).disabled=w.running);
+    if(wasRunning&&!w.running){loadJobs();loadYT();}
+    wasRunning=w.running;
     if(w.started!==wkStart){wkStart=w.started;logOff=0;$('#log').textContent=''}
     const l=await api('/api/worker/log?offset='+logOff);
     if(l.text){const pre=$('#log'),end=pre.scrollTop+pre.clientHeight>=pre.scrollHeight-20;pre.textContent+=l.text;if(end)pre.scrollTop=pre.scrollHeight}
@@ -157,24 +257,126 @@ async function pollWorker(){
   }catch(e){}
 }
 
-async function loadBrand(){const r=await api('/api/brand');$('#brandtxt').value=r.text;$('#bmsg').textContent=''}
-$('#bsave').onclick=async()=>{
-  try{await api('/api/brand',{text:$('#brandtxt').value},'PUT');$('#bmsg').textContent='Saved. New videos use it. For an existing video, reset it to "storyboarded" to re-render with the new look.'}
-  catch(e){$('#bmsg').textContent='Error: '+e.message}
+/* ---------- niches ---------- */
+async function loadNiches(){
+  const [n,s]=await Promise.all([api('/api/niches'),api('/api/settings')]);
+  NICHES=n;ACTIVE=s.niche;renderNicheSelect();
+  $('#nlist').innerHTML=n.map(x=>`<div class="item"><span class="grow"><b>${esc(x.name)}</b> ${x.name===ACTIVE?'<span class="b ok">active</span>':''}<div class="mut">${esc(x.label)}</div><span class="hint">${x.mode==='generate'?'AI draws the objects':'built-in scenery'}</span></span><button data-n="use" data-name="${esc(x.name)}">Use</button><button data-n="edit" data-name="${esc(x.name)}">Edit</button>${x.protected?'':`<button data-n="del" data-name="${esc(x.name)}">Delete</button>`}</div>`).join('');
+}
+function renderNicheSelect(){
+  $('#nichesel').innerHTML=NICHES.map(x=>`<option ${x.name===ACTIVE?'selected':''}>${esc(x.name)}</option>`).join('');
+  const c=NICHES.find(x=>x.name===ACTIVE);
+  $('#nichehint').textContent=c?`Active niche: ${c.name}. ${c.label}`:'';
+}
+$('#nichesel').onchange=async e=>{
+  try{await api('/api/settings',{values:{NICHE:e.target.value}},'PUT');ACTIVE=e.target.value;renderNicheSelect();if(!$('#p-niches').classList.contains('hide'))loadNiches()}catch(x){alert(x.message);loadNiches()}
 };
+let editing='';
+$('#nlist').onclick=async e=>{
+  const a=e.target.dataset.n,name=e.target.dataset.name;if(!a)return;
+  try{
+    if(a==='use'){await api('/api/settings',{values:{NICHE:name}},'PUT');loadNiches()}
+    else if(a==='edit'){editing=name;const r=await api('/api/niches/'+name);$('#nedit').value=r.text;$('#nedwrap').classList.remove('hide');$('#nedwrap').open=true;say('#nmsg2','Editing: '+name)}
+    else if(a==='del'&&confirm('Delete niche "'+name+'"? Existing videos are not affected.')){await api('/api/niches/'+name,{},'DELETE');loadNiches()}
+  }catch(x){alert(x.message)}
+};
+$('#nsave').onclick=async()=>{
+  try{await api('/api/niches/'+editing,{text:$('#nedit').value},'PUT');say('#nmsg2','Saved.');loadNiches()}catch(e){say('#nmsg2','Error: '+e.message,1)}
+};
+$('#ncreate').onclick=async()=>{
+  const g=i=>$(i).value;
+  try{await api('/api/niches',{name:g('#n-name'),label:g('#n-label'),theme:g('#n-theme'),topics:g('#n-topics'),objects:g('#n-obj'),avoid:g('#n-avoid')});
+    say('#nmsg','Created. Press "Use" next to it to switch.');['#n-name','#n-label','#n-theme','#n-topics','#n-obj','#n-avoid'].forEach(i=>$(i).value='');loadNiches()}
+  catch(e){say('#nmsg','Error: '+e.message,1)}
+};
+
+/* ---------- brand ---------- */
+async function loadBrand(){
+  const [r,v]=await Promise.all([api('/api/brand'),api('/api/voices')]);
+  const B=JSON.parse(r.text);
+  $('#bname').value=B.channel.name;$('#btag').value=B.channel.tagline||'';
+  $('#bpreset').innerHTML=Object.keys(B.character.presets).map(k=>`<option ${k===B.character.preset?'selected':''}>${k}</option>`).join('');
+  $('#bappear').value=B.character.appear;
+  const vs=v.includes(B.voice.name)?v:[B.voice.name,...v];
+  $('#bvoice').innerHTML=vs.map(n=>`<option ${n===B.voice.name?'selected':''}>${n}</option>`).join('');
+  $('#bspeed').value=B.voice.speed;$('#bnote').value=B.audience.writing_note;$('#badv').value=r.text;$('#bmsg').textContent='';
+}
+$('#bplay').onclick=()=>new Audio('/api/voices/'+$('#bvoice').value+'/audio').play().catch(()=>say('#bmsg','No preview file for this voice',1));
+$('#bsave').onclick=async()=>{
+  try{
+    const D=JSON.parse($('#badv').value);
+    D.channel.name=$('#bname').value;D.channel.tagline=$('#btag').value;
+    D.character.preset=$('#bpreset').value;D.character.appear=$('#bappear').value;
+    D.voice.name=$('#bvoice').value;D.voice.speed=parseFloat($('#bspeed').value)||1;D.audience.writing_note=$('#bnote').value;
+    await api('/api/brand',{text:JSON.stringify(D)},'PUT');
+    say('#bmsg','Saved. New videos use it. To redo an old video, open it and choose "Go back to this step" = storyboarded.');
+    $('#title').textContent=D.channel.name+' · dashboard';$('#badv').value=JSON.stringify(D,null,2);
+  }catch(e){say('#bmsg','Error: '+e.message,1)}
+};
+
+/* ---------- settings (also used by the YouTube tab) ---------- */
+function field(f){
+  let i;
+  if(f.kind.startsWith('select:'))i=`<select data-key="${f.key}"><option value="">(default)</option>${f.kind.slice(7).split(',').map(x=>`<option ${x===f.value?'selected':''}>${x}</option>`).join('')}</select>`;
+  else if(f.kind==='secret')i=`<input type="password" data-key="${f.key}" autocomplete="new-password" placeholder="${f.set?'saved ✓  (type to replace)':'not set'}">`;
+  else i=`<input data-key="${f.key}" value="${esc(f.value)}"${f.kind==='number'?' inputmode="numeric"':''}>`;
+  return `<div class="field"><label>${esc(f.label)}</label>${i}<span class="hint">${esc(f.hint)}</span></div>`;
+}
+async function loadSettings(){
+  const s=await api('/api/settings'),g={};
+  s.fields.forEach(f=>(g[f.group]=g[f.group]||[]).push(f));
+  for(const k of ['ai','paths','email','adv','youtube'])$('#s-'+k).innerHTML=(g[k]||[]).map(field).join('');
+}
+document.addEventListener('click',async e=>{
+  if(!e.target.hasAttribute('data-save'))return;
+  const values={};document.querySelectorAll('[data-key]').forEach(i=>values[i.dataset.key]=i.value);
+  const msg=e.target.parentElement.querySelector('.save-msg');
+  try{await api('/api/settings',{values},'PUT');say(msg,'Saved ✓');await loadSettings();loadHealth()}
+  catch(x){say(msg,'Error: '+x.message,1)}
+});
+$('#testkey').onclick=async()=>{say('#keymsg','Testing...');try{const r=await api('/api/settings/test',{});say('#keymsg',(r.ok?'Works ✓ ':'Failed: ')+r.msg,!r.ok)}catch(e){say('#keymsg',e.message,1)}};
+async function loadHealth(){
+  try{
+    const h=await api('/api/health'),bad=h.filter(x=>x.level==='fail');
+    $('#hres').innerHTML=h.map(x=>`<div><span class="b ${x.level==='ok'?'ok':x.level==='warn'?'warn':'bad'}">${x.level}</span> ${esc(x.label)} <span class="mut">${esc(x.detail)}</span></div>`).join('');
+    const bn=$('#banner');bn.classList.toggle('hide',!bad.length);
+    bn.innerHTML=bad.length?`<b>Setup needs attention (${bad.length}).</b> ${bad.slice(0,3).map(x=>esc(x.label)).join(' · ')} — open the <a href="#" onclick="openTab('settings');return false">Settings</a> tab.`:'';
+  }catch(e){}
+}
+$('#hbtn').onclick=async e=>{e.target.disabled=true;$('#hres').textContent='Checking...';await loadHealth();e.target.disabled=false};
+
+/* ---------- youtube ---------- */
+async function loadYT(){
+  const [y]=await Promise.all([api('/api/youtube'),loadSettings()]);
+  $('#ytstatus').innerHTML=`<div><span class="b ${y.client?'ok':'bad'}">${y.client?'found':'missing'}</span> client_secret.json</div><div style="margin-top:4px"><span class="b ${y.token?'ok':'warn'}">${y.token?'logged in':'not logged in'}</span> YouTube account</div>`;
+  renderYTJobs();
+}
+function renderYTJobs(){
+  const row=j=>`<div class="item"><span class="grow">#${j.id} ${esc(j.topic)}</span>`;
+  $('#ytready').innerHTML=JOBS.filter(j=>j.status==='ready').map(j=>row(j)+`<button class="pri" data-up="${j.id}">Upload</button></div>`).join('')||'<span class="mut">Nothing waiting.</span>';
+  $('#ytdone').innerHTML=JOBS.filter(j=>j.status==='uploaded').map(j=>row(j)+`<span class="mut">${esc(j.note||'')}</span><a href="https://www.youtube.com/watch?v=${esc(j.youtube_id)}" target="_blank">Open</a></div>`).join('')||'<span class="mut">No uploads yet.</span>';
+}
+$('#ytready').onclick=e=>{const id=e.target.dataset.up;if(id)start('upload',+id)};
+$('#ytlogin').onclick=()=>start('login');
+$('#ytlogout').onclick=async()=>{if(confirm('Log out of YouTube?')){await api('/api/youtube/logout',{});loadYT()}};
+$('#ytfile').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{await api('/api/youtube/client',{text:await f.text()});loadYT()}catch(x){alert(x.message)}
+  e.target.value='';
+};
+
+/* ---------- usage ---------- */
 async function loadUsage(){
   const u=await api('/api/usage');
-  $('#uday').textContent='LLM usage today (quota day, Pacific): '+u.day;
+  $('#uday').textContent='AI usage today (quota day, Pacific): '+u.day;
   $('#usage tbody').innerHTML=u.models.map(m=>`<tr><td>${esc(m.model)}</td><td>${m.ok} / ${m.limit}</td><td>${m.failed}</td><td>${m.in}</td><td>${m.out}</td></tr>`).join('')||'<tr><td colspan="5" class="mut">no calls today</td></tr>';
 }
-document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
-  document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));
-  ['jobs','brand','usage'].forEach(t=>$('#p-'+t).classList.toggle('hide',t!==b.dataset.t));
-  if(b.dataset.t==='brand')loadBrand();if(b.dataset.t==='usage')loadUsage();
-});
 
+/* ---------- start ---------- */
 api('/api/brand').then(r=>{try{$('#title').textContent=JSON.parse(r.text).channel.name+' · dashboard'}catch{}});
-loadJobs();pollWorker();
+api('/api/niches').then(n=>api('/api/settings').then(s=>{NICHES=n;ACTIVE=s.niche;renderNicheSelect()}));
+loadSettings();loadJobs();pollWorker();loadHealth();
+openTab(mem.get().tab||'jobs');
 setInterval(loadJobs,3000);setInterval(pollWorker,1500);
 setInterval(()=>{if(!$('#p-usage').classList.contains('hide'))loadUsage()},15000);
 </script>

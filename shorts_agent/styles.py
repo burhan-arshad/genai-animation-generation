@@ -27,6 +27,10 @@ class Style:
     use_brand: bool = False
     hero: bool = False
     niche: str = ""
+    props_mode: str = "library"          # "library" = fixed scenery (props.js) | "generate" = LLM designs the props per video
+    props_theme: str = ""
+    props_required: tuple = ()
+    props_note: str = ""
 
 
 STYLES: dict[str, Style] = {
@@ -87,19 +91,45 @@ SCENERY LIBRARY (always use it): `import * as SC from './core/props.js';`
   smoke rises; flames flicker; trees sway).
 - Gold date ribbon (K.ribbon) opens each new era; K.slip carries names and numbers."""
 
+# Generic cut-paper rules for niches whose props are generated (the base paper-atlas rules are history/map flavoured)
+PAPER_CORE = """
+- Everything is cut paper: draw shapes with K.cut(pathFn, colour) and the P_* helpers (K.P_rr, K.P_circ, K.P_poly) so they get the paper
+  edge and shadow. Use the niche palette NC from niche_props.js; K.ribbon / K.slip / K.timeline / K.seal are available for labels, names and numbers.
+- Captions are drawn by the engine on a torn strip at y 1640; keep labels and key action above y 1450.
+- Nothing graphic: show objects, places and consequences."""
 
-def _host_rules(appear: str) -> str:
+GENERATED_API = """
+
+SCENERY LIBRARY OF THIS VIDEO (generated for this topic, shown above as src/core/niche_props.js, ALWAYS import it as NP):
+`import * as NP from './core/niche_props.js';`
+- Use ONLY names that are really exported there, always as NP.name(x, y, s, t, o): x = centre, y = ground contact, s = scale, t = film time,
+  o = options. NP.backdrop(t, { variant: 'a' | 'b' | 'c' }) draws the whole background: call it FIRST in every shot and vary the variant.
+- Optional effects from './core/props.js', imported EXACTLY as `import * as SC from './core/props.js';`: ONLY SC.cloud(x,y,s,color),
+  SC.smoke(x,y,s,t), SC.flame(x,y,s,t), SC.rain(t), SC.snow(t), SC.nightWash(alpha). Every other SC function is historical scenery: never use it.
+- K.figure roles are period costumes: avoid them unless the story needs a period person; prefer people props from NP.
+- Every shot after the intro is a FULLY ANIMATED SCENE of what happens in the story, never a talking head. Build 3 depths (far backdrop,
+  mid props, near props), fill the frame (big near props at the left and right edges), pass t so things move (spin, sway, twinkle, drift).
+  Keep key action above y 1500."""
+
+
+def _host_rules(appear: str, mode: str = "library") -> str:
     if appear == "none":
         return "\n\nNO HOST CHARACTER: never draw a person as a host and never import hero.js."
     last = (" The host is also added automatically to the LAST shot (bottom right): keep x > 600, y > 800 of the last shot free of "
             "important objects." if appear == "first_last" else "")
+    if mode == "generate":
+        s01 = ("- Shot S01 is the intro backdrop of the topic: NP.backdrop plus 3-4 NP props that hint at the story, packed into the LEFT 60% of\n"
+               "  the frame (x < 650). Keep the right 40% (x > 650, y > 700) free for the host: only background there.\n"
+               "  Do not draw any person in S01.")
+    else:
+        s01 = ("- Shot S01 is the intro backdrop of the topic: SC.stage plus 3-4 era-correct props that hint at the story (buildings, trees, a cart,\n"
+               "  barrels), packed into the LEFT 60% of the frame (x < 650). Keep the right 40% (x > 650, y > 700) free for the host: only sky and ground there.\n"
+               "  Do not draw any person in S01.")
     return f"""
 
 CHANNEL HOST (added automatically by the engine, NEVER draw him yourself): a human host is drawn on top of the FIRST shot (S01),
 standing on the right side, and then he is gone.{last}
-- Shot S01 is the intro backdrop of the topic: SC.stage plus 3-4 era-correct props that hint at the story (buildings, trees, a cart,
-  barrels), packed into the LEFT 60% of the frame (x < 650). Keep the right 40% (x > 650, y > 700) free for the host: only sky and ground there.
-  Do not draw any person in S01.
+{s01}
 - Never import hero.js or host.js and never call H.hero."""
 
 
@@ -107,12 +137,16 @@ def _from_niche(key: str) -> Style:
     n = niche.load(key)
     base = STYLES[n.get("engine", "paper-atlas")]
     w = n["writing"]
+    pr = n.get("props") or {}
+    mode = pr.get("mode", "library")
+    rules = n.get("storyboard", {}).get("rules", "")
+    board = (PAPER_CORE + GENERATED_API + rules) if mode == "generate" else (base.board_rules + SCENERY_API + rules)
     return replace(base, key=key, engine=n.get("engine", "paper-atlas"), use_brand=True, hero=True, niche=key,
                    music_options=tuple(w.get("music_options", base.music_options)),
                    min_words=int(w.get("min_words", base.min_words)), max_words=int(w.get("max_words", base.max_words)),
-                   write_rules=w["rules"],
-                   board_rules=base.board_rules + SCENERY_API + n.get("storyboard", {}).get("rules", ""))
-
+                   write_rules=w["rules"], board_rules=board,
+                   props_mode=mode, props_theme=pr.get("theme", ""), props_required=tuple(pr.get("required", [])),
+                   props_note=pr.get("style_note", ""))
 
 for _name in niche.available():
     try:
@@ -146,5 +180,14 @@ def active() -> Style:
         v = b["voice"]
         st = replace(st, voice=v["name"], speed=float(v["speed"]), music=v.get("music", st.music),
                      write_rules=st.write_rules + "\n" + b["audience"]["writing_note"],
-                     board_rules=st.board_rules + (_host_rules(appear()) if st.hero else ""))
+                     board_rules=st.board_rules + (_host_rules(appear(), st.props_mode) if st.hero else ""))
     return st
+
+def delete_jobs(ids: list[int]) -> None:
+    if not ids:
+        return
+    con = db()
+    marks = ",".join("?" * len(ids))
+    con.execute(f"DELETE FROM events WHERE job_id IN ({marks})", ids)
+    con.execute(f"DELETE FROM jobs WHERE id IN ({marks})", ids)
+    con.commit()

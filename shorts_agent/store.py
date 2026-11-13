@@ -55,3 +55,13 @@ def log_event(job_id: int, stage: str, started: float, ok: bool, error: str | No
     con.execute("INSERT INTO events(job_id, stage, started, ended, ok, error) VALUES(?,?,?,?,?,?)",
                 (job_id, stage, started, time.time(), int(ok), (error or "")[:1000] or None))
     con.commit()
+
+
+def delete_jobs(ids: list[int]) -> None:
+    if not ids:
+        return
+    con = db()
+    marks = ",".join("?" * len(ids))
+    con.execute(f"DELETE FROM events WHERE job_id IN ({marks})", ids)
+    con.execute(f"DELETE FROM jobs WHERE id IN ({marks})", ids)
+    con.commit()

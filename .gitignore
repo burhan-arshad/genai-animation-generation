@@ -12,3 +12,5 @@ __pycache__/
 .pytest_cache/
 # generated
 brand/assets/*.wav
+
+003-the-great-stink-of-1858/
