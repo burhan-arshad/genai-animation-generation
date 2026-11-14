@@ -113,6 +113,19 @@ details{margin-top:12px}summary{cursor:pointer;color:var(--mut)}
     <div class="item"><span class="grow"><b>Step A:</b> upload your <code>client_secret.json</code> (from Google Cloud, OAuth "Desktop app").</span><input type="file" id="ytfile" accept=".json"></div>
     <div class="item"><span class="grow"><b>Step B:</b> log in. A Google window opens on the computer that runs this dashboard.</span><button id="ytlogin">Log in to YouTube</button><button id="ytlogout">Log out</button></div>
   </section>
+  <section class="card"><h2>Automatic daily video</h2>
+    <div id="autostat" class="hint"></div>
+    <div class="field"><label>Mode</label><select id="a-mode">
+      <option value="off">Off (I do everything by hand)</option>
+      <option value="private">Make a video every day, upload as private (I review and publish)</option>
+      <option value="public">Fully automatic: make a video and publish it on YouTube</option></select></div>
+    <div class="field"><label>Make the video at (this computer's time)</label><input type="time" id="a-run" value="12:00">
+      <span class="hint">The laptop must be on at this time, or later: if it was off, the video is made as soon as you switch it on.</span></div>
+    <div class="field"><label>Go live on YouTube at</label><select id="a-hour"></select>
+      <span class="hint">YouTube publishes it at this time, even if your laptop is off by then. Suggested: 18:00 UTC for viewers in the US and Europe. After 2-3 weeks check YouTube Studio, Analytics, Audience.</span></div>
+    <div class="field"><label>Videos per day</label><input id="a-n" type="number" min="1" max="10" value="1"><span class="hint">Keep 1: several videos would go live at the same minute.</span></div>
+    <div class="row"><button class="pri" id="a-save">Save automation</button><span id="a-msg" class="mut"></span></div>
+  </section>
   <section class="card"><h2>2. Upload rules</h2><div id="s-youtube"></div>
     <div class="row"><button class="pri" data-save>Save</button><span class="mut save-msg"></span></div></section>
   <section class="card"><h2>3. Videos</h2><h3 style="margin-top:0">Ready to upload</h3><div id="ytready"></div>
@@ -346,9 +359,26 @@ async function loadHealth(){
 $('#hbtn').onclick=async e=>{e.target.disabled=true;$('#hres').textContent='Checking...';await loadHealth();e.target.disabled=false};
 
 /* ---------- youtube ---------- */
+$('#a-hour').innerHTML=Array.from({length:24},(_,h)=>`<option value="${h}">${String(h).padStart(2,'0')}:00 UTC = ${new Date(Date.UTC(2026,0,15,h)).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} your time</option>`).join('');
+async function loadAuto(){
+  const a=await api('/api/automation');
+  if(!a.supported){$('#autostat').textContent='Automatic scheduling is built in for Windows only.';return}
+  $('#a-mode').value=a.mode;$('#a-hour').value=String(+a.publish_hour);$('#a-n').value=a.videos;
+  if(a.run_time)$('#a-run').value=a.run_time;
+  $('#autostat').innerHTML=a.installed
+    ?`<span class="b ok">active</span> Next run: ${esc(a.next_run||'-')} · last run: ${esc(a.last_run||'never')}`
+    :`<span class="b warn">off</span> ${a.youtube_ready?'':'Log in to YouTube first. '}`;
+}
+$('#a-save').onclick=async()=>{
+  try{
+    await api('/api/automation',{mode:$('#a-mode').value,run_time:$('#a-run').value,publish_hour:+$('#a-hour').value,videos:+$('#a-n').value||1});
+    say('#a-msg','Saved ✓');loadAuto();
+  }catch(e){say('#a-msg','Error: '+e.message,1)}
+};
 async function loadYT(){
   const [y]=await Promise.all([api('/api/youtube'),loadSettings()]);
   $('#ytstatus').innerHTML=`<div><span class="b ${y.client?'ok':'bad'}">${y.client?'found':'missing'}</span> client_secret.json</div><div style="margin-top:4px"><span class="b ${y.token?'ok':'warn'}">${y.token?'logged in':'not logged in'}</span> YouTube account</div>`;
+  loadAuto().catch(()=>{});
   renderYTJobs();
 }
 function renderYTJobs(){

@@ -31,7 +31,27 @@ def dropped_today():
                               "AND date(updated,'unixepoch','localtime')=date('now','localtime')").fetchall()
 
 
+def _log_to_file() -> None:
+    """Started by the Task Scheduler without a console: keep the output in logs/daily.log."""
+    if sys.stdout is None or sys.stderr is None:
+        (REPO / "logs").mkdir(exist_ok=True)
+        f = open(REPO / "logs" / "daily.log", "a", encoding="utf-8", buffering=1)
+        sys.stdout = sys.stderr = f
+
+
+def _keep_awake() -> None:
+    """Windows: do not let the laptop go to sleep while the video is being made (reset when this process ends)."""
+    if os.name == "nt":
+        try:
+            import ctypes
+            ctypes.windll.kernel32.SetThreadExecutionState(0x80000001)   # ES_CONTINUOUS | ES_SYSTEM_REQUIRED
+        except Exception:
+            pass
+
+
 def main() -> int:
+    _log_to_file()
+    _keep_awake()
     print(time.strftime("=== daily run %Y-%m-%d %H:%M:%S ==="))
     if not acquire():
         print("another run is active (lock younger than 4 h). Exiting.")

@@ -1,4 +1,4 @@
-"""FastAPI dashboard + control API. Settings, niches, brand and YouTube are all managed from the web UI.
+"""FastAPI dashboard + control API. Settings, niches, brand, YouTube and the daily automation are managed from the web UI.
 Local by default (127.0.0.1). To expose it online set HOST=0.0.0.0 AND DASHBOARD_PASSWORD in .env (and put HTTPS in front)."""
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from pydantic import BaseModel
 
-from . import brand, niche, settings, store, styles
+from . import automation, brand, niche, settings, store, styles
 from .config import HOME, REPO, _path
 from .pipeline import FLOW, STAGE_NAME
 from .uploader import CLIENT, TOKEN
@@ -405,6 +405,48 @@ def worker_log(offset: int = 0):
         f.seek(offset)
         data = f.read(65536)
     return {"text": data.decode("utf-8", "replace"), "offset": offset + len(data)}
+
+
+# ───────────── automation (daily schedule) ─────────────
+class Auto(BaseModel):
+    mode: str                    # off | private | public
+    run_time: str = "12:00"      # this computer's time, when the video is made
+    publish_hour: int = 18       # UTC hour when YouTube makes it public
+    videos: int = 1
+
+
+@app.get("/api/automation")
+def automation_get():
+    st = automation.status()
+    privacy = os.getenv("UPLOAD_PRIVACY", "private")
+    return {**st, "supported": automation.supported(), "youtube_ready": TOKEN.exists(),
+            "mode": ("public" if privacy == "public" else "private") if st["installed"] else "off",
+            "publish_hour": os.getenv("PUBLISH_AT_UTC_HOUR", "") or "18",
+            "videos": os.getenv("VIDEOS_PER_DAY", "1")}
+
+
+@app.post("/api/automation")
+def automation_set(b: Auto):
+    if b.mode == "off":
+        automation.remove()
+        return {"ok": True}
+    if b.mode not in ("private", "public"):
+        raise HTTPException(400, "unknown mode")
+    if not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", b.run_time):
+        raise HTTPException(400, "time must look like 12:30")
+    if not 0 <= b.publish_hour <= 23 or not 1 <= b.videos <= 10:
+        raise HTTPException(400, "bad hour or number of videos")
+    if not TOKEN.exists():
+        raise HTTPException(400, "Log in to YouTube first (step 1 above)")
+    errs = settings.update({"UPLOAD_PRIVACY": b.mode, "VIDEOS_PER_DAY": str(b.videos),
+                            "PUBLISH_AT_UTC_HOUR": str(b.publish_hour) if b.mode == "public" else ""})
+    if errs:
+        raise HTTPException(400, "; ".join(errs))
+    try:
+        automation.install(b.run_time)
+    except RuntimeError as e:
+        raise HTTPException(500, str(e))
+    return {"ok": True}
 
 
 # ───────────── YouTube ─────────────
