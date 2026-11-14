@@ -13,4 +13,6 @@ __pycache__/
 # generated
 brand/assets/*.wav
 
-003-the-great-stink-of-1858/
+engine/**/node_modules/
+engine/**/review/
+engine/**/renders/

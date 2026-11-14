@@ -1,49 +1,46 @@
-"""script.json + engine docs -> src/shots.js, validated by `capture.mjs check`. The host is injected by code, not written by the LLM."""
+"""Tall Tale storyboard: script + narration timing -> story JSON (LLM) -> checked and time-resolved (director.py) -> src/shots.js."""
 from __future__ import annotations
 
 import argparse
 import json
+import os
+import time
 import re
 import shutil
 import subprocess
 from pathlib import Path
-from .props_agent import ALLOWED_SC, build_props, exports_of
 
-from . import brand, llm, niche, styles
-from .config import REPO, SKILL_DIR
-from .llm import generate_text
+from . import brand, niche, styles
+from .config import PROJECTS_ROOT, REPO, SKILL_DIR, proc_flags, render_env
+from .director import DEMO, EXAMPLE, Story, Timing, build, to_js, vocab_text
+from .llm import generate_structured
 
-BANNED = ["fetch(", "XMLHttpRequest", "eval(", "new Function", "import(", "require(", "process.",
-          "WebSocket", "document.", "window.", "localStorage", "Math.random", "Date.", "async ", "await "]
-RETURN_RE = re.compile(r"return\s*\{\s*shots\s*:\s*(\w+)\s*,\s*cues\s*:\s*(\w+)\s*\}")
-EXPORT_RE = re.compile(r"export\s+(?:function|const)\s+buildShots")
-PROPS_RE = re.compile(r"import\s*\*\s*as\s+(\w+)\s+from\s+['\"]\./core/props\.js['\"]")
-NP_RE = re.compile(r"import\s*\*\s*as\s+(\w+)\s+from\s+['\"]\./core/niche_props\.js['\"]")
 YEAR_RE = re.compile(r"\b(1[0-9]\d\d|20[0-2]\d)\b")
 
-COMMON = """You are the shot-list author for a 2D short-video engine. You write exactly ONE file: src/shots.js.
-Output ONLY one ```js code block with the complete file. No explanation.
+SYSTEM = """You direct a 40-50 second animated short in the 'Tall Tale' style: flat cartoon cut-out people living in a sunny 3D world.
+You never write code. You return ONE story object that matches the JSON schema; the engine builds the scenes from it.
 
-Rules:
-- Same structure as the example shots.js: - Same structure as the example shots.js: imports ONLY from './core/lib.js', './core/timing.js', './core/kit.js' and, when the style rules
-  say so, the scenery libraries named there, each imported EXACTLY with the alias given there (`SC` for props.js, `NP` for niche_props.js).
-  Use ONLY names that really exist in those files. `export function buildShots()` builds ... Use ONLY names that
-  really exist in those files. `export function buildShots()` builds the shot list and cue list like the example and ends with
-  `return { shots: S, cues: CUES };`. Inside buildShots, `S` is the array of shots and `CUES` the array of cues (as in the example):
-  never use `S` or any variable named like an import for anything else; `cut` is defined exactly as in the example.
-- `lt`, `d` and `t` exist ONLY inside a shot's draw(lt, d, t) function: never use them anywhere else.
-- One shot per script line (ids S01, S02, ...), each `at: cut(i)`. If a line lasts longer than about 3.2 s, split it into TWO shots
-  (S03a, S03b); the second starts at Wd('some middle word', line) minus 0.08.
-- Anchor key moments with Wd('word', lineIndex): the word MUST be actually spoken in that line (lowercase, no punctuation).
-- draw(lt, d, t) is a pure function of time: no state between frames, no Math.random (use rnd(i) from lib), no Date, no async,
-  no network, no DOM.
-- Richness: every shot has at least 4 visible layers (background, main subject, a secondary detail, a label or accent) and at
-  least 2 things moving at different speeds. Reveals (labels, marks, ribbons) land on their spoken word.
-- Define NEW local helper functions at the top of shots.js only for things the libraries lack. Never edit kit.js or props.js.
-- Each shot starts with a whoosh cue; add 1-2 meaningful cues per shot, only cue types that appear in the example or STYLE.md.
-- Accurate content, nothing graphic."""
-
-TAIL = "\n\nWrite the complete src/shots.js for THIS video."
+CAST (2-6 characters for THIS story): id (lowercase letters; never 'host', the channel host is added automatically) and a look:
+body colour (hex), pattern, hat, neck item, extras, kid (true for children). One hat and one neck item each, bright colours,
+clearly different from each other. Unused text fields are "".
+SETS (1-3): kind street | interior | meadow, mood day | dusk. An interior also takes wall/motif/floor/ceiling (hex) and a short sign.
+The stage centre is (0,0): x runs left to right (-14..14), z negative = farther from the camera (-24..3). The actors stand in
+|x|<3, |z|<2: put `dress` items at the sides or behind them. An interior has a counter on its right and a window in the back wall.
+SHOTS: at least one per script line, in order. A line longer than 3 s gets two shots (the second one has `word` = the first spoken word of
+its second half; otherwise word is ""). Every shot: set, framing, camera, focus (ids that must be in frame), transition, actors, callouts, fx, note.
+ACTORS in a shot: who, slot, mood, action, gesture, prop, looks_at (id or ""), talk (true while this character is the one speaking), and
+beats = changes on a spoken word: {word, mood, gesture, prop, sfx} (unused fields ""). `word` must be a word that is really spoken in
+that shot's lines, lowercase, copied from the script. prop "none" puts the held prop down.
+DIRECTION RULES:
+- No two neighbouring shots with the same set + framing + camera move. Use at least 4 different moves and 3 framings.
+  crane_down to open, push_in on big moments, punch_in on the reveal word, handheld for panic, orbit/truck for talking scenes.
+- Open with a wide or establishing shot of the place (the host appears by himself). Finish on a reaction close-up or a punchline gag.
+- Faces act: change mood on every beat (shock on the reveal, smug when someone is clever, worried for trouble, laugh for the payoff).
+- Use `callouts` for years, numbers, names and signs ("IDAHO 1914", "73 MILES", "NO PEOPLE"): the narration spells numbers out, the callout
+  shows them as digits. style: label (place/date tag), pop (big word), stamp (rubber stamp). At most two per shot, 26 characters.
+- Put sfx on beats (pop, boing, stamp, ding, thud, slam, plop, zip, sparkle, gulp, chirp, tock) and `shake`/`flash` fx on impacts.
+- Everything must belong to the story's time and place. Nothing graphic.
+"""
 
 
 def read(p: Path) -> str:
@@ -51,14 +48,13 @@ def read(p: Path) -> str:
 
 
 def era_props(st: styles.Style) -> dict:
-    """prop name -> first year it may appear (from the niche pack; {} disables the era check)."""
+    """prop name -> first year it may appear (from the niche pack; {} when the style has no niche)."""
     if not st.niche:
         return {}
     return niche.load(st.niche).get("storyboard", {}).get("era", {}).get("props", {}) or {}
 
 
 def story_year(project: Path) -> int | None:
-    """The year the story happens in, taken from the topic or the title (None if neither contains one)."""
     texts = []
     r = project / "research.json"
     if r.exists():
@@ -72,7 +68,7 @@ def story_year(project: Path) -> int | None:
 
 
 def overlay_dir(st: styles.Style) -> Path | None:
-    for name in (st.niche, st.key, "history"):
+    for name in (st.overlay, st.niche, st.key):
         d = REPO / "overlay" / name if name else None
         if d and d.exists():
             return d
@@ -80,7 +76,7 @@ def overlay_dir(st: styles.Style) -> Path | None:
 
 
 def sync_overlay(project: Path, st: styles.Style) -> None:
-    """Re-copy our overlay files (hero, props, host...) into the project and regenerate brand.js, so edits apply to old projects too."""
+    """Re-copy our overlay files (director.js...) into the project and regenerate brand.js, so edits apply to old projects too."""
     ov = overlay_dir(st)
     if ov:
         shutil.copytree(ov, project, dirs_exist_ok=True)
@@ -88,152 +84,115 @@ def sync_overlay(project: Path, st: styles.Style) -> None:
         brand.write_js(project)
 
 
-def build_context(project: Path, year: int | None = None) -> str:
-    st = styles.active()
-    sdir = SKILL_DIR / "styles" / (st.engine or st.key)
-    script = json.loads(read(project / "script.json"))
-    lines = "\n".join(f'{i}: "{l["text"]}"' for i, l in enumerate(script["lines"]))
-    if st.hero and st.props_mode == "generate":
-        extra = f"=== src/core/niche_props.js (this video's scenery library, imported as NP) ===\n{read(project / 'src/core/niche_props.js')}\n\n"
-    elif st.hero:
-        extra = f"=== src/core/props.js (scenery library, imported as SC) ===\n{read(project / 'src/core/props.js')}\n\n"
-    else:
-        extra = ""
-    yr = f"STORY YEAR: {year} (every prop, building and costume must belong to this time)\n" if year and era_props(st) else ""
-    return (
-        f"=== STYLE.md ===\n{read(sdir / 'STYLE.md')}\n\n"
-        f"=== src/core/lib.js ===\n{read(project / 'src/core/lib.js')}\n\n"
-        f"=== src/core/timing.js ===\n{read(project / 'src/core/timing.js')}\n\n"
-        f"=== src/core/kit.js ===\n{read(project / 'src/core/kit.js')}\n\n"
-        f"{extra}"
-        f"=== EXAMPLE src/shots.js (different topic; follow its structure, not its look) ===\n{read(sdir / 'example/src/shots.js')}\n\n"
-        f"=== THIS VIDEO: title '{script['title']}' ===\n{yr}lines (index: spoken text):\n{lines}{TAIL}")
-
-
-def extract_js(raw: str) -> str:
-    m = re.search(r"```(?:js|javascript)?\s*\n(.*?)```", raw, re.S)
-    return (m.group(1) if m else raw).strip() + "\n"
-
-
-def inject_host(code: str) -> str:
-    """Wrap the returned shot list so the engine draws the host on the first (and optionally last) shot."""
-    if "core/host.js" in code:
-        return code
-    return "import * as HOST from './core/host.js';\n" + RETURN_RE.sub(
-        r"return { shots: HOST.withHost(\1), cues: \2 }", code, count=1)
-
-
-def _check_generated(code: str, nlines: int, names: dict) -> list[str]:
-    problems = []
-    m = NP_RE.search(code)
-    if not m or m.group(1) != "NP":
-        problems.append("Import this video's scenery exactly as `import * as NP from './core/niche_props.js';`.")
-    else:
-        if re.search(r"\b(?:const|let|var)\s+NP\b", code):
-            problems.append("Name collision: `NP` is the scenery import but is also declared as a variable.")
-        used = re.findall(r"\bNP\.(\w+)\(", code)
-        known = names.get("NP")
-        if known:
-            for n in sorted(set(used) - known):
-                problems.append(f"`NP.{n}` does not exist in niche_props.js. Available: {', '.join(sorted(known))}.")
-        if len(used) < 2 * nlines:
-            problems.append(f"Scenes are too sparse ({len(used)} NP calls for {nlines} lines): call NP.backdrop in every scene and "
-                            "add several NP props per scene so each shot shows the story.")
-    m = PROPS_RE.search(code)
-    if m:
-        alias = m.group(1)
-        if alias != "SC":
-            problems.append("Import props.js exactly as `import * as SC from './core/props.js';` (or not at all).")
-        for n in sorted(set(re.findall(rf"\b{alias}\.(\w+)\(", code)) - set(ALLOWED_SC)):
-            problems.append(f"`{alias}.{n}` is historical scenery and is not allowed in this niche: use NP props instead. "
-                            f"Allowed SC helpers: {', '.join(ALLOWED_SC)}.")
-    return problems
-
-
-def static_check(code: str, st: styles.Style, nlines: int, year: int | None = None, names: dict | None = None) -> list[str]:
-    if len(code.strip()) < 400:
-        return ["Your reply did not contain the complete file. Return the whole src/shots.js in ONE ```js code block, nothing else."]
-    problems = [f"Forbidden token in code: {b!r}" for b in BANNED if b in code]
-    if not EXPORT_RE.search(code):
-        problems.append("Missing `export function buildShots()`.")
-    if not RETURN_RE.search(code):
-        problems.append("buildShots must end with `return { shots: S, cues: CUES };` (variable names as in the example).")
-    if st.hero:
-        if "core/hero.js" in code or "core/host.js" in code or "H.hero(" in code:
-            problems.append("Do not import or draw the host: the engine adds him automatically. Remove hero.js/host.js/H.hero.")
-        if st.props_mode == "generate":
-            problems += _check_generated(code, nlines, names or {})
-            return problems
-        m = PROPS_RE.search(code)
-        if not m:
-            problems.append("Import the scenery library exactly as `import * as SC from './core/props.js';`.")
-        else:
-            alias = m.group(1)
-            if re.search(rf"\b(?:const|let|var)\s+{alias}\b", code):
-                problems.append(f"Name collision: `{alias}` is the scenery import but is also declared as a variable (the shots array "
-                                f"`S` shadows it). Import scenery as `SC` and keep `const S = [], CUES = []` for the shots.")
-            calls = len(re.findall(rf"\b{alias}\.[A-Za-z]+\(", code))
-            if calls < 2 * nlines:
-                problems.append(f"Scenes are too sparse ({calls} scenery calls for {nlines} lines): use SC.stage in every scene and "
-                                "add houses, trees, crowds, vehicles, fire, smoke or weather so each shot shows the event.")
-            if year:
-                for prop, first in era_props(st).items():
-                    if year < first and re.search(rf"\b{alias}\.{prop}\(", code):
-                        problems.append(f"Era error: the story happens in {year} but {alias}.{prop} did not exist before {first}. Remove it.")
-    return problems
-
 def run_check(project: Path) -> tuple[bool, str]:
-    p = subprocess.run(["node", "tools/capture.mjs", "check"], cwd=project,
-                       capture_output=True, text=True, encoding="utf-8", errors="replace")
+    p = subprocess.run(["node", "tools/capture.mjs", "check"], cwd=project, capture_output=True, text=True, encoding="utf-8",
+                       errors="replace", env={**os.environ, **render_env("preview")}, creationflags=proc_flags())
     return (p.returncode == 0 and "CHECK OK" in p.stdout), (p.stdout + "\n" + p.stderr).strip()
 
+def build_prompt(project: Path, st: styles.Style, script: dict, tm: Timing, year: int | None) -> str:
+    r = project / "research.json"
+    topic = json.loads(read(r)).get("topic", "") if r.exists() else script["title"]
+    lines = "\n".join(f"{i}: [{l['start']:.2f}-{l['end']:.2f}s] {l['text']}" for i, l in enumerate(tm.lines))
+    yr = f"STORY YEAR: {year}" if year else "STORY YEAR: unknown: choose the believable year in `year`"
+    return (f"{SYSTEM}\n{vocab_text()}\n\nSTYLE AND NICHE RULES:\n{st.board_rules}\n\n"
+            f"EXAMPLE of the output format (another story; do not copy it):\n{json.dumps(EXAMPLE, ensure_ascii=False)}\n\n"
+            f"TOPIC: {topic}\nTITLE: {script['title']}\n{yr}\nSCRIPT (index: [start-end] text):\n{lines}\n\nWrite the story object for THIS script.")
 
-def build_shots(project: Path, max_tries: int = 5) -> None:
+
+def build_shots(project: Path, max_tries: int = 3) -> None:
     st = styles.active()
     sync_overlay(project, st)
-    names = {}
-    if st.props_mode == "generate":
-        build_props(project)                      # cached per topic+niche; the LLM designs this video's objects
-        names = {"NP": exports_of(project / "src" / "core" / "niche_props.js")}
-    nlines = len(json.loads(read(project / "script.json"))["lines"])
+    tm = Timing.load(project)
+    script = json.loads(read(project / "script.json"))
     year = story_year(project)
-    system = COMMON + f"\n\nSTYLE-SPECIFIC RULES ({st.key}):\n" + st.board_rules
-    base = build_context(project, year)
-    target = project / "src" / "shots.js"
+    appear = brand.appear() if st.use_brand else "none"
+    era = era_props(st)
     logs = project / "logs"
     logs.mkdir(exist_ok=True)
+    base = build_prompt(project, st, script, tm, year)
     prompt, problems = base, []
     for attempt in range(1, max_tries + 1):
-        task = "storyboard" if attempt <= 3 else "storyboard_hard"
-        raw = generate_text(prompt, system=system, task=task, max_output_tokens=32000)
-        code = extract_js(raw)
-        via = f"via {llm.LAST.get('model', '?')}, finish={llm.LAST.get('finish', '?')}"
-        (logs / f"shots_attempt{attempt}.js").write_text(code, encoding="utf-8")
-        problems = static_check(code, st, nlines, year, names)
+        task = "storyboard" if attempt <= 2 else "storyboard_hard"
+        story = generate_structured(prompt, Story, system="You output only the JSON story object.", temperature=0.6, task=task)
+        (logs / f"story_attempt{attempt}.json").write_text(story.model_dump_json(indent=1), encoding="utf-8")
+        data, problems, warns = build(story, tm, year, appear, era)
+        for w in warns:
+            print("   warning:", w)
+        print(f"[storyboard] attempt {attempt} ({task}): {len(problems)} problem(s), {len(warns)} warning(s)")
         if not problems:
-            target.write_text(inject_host(code) if st.hero else code, encoding="utf-8")
-            ok, out = run_check(project)
-            (logs / f"check_attempt{attempt}.txt").write_text(out, encoding="utf-8")
-            print(f"[storyboard] attempt {attempt} ({task}, {via}): check {'OK' if ok else 'FAILED'}")
-            if ok:
-                return
-            print("   ", out[-500:].replace("\n", "\n    "))
-            problems = [f"`node tools/capture.mjs check` failed. Output (tail):\n{out[-2500:]}"]
-        else:
-            print(f"[storyboard] attempt {attempt} ({task}, {via}): static problems {problems}")
-            if len(code.strip()) < 400:
-                print("    raw reply starts with:", raw[:300].replace("\n", " "))
-        prompt = (f"{base}\n\nYour previous shots.js:\n```js\n{code}\n```\n\n"
-                  "It has these problems. Fix them and return the FULL corrected file:\n- " + "\n- ".join(problems))
-    raise SystemExit("Storyboard failed after retries:\n- " + "\n- ".join(problems))
+            for plain in (False, True):                        # the second pass is the safe mode: no scenery items, no overlays
+                d = data if not plain else build(story, tm, year, appear, era, plain=True)[0]
+                (project / "src" / "shots.js").write_text(to_js(d), encoding="utf-8")
+                ok, out = run_check(project)
+                (logs / f"check_attempt{attempt}{'_plain' if plain else ''}.txt").write_text(out, encoding="utf-8")
+                print(f"[storyboard] render check {'OK' if ok else 'FAILED'}{' (safe mode)' if plain else ''}")
+                if ok:
+                    (project / "story.json").write_text(json.dumps(d, indent=1, ensure_ascii=False), encoding="utf-8")
+                    return
+                print("   ", out[-500:].replace("\n", "\n    "))
+            problems = [f"The engine could not draw your story. Output (tail):\n{out[-1500:]}"]
+        prompt = (f"{base}\n\nYour previous story object:\n{story.model_dump_json()}\n\n"
+                  "It has these problems. Fix them and return the FULL corrected story object:\n- " + "\n- ".join(problems))
+    raise RuntimeError("Storyboard failed after retries:\n- " + "\n- ".join(problems))
 
+
+def contact_sheet(project: Path, story: dict, out: Path) -> None:
+    """One small frame from the middle of every shot (about 11 frames instead of 50)."""
+    from PIL import Image, ImageDraw
+    shots = story["shots"][:30]
+    times = [round((s["at"] + s["end"]) / 2, 2) for s in shots]
+    p = subprocess.run(["node", "tools/capture.mjs", "frames", "review/s", ",".join(str(t) for t in times)], cwd=project, capture_output=True,
+                       text=True, encoding="utf-8", errors="replace", env={**os.environ, **render_env("preview")}, creationflags=proc_flags())
+    print((p.stdout + p.stderr)[-300:])
+    if p.returncode != 0:
+        raise RuntimeError("frames failed")
+    cols, w, h = 6, 216, 384
+    sheet = Image.new("RGB", (cols * w, -(-len(times) // cols) * h), "black")
+    d = ImageDraw.Draw(sheet)
+    for i, (t, s) in enumerate(zip(times, shots)):
+        x, y = (i % cols) * w, (i // cols) * h
+        f = project / "review" / "s" / f"t{t:.2f}.jpg"
+        if f.exists():
+            sheet.paste(Image.open(f).convert("RGB").resize((w, h)), (x, y))
+        d.text((x + 6, y + 4), f"{s['id']} {t:.1f}s {s['camera']}", fill="#FFFFFF")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    sheet.save(out, quality=88)
+
+
+def demo() -> None:
+    """Offline test, no LLM: the demo story on a copy of the engine's example narration, then a contact sheet."""
+    t0 = time.time()
+    st = styles.active()
+    project = PROJECTS_ROOT / "demo-tall-tale"
+    if project.exists():
+        shutil.rmtree(project)
+    shutil.copytree(SKILL_DIR / "styles" / "tall-tale" / "example", project)
+    sync_overlay(project, st)
+    tm = Timing.load(project)
+    data, problems, warns = build(Story.model_validate(DEMO), tm, 1914, brand.appear() if st.use_brand else "none", era_props(st), strict=False)
+    print("problems:", problems or "none")
+    for w in warns:
+        print("warning:", w)
+    (project / "src" / "shots.js").write_text(to_js(data), encoding="utf-8")
+    ok, out = run_check(project)
+    print(out[-400:])
+    print(f"[demo] check {'OK' if ok else 'FAILED'} after {time.time() - t0:.0f} s")
+    if ok:
+        contact_sheet(project, data, project / "review" / "all.jpg")
+        print(f"[demo] done in {time.time() - t0:.0f} s: {project / 'review' / 'all.jpg'}")
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("project", type=Path)
+    ap.add_argument("project", type=Path, nargs="?")
+    ap.add_argument("--demo", action="store_true", help="offline test without the LLM")
     ap.add_argument("--style", "--niche", dest="style", default=None)
     a = ap.parse_args()
     if a.style:
         styles.set_active(a.style)
-    build_shots(a.project.resolve())
-    print("shots.js ready")
+    if a.demo:
+        demo()
+    elif a.project:
+        build_shots(a.project.resolve())
+        print("shots.js ready")
+    else:
+        ap.error("give a project folder or --demo")

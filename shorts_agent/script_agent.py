@@ -39,6 +39,8 @@ event/person/place page over generic ones."""
 
 
 def caption_rules(st: styles.Style) -> str:
+    if st.caps_mode == "auto":
+        return "CAPTIONS: the engine makes them (one word at a time). Always return an empty string for `caps`."
     return (f"In `caps`, split the line into chunks separated by ' | ', each chunk 1-{st.caps_max_words} words, EXACTLY one "
             "*highlighted word per chunk. Each chunk's first word must be a word actually spoken in that line "
             f"(digits may stand for spoken numbers). Example:\n{st.caps_example}")
@@ -123,8 +125,10 @@ def write_from_evidence(topic: str, items: list[dict]) -> tuple[RScript, ScriptD
     for attempt in range(1, 6):
         task = "script" if attempt <= 3 else "script_hard"
         r = generate_structured(prompt, RScript, system=writer_system(st), task=task)
-        draft = repair_caps(ScriptDraft(title=r.title, sources=sources_for(r, ev),
-                                        lines=[Line(text=l.text, caps=l.caps) for l in r.lines]))
+        draft = ScriptDraft(title=r.title, sources=sources_for(r, ev),
+                            lines=[Line(text=l.text, caps=l.caps if st.caps_mode == "chunks" else "") for l in r.lines])
+        if st.caps_mode == "chunks":
+            draft = repair_caps(draft)
         problems = check_research(r, ev) + check_script(draft)
         print(f"[script] attempt {attempt} ({task}): {len(problems)} problem(s)")
         if not problems:
@@ -142,9 +146,9 @@ def generate(topic: str, project: Path) -> None:
     r, draft = write_from_evidence(topic, items)
     if not project.exists():
         shutil.copytree(SKILL_DIR / "styles" / (st.engine or st.key) / "example", project)
-    overlay = REPO / "overlay" / (st.niche or st.key)
-    if not overlay.exists():
-        overlay = REPO / "overlay" / "history"          # every niche shares the same scenery and host code by default
+        shutil.rmtree(project / "data", ignore_errors=True)       # the example's timing must never be mistaken for ours
+        (project / "data").mkdir(exist_ok=True)
+    overlay = REPO / "overlay" / (st.overlay or st.niche or st.key)
     if overlay.exists():
         shutil.copytree(overlay, project, dirs_exist_ok=True)
     brand.write_js(project)

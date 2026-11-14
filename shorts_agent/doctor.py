@@ -50,7 +50,7 @@ def check_tools() -> None:
 
 
 def check_engine() -> None:
-    ok = (SKILL_DIR / "SKILL.md").exists() and (SKILL_DIR / "styles" / "paper-atlas" / "example" / "src" / "shots.js").exists()
+    ok = (SKILL_DIR / "SKILL.md").exists() and (SKILL_DIR / "styles" / "tall-tale" / "example" / "src" / "shots.js").exists()
     add("ok" if ok else "fail", "Engine pack folder (SKILL_DIR)", str(SKILL_DIR) if ok else
         f"{SKILL_DIR} does not look like the engine pack (needs SKILL.md and styles/). Set SKILL_DIR in .env")
     if SKILL_PY.is_file():

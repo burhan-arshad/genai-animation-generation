@@ -113,19 +113,20 @@ def rewrite(draft: ScriptDraft, bad: list[dict], weak: list[dict]) -> ScriptDraf
                     "the evidence supports, or delete it. Never add new facts, never guess:\n" + "\n".join(
             f"- {w['narration_quote']} | {w['verdict']}: {w['reason']}"
             + (f" | supported part: {w['quote']}" if w["quote"] else "") for w in weak))
-    base = ("Edit this script.\n\n" + "\n\n".join(asks) +
-            "\n\nKeep the topic, tone and exact caption format. Keep 8-14 lines and 75-115 words in total "
-            "(smooth the flow after deleting a claim).\n\nScript:\n" + draft.model_dump_json(indent=1))
     st = replace(styles.active(), min_words=70)
+    base = ("Edit this script.\n\n" + "\n\n".join(asks) +
+            f"\n\nKeep the topic, tone and caption rules. Keep {st.min_lines}-{st.max_lines} lines and {st.min_words}-{st.max_words} words "
+            "in total (smooth the flow after deleting a claim). Numbers stay spoken words.\n\nScript:\n" + draft.model_dump_json(indent=1))
     prompt, problems = base, []
     for _ in range(3):
-        new = repair_caps(generate_structured(prompt, ScriptDraft, system=system_prompt(), task="script"))
+        new = generate_structured(prompt, ScriptDraft, system=system_prompt(), task="script")
+        if st.caps_mode == "chunks":
+            new = repair_caps(new)
         problems = check_script(new, st)
         if not problems:
             return new
         prompt = base + "\n\nYour previous edit had problems:\n- " + "\n- ".join(problems) + "\nReturn the full corrected script."
     raise FactCheckFailed("Could not edit the script cleanly:\n- " + "\n- ".join(problems))
-
 
 def verify_script(draft: ScriptDraft, rounds: int = 2) -> tuple[ScriptDraft, list[dict], str]:
     history: list[dict] = []
@@ -150,7 +151,7 @@ def verify_script(draft: ScriptDraft, rounds: int = 2) -> tuple[ScriptDraft, lis
 def load_draft(project: Path) -> tuple[dict, ScriptDraft]:
     data = json.loads((project / "script.json").read_text(encoding="utf-8"))
     return data, ScriptDraft(title=data["title"], sources=data["sources"],
-                             lines=[Line(text=l["text"], caps=l["caps"]) for l in data["lines"]])
+                             lines=[Line(text=l["text"], caps=l.get("caps", "")) for l in data["lines"]])
 
 
 def verify_project(project: Path) -> str:

@@ -17,6 +17,8 @@ FIELDS = [
     ("GEMINI_API_KEY", "Gemini API key", "secret", "Free key: aistudio.google.com/apikey", "ai"),
     ("GEMINI_MODEL", "AI model", "text", "Example: gemini-3.5-flash-lite", "ai"),
     ("PROJECTS_ROOT", "Folder where videos are saved", "text", "Empty = your home folder / faceless-shorts", "paths"),
+    ("RENDER_PROFILE", "Video quality (speed)", "select:draft,balanced,quality", "balanced = about 30-45 min per video without a graphics card", "paths"),
+    ("RENDER_SOFTWARE", "No graphics card (software rendering)", "select:1,0", "1 = no graphics card (default)", "paths"),
     ("SKILL_DIR", "Engine folder (faceless-shorts)", "text", "The folder that contains SKILL.md. Empty = next to this project", "paths"),
     ("SKILL_PY", "Engine Python (python.exe of its venv)", "text", "Empty = ~/.faceless-shorts/venv", "paths"),
     ("UPLOAD_PRIVACY", "Upload as", "select:private,unlisted,public", "Keep private until you trust the videos", "youtube"),
@@ -30,6 +32,7 @@ FIELDS = [
     ("VISION_QA", "Vision check", "select:off,advisory,gate", "Experimental, keep off", "adv"),
     ("DAILY_LIMITS", "Daily limits", "text", "model:number, comma separated", "adv"),
     ("RPM_LIMITS", "Per-minute limits", "text", "model:number, comma separated", "adv"),
+    
 ] + [(f"GEMINI_MODEL_{c}", f"Models for {c.lower().replace('_', ' ')}", "text", "Comma separated, tried in order", "adv") for c in CHAINS]
 
 NAME_RE = re.compile(r"^[a-z][a-z0-9_-]{1,30}$")

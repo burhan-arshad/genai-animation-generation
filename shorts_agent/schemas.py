@@ -10,7 +10,7 @@ from .styles import Style, active
 
 class Line(BaseModel):
     text: str
-    caps: str
+    caps: str = ""
 
 
 class ScriptDraft(BaseModel):
@@ -21,17 +21,18 @@ class ScriptDraft(BaseModel):
 
 def to_script_json(draft: ScriptDraft, style: Style | None = None, music: str | None = None) -> dict:
     st = style or active()
+    lines = [l.model_dump() if st.caps_mode == "chunks" else {"text": l.text} for l in draft.lines]
     return {"title": draft.title, "voice": st.voice, "speed": st.speed, "lead": st.lead,
             "outro": st.outro, "gap": st.gap, "music": music or st.music,
-            "sources": draft.sources, "lines": [l.model_dump() for l in draft.lines]}
+            "sources": draft.sources, "lines": lines}
 
 
 def check_script(d: ScriptDraft, st: Style | None = None) -> list[str]:
     """Human-readable problems; empty list = valid."""
     st = st or active()
     problems: list[str] = []
-    if not 8 <= len(d.lines) <= 14:
-        problems.append(f"Need 8-14 lines, got {len(d.lines)}.")
+    if not st.min_lines <= len(d.lines) <= st.max_lines:
+        problems.append(f"Need {st.min_lines}-{st.max_lines} lines, got {len(d.lines)}.")
     words = sum(len(l.text.split()) for l in d.lines)
     if not st.min_words <= words <= st.max_words:
         problems.append(f"Narration has {words} words; target is {st.min_words}-{st.max_words}.")
@@ -39,7 +40,9 @@ def check_script(d: ScriptDraft, st: Style | None = None) -> list[str]:
         problems.append("Need at least 2 sources.")
     for i, l in enumerate(d.lines):
         if re.search(r"\d", l.text):
-            problems.append(f"Line {i}: write numbers as spoken words in 'text' (digits only in caps).")
+            problems.append(f"Line {i}: write numbers as spoken words in 'text' (no digits).")
+        if st.caps_mode != "chunks":
+            continue
         chunks = [c.strip() for c in l.caps.split("|") if c.strip()]
         if not chunks:
             problems.append(f"Line {i}: caps is empty.")

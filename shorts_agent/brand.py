@@ -11,63 +11,22 @@ from .config import REPO
 PATH = REPO / "brand" / "brand.json"
 
 DEFAULTS = {
-    "channel": {
-        "name": "TBD",
-        "tagline": ""
-    },
-    "character": {
+    "channel": {"name": "TBD", "tagline": ""},
+        "character": {
         "name": "History Student",
         "preset": "a",
         "appear": "first",
         "scale": 1.0,
         "presets": {
-            "a": {
-                "outfit": "tee",
-                "skin": "#D9A273",
-                "hair": "#2B2118",
-                "hairStyle": "quiff",
-                "glasses": True,
-                "beard": False,
-                "top": "#EBDDBF",
-                "pants": "#6B4F34",
-                "shoes": "#4A3425",
-                "headphones": False,
-                "accent": "#A8322D"
-            },
-            "b": {
-                "outfit": "tee",
-                "skin": "#EBC3A0",
-                "hair": "#4A2D1B",
-                "hairStyle": "short",
-                "glasses": True,
-                "beard": False,
-                "top": "#C9A45C",
-                "pants": "#3E4A5C",
-                "shoes": "#6B4F34",
-                "headphones": False,
-                "accent": "#2F7F86"
-            },
-            "c": {
-                "outfit": "tee",
-                "skin": "#8D5A3B",
-                "hair": "#1B1410",
-                "hairStyle": "short",
-                "glasses": False,
-                "beard": False,
-                "top": "#F3E9D2",
-                "pants": "#5A4635",
-                "shoes": "#2B2118",
-                "headphones": False,
-                "accent": "#C8952F"
-            },
+            "a": {"body": "#EBDDBF", "pattern": "vest", "patCol": "#6B422B", "hat": "none", "neck": "scarf", "neckCol": "#A8322D",
+                  "extra": ["glasses", "blush"], "hair": "#2B2118", "hairStyle": "messy", "satchel": "#8A5A35", "kid": False},
+            "b": {"body": "#7FB7BE", "pattern": "stripes", "patCol": "#5E9AA1", "hat": "none", "neck": "bowtie", "neckCol": "#C8952F",
+                  "extra": ["glasses"], "hair": "#4A2D1B", "hairStyle": "side", "satchel": "#6B4F34", "kid": False},
+            "c": {"body": "#F3E9D2", "pattern": "overalls", "patCol": "#3E5FA8", "hat": "none", "neck": "none",
+                  "extra": ["freckles"], "hair": "#1B1410", "hairStyle": "curly", "satchel": "#A8322D", "kid": False},
         },
     },
-    "voice": {
-        "name": "bm_george",
-        "speed": 1.0,
-        "music": "bed",
-        "fx": ""
-    },
+    "voice": {"name": "am_michael", "speed": 1.05, "music": "bounce", "fx": ""},
     "audience": {
         "regions": ["United States", "Europe"],
         "writing_note": (
@@ -81,7 +40,6 @@ DEFAULTS = {
         ),
     },
 }
-
 
 def _merge(base: dict, over: dict) -> dict:
     out = dict(base)

@@ -3,13 +3,11 @@ import json
 
 from shorts_agent.factcheck_agent import quote_ok
 from shorts_agent.schemas import Line, ScriptDraft, check_script, repair_caps
-from shorts_agent.storyboard_agent import inject_host, static_check
 from shorts_agent.styles import STYLES
 from shorts_agent.uploader import build_metadata, next_publish_time
 
-PA = STYLES["paper-atlas"]
+TT = STYLES["tall-tale"]
 EVID = [{"url": "u", "text": "Some of the gases dissolved in the synovial fluid leave the solution, making a bubble, or cavity."}]
-CODE = "export function buildShots() {\n  const S = [], CUES = [];\n  return { shots: S, cues: CUES };\n}\n"
 
 
 def draft(text, caps):
@@ -22,8 +20,13 @@ def test_repair_adds_missing_highlight():
 
 
 def test_digits_in_spoken_text_are_flagged():
-    problems = check_script(draft("In 1666 a fire began", "In *1666"), PA)
+    problems = check_script(draft("In 1666 a fire began", ""), TT)
     assert any("numbers" in p for p in problems)
+
+
+def test_auto_captions_need_no_caps():
+    d = ScriptDraft(title="t", sources=["a", "b"], lines=[Line(text="word " * 8, caps="") for _ in range(14)])
+    assert check_script(d, TT) == []
 
 
 def test_quote_with_ellipsis_is_accepted():
@@ -36,30 +39,6 @@ def test_invented_quote_is_rejected():
 
 def test_quote_must_come_from_the_cited_url():
     assert not quote_ok("making a bubble, or cavity in the fluid", "other", EVID)
-
-
-def test_inject_host_wraps_returned_shots():
-    out = inject_host(CODE)
-    assert out.startswith("import * as HOST") and "HOST.withHost(S)" in out
-
-
-def test_static_check_rejects_llm_drawn_host():
-    code = CODE + "import * as H from './core/hero.js';\nH.hero({});\n" + "// pad\n" * 80
-    assert any("host" in p.lower() for p in static_check(code, STYLES["history"], 3))
-
-
-def test_scenery_alias_collision_is_flagged():
-    code = ("import * as S from './core/props.js';\nexport function buildShots() {\n  const S = [], CUES = [];\n"
-            "  return { shots: S, cues: CUES };\n}\n" + "// padding\n" * 60)
-    assert any("collision" in p for p in static_check(code, STYLES["history"], 3))
-
-
-def test_era_check_flags_a_train_before_railways():
-    body = "".join(f"SC.stage({{}}, t); SC.house(1,2,3); SC.crowd(1,2,3);\n" for _ in range(4)) + "SC.train(1, 2, 1, t);\n"
-    code = ("import * as SC from './core/props.js';\nexport function buildShots() {\n  const S = [], CUES = [];\n" + body
-            + "  return { shots: S, cues: CUES };\n}\n" + "// pad\n" * 40)
-    assert any("Era error" in p for p in static_check(code, STYLES["history"], 3, year=1666))
-    assert not any("Era error" in p for p in static_check(code, STYLES["history"], 3, year=1858))
 
 
 def test_metadata_limits(tmp_path):
