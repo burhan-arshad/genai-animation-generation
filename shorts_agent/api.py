@@ -32,9 +32,10 @@ COMMANDS = {
     "daily": ["-m", "shorts_agent.daily"],
     "upload": ["-m", "shorts_agent.uploader", "run"],
     "login": ["-m", "shorts_agent.uploader", "login"],
+    "preview": ["-m", "shorts_agent.preview"],
 }
 VOICES = ["am_adam", "am_michael", "bf_emma", "bm_daniel", "bm_fable", "bm_george", "bm_lewis"]
-PROTECTED = {"history", "inventions"}
+PROTECTED = {"history"}
 
 
 @app.middleware("http")
@@ -361,7 +362,7 @@ def worker_start(b: Start):
     if _running():
         raise HTTPException(409, "a worker is already running")
     args = list(COMMANDS[b.cmd])
-    if b.cmd in ("run", "upload") and b.job:
+    if b.cmd in ("run", "upload", "preview") and b.job:
         args += ["--job", str(b.job)]
     LOG.parent.mkdir(exist_ok=True)
     f = open(LOG, "wb")
@@ -448,6 +449,42 @@ def automation_set(b: Auto):
         raise HTTPException(500, str(e))
     return {"ok": True}
 
+# ───────────── test lab: look at the film before the long render ─────────────
+@app.post("/api/lab/preview")
+def lab_preview(b: NewJob):
+    topic = b.topic.strip()
+    if len(topic) < 5:
+        raise HTTPException(400, "topic too short")
+    if _running():
+        raise HTTPException(409, "a worker is already running")
+    jid = store.add_job(topic, styles.default_key())
+    worker_start(Start(cmd="preview", job=jid))
+    return {"id": jid}
+
+
+@app.get("/api/jobs/{job_id}/image/{name}")
+def job_image(job_id: int, name: str):
+    job = store.get_job(job_id)
+    if not job or name not in ("all.jpg", "props.jpg"):
+        raise HTTPException(404, "no such picture")
+    f = _project(job) / "review" / name
+    if not f.exists():
+        raise HTTPException(404, "not made yet")
+    return FileResponse(f, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/jobs/{job_id}/plan")
+def job_plan(job_id: int):
+    job = store.get_job(job_id)
+    if not job:
+        raise HTTPException(404, "no such job")
+    p = _project(job)
+    story = _read_json(p / "story.json") or {}
+    props = (_read_json(p / "props.json") or {}).get("props", [])
+    shots = [{"id": s["id"], "at": s["at"], "set": s["set"], "camera": s["camera"], "framing": s["framing"], "note": s.get("note", ""),
+              "actors": [f'{a["who"]}:{a["mood"]}' for a in s["actors"]], "props": [x["name"] for x in s.get("props", [])]}
+             for s in story.get("shots", [])]
+    return {"shots": shots, "props": [{"name": x["name"], "desc": x["desc"], "span": x["span"]} for x in props], "metrics": _read_json(p / "metrics.json")}
 
 # ───────────── YouTube ─────────────
 @app.get("/api/youtube")

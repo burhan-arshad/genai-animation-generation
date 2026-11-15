@@ -9,7 +9,7 @@ from shorts_agent.storyboard_agent import era_props
 
 def test_shipped_niches_are_valid():
     names = niche.available()
-    assert {"history", "inventions"} <= set(names)
+    assert "history" in names
     for n in names:
         assert niche.validate(n, niche.load(n)) == []
         re.compile(niche.load(n)["topics"]["block_regex"])
@@ -35,8 +35,8 @@ def test_niche_rules_reach_the_style():
 
 def test_default_key_follows_env(monkeypatch):
     monkeypatch.delenv("NICHE", raising=False)
-    monkeypatch.setenv("STYLE", "inventions")
-    assert styles.default_key() == "inventions"
+    monkeypatch.setenv("STYLE", "other")
+    assert styles.default_key() == "other"
     monkeypatch.setenv("NICHE", "history")
     assert styles.default_key() == "history"
 

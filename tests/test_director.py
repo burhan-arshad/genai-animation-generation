@@ -74,7 +74,7 @@ def test_callouts_are_cleaned():
     shots[0]["callouts"] = [{"text": "idaho <b>1914</b>", "word": "nineteen", "style": "weird"}]
     data, _, _ = D.build(story(shots), mk_timing(), 1914, "none")
     c = data["shots"][0]["callouts"][0]
-    assert c["text"] == "IDAHO B1914B" and c["style"] == "pop"
+    assert c["text"] == "IDAHO B1914/B" and c["style"] == "pop"
 
 
 def test_missing_cast_is_a_problem_for_the_llm():

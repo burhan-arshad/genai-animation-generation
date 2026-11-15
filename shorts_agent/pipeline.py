@@ -35,6 +35,10 @@ def is_overload(e: BaseException) -> bool:
     return getattr(e, "code", None) in OVERLOAD_CODES or type(e).__name__ in OVERLOAD_NAMES
 
 
+def _reached(status: str, until: str | None) -> bool:
+    return bool(until) and status in FLOW and until in FLOW and FLOW.index(status) >= FLOW.index(until)
+
+
 def advance(job: dict) -> str:
     """Run exactly one stage; return the new status."""
     styles.set_active(job["style"] or styles.default_key())
@@ -82,8 +86,8 @@ def advance(job: dict) -> str:
     raise ValueError(f"unknown status {s}")
 
 
-def run(limit: int, job_id: int | None = None) -> str | None:
-    """Advance jobs until they are ready or dropped. Returns 'budget' if the LLM budget stopped the run."""
+def run(limit: int, job_id: int | None = None, until: str | None = None) -> str | None:
+    """Advance jobs until they are ready or dropped (or until the stage `until` is reached). Returns 'budget' / 'overload' when stopped early."""
     con = store.db()
     marks = ",".join("?" * len(TERMINAL))
     if job_id:
@@ -96,7 +100,7 @@ def run(limit: int, job_id: int | None = None) -> str | None:
         return None
     for r in rows:
         job = dict(r)
-        while job["status"] not in TERMINAL:
+        while job["status"] not in TERMINAL and not _reached(job["status"], until):
             stage, t0 = job["status"], time.time()
             name = STAGE_NAME.get(stage, stage)
             try:
@@ -165,6 +169,7 @@ if __name__ == "__main__":
     r = sub.add_parser("run")
     r.add_argument("--limit", type=int, default=1)
     r.add_argument("--job", type=int)
+    r.add_argument("--until", choices=FLOW, default=None, help="stop when the job reaches this status (e.g. storyboarded)")
     sub.add_parser("list")
     e = sub.add_parser("events")
     e.add_argument("job", type=int)
@@ -181,7 +186,7 @@ if __name__ == "__main__":
         for t in args.topics:
             print(f"queued job {store.add_job(t, key)} [{key}]: {t}")
     elif args.cmd == "run":
-        run(args.limit, args.job)
+        run(args.limit, args.job, args.until)
     elif args.cmd == "list":
         list_jobs()
     elif args.cmd == "events":

@@ -59,7 +59,7 @@ async function openPage(port) {
     else if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') logs.push('ERROR ' + m.params.args.map((a) => a.value ?? a.description).join(' '));
     else if (m.method === 'Log.entryAdded' && m.params.entry.level === 'error' && !BENIGN.test(m.params.entry.url || '')) logs.push('LOG ' + m.params.entry.text + ' ' + (m.params.entry.url || ''));
     else if (m.method === 'Network.responseReceived' && m.params.response.status >= 400 && !BENIGN.test(m.params.response.url)) logs.push('HTTP ' + m.params.response.status + ' ' + m.params.response.url);
-    else if (m.method === 'Network.loadingFailed') logs.push('NETWORK FAILED ' + m.params.errorText);
+    else if (m.method === 'Network.loadingFailed' && !/ERR_ABORTED/.test(m.params.errorText || '')) logs.push('NETWORK FAILED ' + m.params.errorText);
   };
   const send = (method, params = {}) => new Promise((res, rej) => { const i = ++id; pend.set(i, { res, rej }); ws.send(JSON.stringify({ id: i, method, params })); });
   const ev = async (expr) => { const x = await send('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true }); if (x.exceptionDetails) throw new Error(x.exceptionDetails.exception?.description || x.exceptionDetails.text); return x.result.value; };
@@ -116,6 +116,7 @@ else {
       const ff = spawn('ffmpeg', ['-v', 'error', '-y', '-f', 'image2pipe', '-framerate', String(FPS), '-i', '-',
         ...(hasMix ? ['-ss', String(a0), '-t', String(a1 - a0), '-i', mix] : ['-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo']), '-map', '0:v', '-map', '1:a',
         '-c:v', 'libx264', '-preset', flags.has('--draft') ? 'ultrafast' : 'veryfast', '-crf', flags.has('--draft') ? '28' : '18', '-pix_fmt', 'yuv420p',
+        ...(process.env.OUT_FPS ? ['-r', process.env.OUT_FPS] : []),
         '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', out], { stdio: ['pipe', 'inherit', 'inherit'] });
       const t0 = Date.now();
       for (let i = 0; i < n; i++) {

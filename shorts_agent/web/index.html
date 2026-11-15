@@ -47,6 +47,7 @@ details{margin-top:12px}summary{cursor:pointer;color:var(--mut)}
   <span class="tabs" style="margin-left:auto">
     <button data-t="jobs" class="on">Videos</button><button data-t="niches">Niches</button><button data-t="brand">Brand</button>
     <button data-t="youtube">YouTube</button><button data-t="settings">Settings</button><button data-t="usage">AI usage</button>
+    <button data-t="lab">Test lab</button>
   </span>
 </header>
 
@@ -150,6 +151,17 @@ details{margin-top:12px}summary{cursor:pointer;color:var(--mut)}
     <table id="usage"><thead><tr><th>model</th><th>ok / daily limit</th><th>failed</th><th>tokens in</th><th>tokens out</th></tr></thead><tbody></tbody></table></section>
 </main>
 
+<!-- TEST LAB -->
+<main id="p-lab" class="hide one">
+  <section class="card"><h2>Test lab: look at the film before the long render</h2>
+    <div class="hint">Makes the script, voice, objects and storyboard, then a picture sheet of the film (about 5-15 minutes). It does NOT render the video. Check: does the film show the topic?</div>
+    <div class="row" style="margin-top:8px"><input id="labtopic" class="wide" style="flex:1;min-width:260px" placeholder="A topic for the active niche">
+      <button class="pri" id="labgo">Preview this topic</button></div>
+    <div class="hint" id="labniche" style="margin-top:6px"></div></section>
+  <section class="card"><h3 style="margin-top:0">Videos</h3><div id="lablist"></div></section>
+  <section class="card hide" id="labview"></section>
+</main>
+
 <main class="one"><details id="logbox" class="card" style="margin:0"><summary>Activity log</summary><pre id="log" style="margin-top:8px"></pre></details></main>
 
 <script>
@@ -157,7 +169,7 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const mem={get(){try{return JSON.parse(localStorage.getItem('sa')||'{}')}catch{return{}}},set(o){localStorage.setItem('sa',JSON.stringify({...mem.get(),...o}))}};
 const FLOW=['queued','scripted','verified','timed','storyboarded','rendered','finalized','ready'];
-const TABS=['jobs','niches','brand','youtube','settings','usage'];
+const TABS=['jobs','niches','brand','youtube','settings','usage','lab'];
 const cls=s=>['ready','uploaded'].includes(s)?'ok':['dropped','rejected'].includes(s)?'bad':'warn';
 const vcls=v=>v==='SUPPORTED'?'ok':v==='CONTRADICTED'?'bad':'warn';
 let cur=mem.get().job||0,curUpd=0,logOff=0,wkStart=null,wasRunning=false,JOBS=[],NICHES=[],ACTIVE='';
@@ -174,7 +186,7 @@ const say=(sel,t,bad)=>{const e=typeof sel==='string'?$(sel):sel;e.textContent=t
 function openTab(t){
   TABS.forEach(x=>{$('#p-'+x).classList.toggle('hide',x!==t);document.querySelector(`.tabs [data-t="${x}"]`).classList.toggle('on',x===t)});
   mem.set({tab:t});
-  ({niches:loadNiches,brand:loadBrand,youtube:loadYT,settings:loadSettings,usage:loadUsage})[t]?.();
+  ({niches:loadNiches,brand:loadBrand,youtube:loadYT,settings:loadSettings,usage:loadUsage,lab:loadLab})[t]?.();
 }
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>openTab(b.dataset.t));
 
@@ -401,6 +413,31 @@ async function loadUsage(){
   $('#uday').textContent='AI usage today (quota day, Pacific): '+u.day;
   $('#usage tbody').innerHTML=u.models.map(m=>`<tr><td>${esc(m.model)}</td><td>${m.ok} / ${m.limit}</td><td>${m.failed}</td><td>${m.in}</td><td>${m.out}</td></tr>`).join('')||'<tr><td colspan="5" class="mut">no calls today</td></tr>';
 }
+
+/* ---------- test lab ---------- */
+function loadLab(){
+  $('#labniche').textContent='Active niche: '+ACTIVE+' (change it at the top)';
+  $('#lablist').innerHTML=JOBS.slice(0,15).map(x=>`<div class="item"><span class="grow">#${x.id} ${esc(x.topic)} <span class="b ${cls(x.status)}">${esc(x.status)}</span> <span class="hint">${esc(x.style||'')}</span>${x.error?`<div class="err">${esc(String(x.error).slice(0,120))}</div>`:''}</span><button data-lab="${x.id}">Show</button><button data-prev="${x.id}">Preview</button></div>`).join('')||'<span class="mut">No videos yet.</span>';
+}
+async function showLab(id){
+  const v=$('#labview');v.classList.remove('hide');v.innerHTML='Loading...';
+  let p={shots:[],props:[]};try{p=await api('/api/jobs/'+id+'/plan')}catch{}
+  const t=Date.now();
+  v.innerHTML=`<h2>Video #${id}</h2>${p.metrics?`<div class="hint">shots ${p.metrics.shots} · with objects ${p.metrics.shots_with_props} · custom objects used ${p.metrics.custom_used}/${p.metrics.custom_objects} · relevance ${p.metrics.relevance??'-'}/10 · tries ${p.metrics.rounds}</div>`:''}<h3>Objects designed for this topic</h3>`+(p.props.map(x=>`<div>${esc(x.name)} <span class="mut">${esc(x.desc)} · ${x.span} m</span></div>`).join('')||'<span class="mut">none yet</span>')
+   +`<img src="/api/jobs/${id}/image/props.jpg?v=${t}" style="max-width:100%;margin-top:6px;display:block" onerror="this.style.display='none'">`
+   +`<h3>The film (one picture per shot)</h3><img src="/api/jobs/${id}/image/all.jpg?v=${t}" style="max-width:100%" onerror="this.outerHTML='<span class=mut>No picture sheet yet: press Preview.</span>'">`
+   +'<h3>Shot plan</h3><table><tbody>'+p.shots.map(s=>`<tr><td>${esc(s.id)}</td><td>${s.at.toFixed(1)}s</td><td>${esc(s.set)} · ${esc(s.framing)} · ${esc(s.camera)}</td><td>${esc(s.actors.join(', '))}<div class="mut">${esc(s.props.join(', '))} ${esc(s.note)}</div></td></tr>`).join('')+'</tbody></table>';
+}
+$('#lablist').onclick=async e=>{
+  const sh=e.target.dataset.lab,pv=e.target.dataset.prev;
+  if(sh)showLab(sh);
+  if(pv){try{await start('preview',+pv)}catch(x){alert(x.message)}}
+};
+$('#labgo').onclick=async()=>{
+  const t=$('#labtopic').value.trim();if(!t)return;
+  try{await api('/api/lab/preview',{topic:t});$('#labtopic').value='';logOff=0;$('#logbox').open=true;pollWorker();await loadJobs();loadLab()}catch(e){alert(e.message)}
+};
+setInterval(()=>{if(!$('#p-lab').classList.contains('hide'))loadLab()},4000);
 
 /* ---------- start ---------- */
 api('/api/brand').then(r=>{try{$('#title').textContent=JSON.parse(r.text).channel.name+' · dashboard'}catch{}});

@@ -49,10 +49,10 @@ def test_metadata_limits(tmp_path):
     assert sum(len(t) + 1 for t in m["tags"]) <= 450
 
 
-def test_metadata_uses_the_niche_hashtags(tmp_path):
+def test_metadata_falls_back_for_an_unknown_niche(tmp_path):
     (tmp_path / "script.json").write_text(json.dumps(
         {"title": "The Post-it note", "sources": ["x: http://e"], "lines": [{"text": "Hook line.", "caps": "*Hook"}]}))
-    assert "#inventions" in build_metadata(tmp_path, "inventions")["description"]
+    assert "#shorts" in build_metadata(tmp_path, "no-such-niche")["description"]
 
 
 def test_publish_time_is_in_the_future():

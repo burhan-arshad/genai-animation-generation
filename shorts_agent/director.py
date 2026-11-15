@@ -1,4 +1,4 @@
-"""Director: the LLM writes a story (cast, sets, shots, acting beats). This module checks it against the narration
+"""Director: the LLM writes a story (cast, sets, props, shots, acting beats). This module checks it against the narration
 timing, turns every spoken word into seconds and compiles src/shots.js for the Tall Tale engine (core/director.js)."""
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ PATTERNS = ["plain", "check", "stripes", "overalls", "vest", "apron"]
 HATS = ["none", "cap", "bowler", "boater", "beanie", "visor", "tophat", "bun", "flower", "bow", "mailcap"]
 NECKS = ["none", "bowtie", "tie", "scarf", "collar"]
 EXTRAS = ["mustache", "glasses", "freckles", "blush", "pencil", "monocle"]
-SET_KINDS = ["street", "interior", "meadow"]
+SET_KINDS = ["street", "interior", "meadow", "open"]
 FRAMINGS = ["extreme_close", "close", "medium", "full", "wide", "establishing"]
 CAMERAS = ["drift", "push_in", "pull_out", "truck_left", "truck_right", "orbit_left", "orbit_right", "crane_down", "crane_up", "punch_in", "handheld"]
 ACTIONS = ["stand", "walk_in", "walk_out", "cross_left", "cross_right", "run_in", "run_out", "run_left", "run_right", "sit", "jump"]
@@ -27,13 +27,15 @@ TRANSITIONS = ["cut", "flash", "dip", "punch"]
 CALLOUT_STYLES = ["stamp", "pop", "label"]
 FX_TYPES = ["shake", "flash"]
 SLOT_RE = re.compile(r"(?:(?:front|back)_)?(?:far_left|left|center|right|far_right)")
-SPECIAL_SLOTS = {"street": {"boardwalk_left", "boardwalk_right"}, "interior": {"counter_clerk", "counter_top"}, "meadow": set()}
+SPECIAL_SLOTS = {"street": {"boardwalk_left", "boardwalk_right"}, "interior": {"counter_clerk", "counter_top"}, "meadow": set(), "open": set()}
 DRESS = {
-    "street": {"tree", "barrel", "crate", "car", "lamp", "signpost", "parcel", "mail_sack", "fence"},
-    "meadow": {"tree", "barrel", "crate", "car", "fence", "house", "signpost", "train", "pole", "parcel", "mail_sack"},
-    "interior": {"desk", "cubbies", "poster", "scale", "chick_crate", "parcel", "mail_sack", "barrel", "crate"},
+    "street": {"tree", "barrel", "crate", "car", "lamp", "signpost", "parcel", "mail_sack", "fence", "crowd", "board"},
+    "meadow": {"tree", "barrel", "crate", "car", "fence", "house", "signpost", "train", "pole", "parcel", "mail_sack", "crowd", "board"},
+    "interior": {"desk", "cubbies", "poster", "scale", "chick_crate", "parcel", "mail_sack", "barrel", "crate", "crowd", "board"},
+    "open": {"tree", "barrel", "crate", "car", "fence", "signpost", "parcel", "mail_sack", "house", "crowd", "board"},
 }
-BOUNDS = {"street": (-4.2, 4.2, -24, 3), "meadow": (-14, 14, -24, 3), "interior": (-3.2, 3.2, -3.5, 1.5)}
+BUILTIN_PROPS = sorted(set().union(*DRESS.values()))
+BOUNDS = {"street": (-4.2, 4.2, -24, 3), "meadow": (-14, 14, -24, 3), "interior": (-3.2, 3.2, -3.5, 1.5), "open": (-14, 14, -24, 3)}
 DEFAULT_ERA = {"train": 1825, "car": 1895, "lamp": 1807, "scale": 1880}
 MAX_SHOT = 3.9
 CALLOUT_DUR = {"stamp": 2.4, "pop": 1.9, "label": 3.4}
@@ -112,6 +114,17 @@ class Fx(BaseModel):
     type: str
 
 
+class ShotProp(BaseModel):
+    name: str
+    x: float
+    y: float
+    z: float
+    scale: float
+    rot: float
+    word: str
+    text: str
+
+
 class Shot(BaseModel):
     line: int
     word: str
@@ -122,6 +135,7 @@ class Shot(BaseModel):
     transition: str
     actors: list[Actor]
     callouts: list[Callout]
+    props: list[ShotProp]
     fx: list[Fx]
     note: str
 
@@ -177,7 +191,7 @@ class Timing:
 
 # ---------- cleaning helpers ----------
 def _ident(s) -> str:
-    return re.sub(r"[^a-z0-9_]", "", str(s or "").strip().lower().replace(" ", "_").replace("-", "_"))[:16]
+    return re.sub(r"[^a-z0-9_]", "", str(s or "").strip().lower().replace(" ", "_").replace("-", "_"))[:24]
 
 
 def _hex(s, default: str = "") -> str:
@@ -234,7 +248,11 @@ def _cast(items, warns) -> list[dict]:
     return out
 
 
-def _sets(items, year: int, era: dict, warns) -> list[dict]:
+def _text(s, n=70) -> str:
+    return re.sub(r"[^A-Za-z0-9 |!?.,&'$%:/-]", "", str(s))[:n]
+
+
+def _sets(items, year: int, era: dict, warns, custom: set) -> list[dict]:
     out, seen = [], set()
     for s in items[:3]:
         sid = _ident(s.id) or f"set{len(out) + 1}"
@@ -248,19 +266,41 @@ def _sets(items, year: int, era: dict, warns) -> list[dict]:
                 if _hex(getattr(s, k)):
                     d[k] = _hex(getattr(s, k))
             d["sign"] = re.sub(r"[^A-Za-z0-9 .&'!-]", "", str(s.sign))[:26].strip().upper()
+        if kind == "open":                      # reuses the same fields: wall = sky top, motif = horizon, floor = ground, ceiling = hills, sign = "stars"
+            d["top"], d["horizon"] = _hex(s.wall, "#3D8EE0"), _hex(s.motif, "#CBEAF8")
+            d["ground"], d["hills"] = _hex(s.floor), _hex(s.ceiling)
+            d["stars"] = "star" in str(s.sign).lower()
         x0, x1, z0, z1 = BOUNDS[kind]
-        for it in s.dress[:12]:
+        for it in s.dress[:14]:
             name = _ident(it.item)
-            if name not in DRESS[kind]:
-                warns.append(f"dress item {it.item!r} is not allowed in a {kind}: dropped")
+            if name not in DRESS[kind] and name not in custom:
+                warns.append(f"dress item {it.item!r} is not available in a {kind}: dropped")
                 continue
             if year < era.get(name, 0):
                 warns.append(f"dress item {name} did not exist in {year}: dropped")
                 continue
             d["dress"].append({"item": name, "x": round(_num(it.x, x0, x1), 2), "z": round(_num(it.z, z0, z1), 2),
-                               "scale": round(_num(it.scale, 0.5, 2.5, 1.0) or 1.0, 2), "rot": round(_num(it.rot, -360, 360), 1),
-                               "color": _hex(it.color), "text": re.sub(r"[^A-Za-z0-9 |!?.,&'$-]", "", str(it.text))[:70]})
+                               "scale": round(_num(it.scale, 0.5, 3, 1.0) or 1.0, 2), "rot": round(_num(it.rot, -360, 360), 1),
+                               "color": _hex(it.color), "text": _text(it.text)})
         out.append(d)
+    return out
+
+def _shot_props(items, kind, at, end, tm, yr, era, custom, warns) -> list[dict]:
+    out = []
+    x0, x1, z0, z1 = BOUNDS[kind]
+    ok = DRESS[kind] | custom
+    for it in items[:6]:
+        name = _ident(it.name)
+        if name not in ok:
+            warns.append(f"object {it.name!r} is unknown: dropped")
+            continue
+        if yr < era.get(name, 0):
+            warns.append(f"object {name} did not exist in {yr}: dropped")
+            continue
+        t = tm.find(it.word, at, end) if str(it.word).strip() else None
+        out.append({"name": name, "x": round(_num(it.x, x0, x1), 2), "y": round(_num(it.y, 0, 3), 2), "z": round(_num(it.z, z0, z1), 2),
+                    "scale": round(_num(it.scale, 0.3, 3, 1.0) or 1.0, 2), "rot": round(_num(it.rot, -360, 360), 1),
+                    "t": round(t, 3) if t is not None else None, "text": _text(it.text, 40)})
     return out
 
 
@@ -290,7 +330,7 @@ def _actor(a, ids, kind, at, end, tm, cues, warns):
 
 
 def _callout(c, at, end, tm):
-    text = re.sub(r"[^A-Za-z0-9 !?.,:&$'%-]", "", str(c.text)).strip().upper()[:26]
+    text = re.sub(r"[^A-Za-z0-9 !?.,:&$'%/-]", "", str(c.text)).strip().upper()[:26]
     if not text:
         return None
     style = _pick(c.style, CALLOUT_STYLES, "pop")
@@ -336,6 +376,13 @@ def _split_long(shots, tm) -> list[dict]:
             lo, hi = c["at"], c["end"]
             c["callouts"] = [x for x in c["callouts"] if lo <= x["t"] < hi]
             c["fx"] = [x for x in c["fx"] if lo <= x["t"] < hi]
+            props = []
+            for p in c["props"]:                       # already shown earlier: visible from the start; shown later: appears on its word
+                if p["t"] is None or p["t"] < lo:
+                    props.append(dict(p, t=None))
+                elif p["t"] < hi:
+                    props.append(p)
+            c["props"] = props
             for a in c["actors"]:
                 state = {"mood": a["mood"], "gesture": a["gesture"], "prop": a["prop"]}
                 for b in a["beats"]:
@@ -374,7 +421,8 @@ def _inject_host(shots, appear: str, tm) -> None:
             host = {"who": "host", "slot": slot, "mood": "smug", "action": "stand", "gesture": "hip", "prop": None, "looks_at": "",
                     "speech": [], "beats": []}
         sh["actors"].append(host)
-
+        if sh["focus"] and "host" not in sh["focus"]:      # the camera must frame him too, or he is cut off at the edge
+            sh["focus"].append("host")
 
 def _set_punch(sh) -> None:
     if sh["camera"] != "punch_in":
@@ -385,15 +433,17 @@ def _set_punch(sh) -> None:
 
 
 def build(story: Story, tm: Timing, year: int | None = None, appear: str = "first", era: dict | None = None, plain: bool = False,
-          strict: bool = True):
-    """-> (resolved story dict, problems the LLM must fix, warnings). plain=True drops scenery and overlays (safe mode)."""
+          strict: bool = True, custom=None, need_props: bool = False):
+    """-> (resolved story dict, problems the LLM must fix, warnings). plain=True drops scenery, objects and overlays (safe mode).
+    custom = names of the objects designed for this video (propgen). need_props = the film must actually show things."""
     problems: list[str] = []
     warns: list[str] = []
+    custom = set(custom or [])
     yr = story.year if 1000 <= story.year <= 2100 else (year or 1900)
     era_first = {**DEFAULT_ERA, **(era or {})}
     cast = _cast(story.cast, warns)
     ids = {c["id"] for c in cast} | {"host"}
-    sets = _sets(story.sets, yr, era_first, warns)
+    sets = _sets(story.sets, yr, era_first, warns, custom)
     if not sets:
         sets = [{"id": "main", "kind": "street", "mood": "day", "dress": []}]
         warns.append("no valid set: using a default street")
@@ -437,7 +487,7 @@ def build(story: Story, tm: Timing, year: int | None = None, appear: str = "firs
                 actors.append(d)
         shot = {"at": round(at, 3), "end": round(end, 3), "set": sid, "framing": _pick(sp.framing, FRAMINGS, "medium"),
                 "camera": _pick(sp.camera, CAMERAS, "drift"), "focus": [f for f in (_ident(x) for x in sp.focus) if f in used][:3],
-                "transition": _pick(sp.transition, TRANSITIONS, "cut") if i else "cut", "actors": actors, "callouts": [], "fx": [],
+                "transition": _pick(sp.transition, TRANSITIONS, "cut") if i else "cut", "actors": actors, "callouts": [], "props": [], "fx": [],
                 "note": str(sp.note)[:120]}
         if not plain:
             for c in sp.callouts[:2]:
@@ -448,6 +498,7 @@ def build(story: Story, tm: Timing, year: int | None = None, appear: str = "firs
                 typ, t = _pick(f.type, FX_TYPES, ""), tm.find(f.word, at, end)
                 if typ and t is not None:
                     shot["fx"].append({"t": round(t, 3), "type": typ})
+            shot["props"] = _shot_props(sp.props, kinds[sid], at, end, tm, yr, era_first, custom, warns)
         shots.append(shot)
 
     if not cast:
@@ -460,6 +511,16 @@ def build(story: Story, tm: Timing, year: int | None = None, appear: str = "firs
         problems.append("use at least 3 different framings")
     if sum(1 for s in shots if not s["actors"]) > len(shots) * 0.4:
         problems.append("too many shots without any character: put characters (with moods) in most shots")
+    if sum(1 for s in shots if s["framing"] in ("close", "extreme_close")) > len(shots) * 0.45:
+        problems.append("too many close-ups: use close/extreme_close for at most a quarter of the shots (reactions only); "
+                        "show the objects and the place with medium, full and wide framings")
+    if need_props and not plain:
+        if sum(1 for s in shots if s["props"]) < len(shots) * 0.5:
+            problems.append("most shots show nothing of the topic: add `props` (the objects, place, sign or crowd the narration talks about) "
+                            "to at least half of the shots, revealed on the spoken word")
+        used_names = {p["name"] for s in shots for p in s["props"]} | {d["item"] for st in sets for d in st["dress"]}
+        if custom and not (used_names & custom):
+            problems.append("none of the designed custom objects is used: place them with `props` or `dress` using their exact names")
 
     _vary(shots)
     shots = _split_long(shots, tm)
@@ -477,14 +538,17 @@ def build(story: Story, tm: Timing, year: int | None = None, appear: str = "firs
 JS = """// generated by shorts_agent/director.py: do not edit, re-run the storyboard stage instead
 import { buildFromStory } from './core/director.js';
 const STORY = __STORY__;
+const PROPS = __PROPS__;
 export function buildShots(E) {
-  return buildFromStory(E, STORY);
+  return buildFromStory(E, STORY, PROPS);
 }
 """
 
 
-def to_js(story: dict) -> str:
-    return JS.replace("__STORY__", json.dumps(story, ensure_ascii=False, separators=(",", ":")))
+def to_js(story: dict, props: list | None = None) -> str:
+    defs = {p["name"]: p for p in (props or [])}
+    return JS.replace("__STORY__", json.dumps(story, ensure_ascii=False, separators=(",", ":"))).replace(
+        "__PROPS__", json.dumps(defs, ensure_ascii=False, separators=(",", ":")))
 
 
 def vocab_text() -> str:
@@ -493,9 +557,11 @@ def vocab_text() -> str:
         "mood: " + ", ".join(MOODS),
         "pattern: " + ", ".join(PATTERNS) + " | hat: " + ", ".join(HATS) + " | neck: " + ", ".join(NECKS) + " | extra: " + ", ".join(EXTRAS),
         "set kind: " + ", ".join(SET_KINDS) + " | set mood: day, dusk",
-        "dress items: street = " + ", ".join(sorted(DRESS["street"])) + "; meadow = " + ", ".join(sorted(DRESS["meadow"]))
+        "open set = a sky and ground you colour yourself (use it for sports grounds, space, science): wall = top-of-sky hex, motif = horizon hex, "
+        "floor = ground hex (\"\" = no ground, the people stand on a small platform), ceiling = hills hex or \"\", sign = \"stars\" for a night sky with stars",
+        "built-in objects for `dress` and `props`: street = " + ", ".join(sorted(DRESS["street"])) + "; meadow = " + ", ".join(sorted(DRESS["meadow"]))
         + "; interior = " + ", ".join(sorted(DRESS["interior"])),
-        "dress text: poster lines separated by | (first line is the title, start a line with ! to make it red); signpost = place name; scale = pounds as a number",
+        "object text: poster lines separated by | (first line is the title, a line starting with ! is red); board = the sign text; signpost = place name; scale = pounds",
         "framing: " + ", ".join(FRAMINGS) + " | camera: " + ", ".join(CAMERAS),
         "slot: [front_|back_]far_left|left|center|right|far_right; street also boardwalk_left, boardwalk_right; "
         "interior also counter_clerk (behind the counter), counter_top (standing on it)",
@@ -526,9 +592,11 @@ def _a(who, slot, mood="neutral", action="stand", gesture="none", prop="", looks
             "talk": talk, "beats": [{"word": w, "mood": m, "gesture": g, "prop": "", "sfx": s} for w, m, g, s in beats]}
 
 
-def _s(line, set_, framing, camera, focus, actors, word="", transition="cut", callouts=(), fx=(), note=""):
+def _s(line, set_, framing, camera, focus, actors, word="", transition="cut", callouts=(), fx=(), note="", props=()):
+    """props = (name, x, z, scale, word, text) tuples"""
     return {"line": line, "word": word, "set": set_, "framing": framing, "camera": camera, "focus": focus, "transition": transition,
             "actors": actors, "callouts": [{"text": t, "word": w, "style": s} for t, w, s in callouts],
+            "props": [{"name": p[0], "x": p[1], "y": 0, "z": p[2], "scale": p[3], "rot": 0, "word": p[4], "text": p[5] if len(p) > 5 else ""} for p in props],
             "fx": [{"word": w, "type": t} for w, t in fx], "note": note}
 
 
@@ -549,13 +617,14 @@ DEMO = {
     "shots": [
         _s(0, "main", "wide", "crane_down", ["may", "dad"],
            [_a("dad", "left", "happy", gesture="present", talk=True), _a("may", "center", "happy", "walk_in", beats=[("mailed", "shock", "", "pop")])],
-           callouts=[("IDAHO 1914", "idaho", "label")], note="hook: the family arrives"),
+           callouts=[("IDAHO 1914", "idaho", "label")], note="hook: the family arrives", props=[("board", 3.0, -2.0, 1, "mailed", "MAIL A KID?")]),
         _s(1, "home", "wide", "push_in", ["grandma"], [_a("grandma", "center", "happy", gesture="wave")], note="grandma's house"),
         _s(2, "office", "close", "push_in", ["may"],
            [_a("may", "center", "proud", beats=[("stamps", "laugh", "", "stamp")]), _a("clerk", "right", "shock")],
            fx=[("stamps", "shake")], note="stamps on the coat"),
         _s(3, "main", "medium", "truck_left", ["dad"],
-           [_a("dad", "center", "happy", "cross_left", prop="parcels", beats=[("packages", "proud", "", "plop")])], transition="punch"),
+           [_a("dad", "center", "happy", "cross_left", prop="parcels", beats=[("packages", "proud", "", "plop")])], transition="punch",
+           props=[("parcel", 1.6, 0.6, 1, "packages", ""), ("crowd", -2.6, -3, 1, "", "")]),
         _s(4, "home", "medium", "orbit_left", ["dad", "may"],
            [_a("dad", "left", "happy", looks_at="may", talk=True), _a("may", "right", "happy", "jump", looks_at="dad")]),
         _s(5, "home", "wide", "crane_up", ["may"], [_a("may", "center", "worried", gesture="point")],
