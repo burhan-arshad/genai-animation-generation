@@ -1,5 +1,5 @@
 """Tall Tale storyboard: designed props + story JSON (LLM) -> checked and time-resolved (director.py) -> src/shots.js,
-then a vision reviewer looks at the picture sheet and asks for a rewrite if the film does not show its topic."""
+then (when there is a round left) a vision reviewer looks at the picture sheet and asks for a rewrite if the film does not show its topic."""
 from __future__ import annotations
 
 import argparse
@@ -17,38 +17,44 @@ from . import brand, niche, propgen, styles
 from .config import PROJECTS_ROOT, REPO, SKILL_DIR, proc_flags, render_env
 from .director import DEMO, EXAMPLE, Story, Timing, build, to_js, vocab_text
 from .llm import BudgetExceeded, generate_structured
+from .runner import only_noise
 
 YEAR_RE = re.compile(r"\b(1[0-9]\d\d|20[0-2]\d)\b")
 
-SYSTEM = """You direct a 40-50 second animated short in the 'Tall Tale' style: flat cartoon cut-out people living in a sunny 3D world.
+SYSTEM = """You direct a 40-50 second animated short in the 'Tall Tale' style: flat cartoon cut-out people living in a 3D world.
 You never write code. You return ONE story object that matches the JSON schema; the engine builds the scenes from it.
 
 SHOW THE STORY (the most important rule): a viewer with the sound off must understand the topic from the pictures alone. In every shot put
-on screen the objects, place or crowd that the line talks about: use `props` (reveal them on the spoken word with `word`) and the set's
-`dress`. Use the CUSTOM OBJECTS designed for this topic (exact names) for the topic's own things, and the built-in objects for generic
-scenery. `crowd` = a group of spectators reacting, `board` = a sign (put its words in `text`). The characters react to the objects
-(looks_at, moods, gestures). Never leave a shot as people standing in an empty place.
-The camera frames the people AND the objects of a shot together: put the topic's main object right beside the actors (x between 1.5 and 3,
-z between -3 and 0.5, scale 1 or more), never behind them or far away. Use close/extreme_close for at most a quarter of the shots
-(reactions only); show objects and places with medium, full and wide framings.
+on screen the objects, place, event or crowd that the line talks about: use `props` (reveal them on the spoken word with `word`), the set's
+`dress` and the shot `effect`. Use the CUSTOM OBJECTS designed for this topic (exact names) for the topic's own things, and the built-in
+objects for generic scenery. EVENTS need their picture: an earthquake = effect quake + crack + rubble; a fire = fire + smoke; a flood = water
+(move rise); a storm = effect storm or rain; snow = effect snow; a crowd = crowd; a sign or headline = board. Never show a result (a score,
+an ending, a reveal) before the narration reaches it.
+The camera frames the people AND the objects of a shot together: put the topic's main object beside the actors (x between 1.5 and 3, z between
+-3 and 0.5, scale 1 or more), never behind them or far away. Use close/extreme_close for at most a quarter of the shots (reactions only).
+ACTING (the people must not just stand): in almost every shot give each character a beat (a mood change on a spoken word, e.g. shock when
+the object appears), a gesture, a walking action or a held prop; they look at the object or at each other (looks_at). Use `talk` for the one
+who speaks. Vary the moods through the film: surprise, worry, joy, pride, anger, a smug punchline. Objects MOVE: give at least three objects a
+`move` (fly = thrown or flying, bounce, spin, swing, shake, rise) started by their `word`.
 CAST (2-6 characters for THIS story): id (lowercase letters; never 'host', the channel host is added automatically) and a look:
 body colour (hex), pattern, hat, neck item, extras, kid (true for children). One hat and one neck item each, bright colours,
 clearly different from each other. Unused text fields are "".
 SETS (1-3): kind street | interior | meadow | open, mood day | dusk. An interior also takes wall/motif/floor/ceiling (hex) and a short sign.
-Pick the set that fits the story: street, interior or meadow. Use `open` only for a place that is none of these.
+Pick the set that fits the story: street, interior or meadow. Use `open` only for a place that is none of these (you colour its sky and ground).
 The stage centre is (0,0): x runs left to right (-14..14), z negative = farther from the camera (-24..3). Actors stand in |x|<3, |z|<2;
-big scenery (a stadium, a barn) goes farther back (z -10..-16, scale 0.3-1). `props` fields: name, x, y (height above the ground,
-0 normally), z, scale, rot (degrees), word (reveal word or ""), text.
+big scenery (a barn, a tent) goes farther back (z -10..-16, scale 0.3-1). `props` fields: name, x, y (height above the ground, 0 normally),
+z, scale, rot (degrees), word (reveal word or ""), text, move, dx, dz (dx, dz only for fly).
 SHOTS: at least one per script line, in order. A line longer than 3 s gets two shots (the second one has `word` = the first spoken word of
-its second half; otherwise word is ""). Every shot: set, framing, camera, focus (ids that must be in frame), transition, actors, callouts, props, fx, note.
-ACTORS in a shot: who, slot, mood, action, gesture, prop, looks_at (id or ""), talk (true while this character is the one speaking), and
-beats = changes on a spoken word: {word, mood, gesture, prop, sfx} (unused fields ""). `word` must be a word that is really spoken in
-that shot's lines, lowercase, copied from the script. prop "none" puts the held prop down.
+its second half; otherwise word is ""). Every shot: set, framing, camera, focus (ids that must be in frame), transition, effect, actors,
+callouts, props, fx, note.
+ACTORS in a shot: who, slot, mood, action, gesture, prop, looks_at (id or ""), talk, and beats = changes on a spoken word:
+{word, mood, gesture, prop, sfx} (unused fields ""). `word` must be a word that is really spoken in that shot's lines, lowercase, copied from
+the script. prop "none" puts the held prop down.
 DIRECTION RULES:
 - No two neighbouring shots with the same set + framing + camera move. Use at least 4 different moves and 3 framings.
   crane_down to open, push_in on big moments, punch_in on the reveal word, handheld for panic, orbit/truck for talking scenes.
+- Transitions: cut by default; fade, wipe, slide or zoom (blend with the previous shot) ONLY when the place or time changes; flash/punch on impacts.
 - Open with a wide or establishing shot of the place (the host appears by himself). Finish on a reaction close-up or a punchline gag.
-- Faces act: change mood on every beat (shock on the reveal, smug when someone is clever, worried for trouble, laugh for the payoff).
 - Use `callouts` for years, numbers, names and signs ("IDAHO 1914", "73 MILES", "NO PEOPLE"): the narration spells numbers out, the callout
   shows them as digits. style: label (place/date tag), pop (big word), stamp (rubber stamp). At most two per shot, 26 characters.
 - Put sfx on beats (pop, boing, stamp, ding, thud, slam, plop, zip, sparkle, gulp, chirp, tock) and `shake`/`flash` fx on impacts.
@@ -118,7 +124,7 @@ def sync_overlay(project: Path, st: styles.Style) -> None:
 def run_check(project: Path) -> tuple[bool, str]:
     p = subprocess.run(["node", "tools/capture.mjs", "check"], cwd=project, capture_output=True, text=True, encoding="utf-8",
                        errors="replace", env={**os.environ, **render_env("preview")}, creationflags=proc_flags())
-    return (p.returncode == 0 and "CHECK OK" in p.stdout), (p.stdout + "\n" + p.stderr).strip()
+    return (p.returncode == 0 and ("CHECK OK" in p.stdout or only_noise(p.stdout))), (p.stdout + "\n" + p.stderr).strip()
 
 
 def build_prompt(project: Path, st: styles.Style, script: dict, tm: Timing, year: int | None, custom: dict) -> str:
@@ -133,7 +139,7 @@ def build_prompt(project: Path, st: styles.Style, script: dict, tm: Timing, year
 
 
 def contact_sheet(project: Path, story: dict, out: Path) -> None:
-    """One small frame from the late middle of every shot (props have appeared by then)."""
+    """One small frame from the late middle of every shot (objects have appeared by then)."""
     from PIL import Image, ImageDraw
     shots = story["shots"][:36]
     times = [round(s["at"] + (s["end"] - s["at"]) * 0.7, 2) for s in shots]
@@ -169,7 +175,7 @@ def relevance(project: Path, story: dict, tm: Timing, topic: str) -> Relevance |
             f"The picture is a contact sheet of a short animated film about: {topic}. Tiles go left to right, top to bottom; each is labelled with its "
             f"shot id. The narration spoken during each shot:\n{listing}\n\nFor every shot say whether the picture SHOWS what the words are about "
             "(the object, place, event or sign), not just a person standing around. shows_topic=false when a viewer would not understand the words "
-            "from the picture. For each false shot write the `problem` and a concrete `fix` (which object to show and where, which framing or set). "
+            "from the picture. For each false shot write the `problem` and a concrete `fix` (which object or effect to show and where, which framing or set). "
             "`score` 1-10 = how well the whole film explains the topic visually.",
             Relevance, system="You are a strict film editor reviewing a storyboard sheet. Judge only what is visible.",
             temperature=0.0, task="vision", images=[path.read_bytes()])
@@ -185,12 +191,15 @@ def write_metrics(project: Path, d: dict, custom: dict, attempt: int, plain: boo
     (project / "metrics.json").write_text(json.dumps({
         "shots": len(d["shots"]), "shots_with_props": sum(1 for s in d["shots"] if s["props"]), "custom_objects": len(custom),
         "custom_used": len(used & set(custom)), "rounds": attempt, "safe_mode": plain,
-        "relevance": rv.score if rv else None, "relevance_bad_shots": sum(1 for n in rv.shots if not n.shows_topic) if rv else None}, indent=1), encoding="utf-8")
+        "effects": sum(1 for s in d["shots"] if s.get("effect")), "moving_objects": sum(1 for s in d["shots"] for p in s["props"] if p.get("move")),
+        "relevance": rv.score if rv else None, "relevance_bad_shots": sum(1 for n in rv.shots if not n.shows_topic) if rv else None}, indent=1),
+        encoding="utf-8")
 
 
-def build_shots(project: Path, max_tries: int = 3) -> None:
+def build_shots(project: Path) -> None:
     st = styles.active()
     sync_overlay(project, st)
+    max_tries = max(1, min(3, int(os.getenv("STORYBOARD_ROUNDS", "2") or 2)))
     tm = Timing.load(project)
     script = json.loads(read(project / "script.json"))
     year = story_year(project)
@@ -214,7 +223,7 @@ def build_shots(project: Path, max_tries: int = 3) -> None:
         task = "storyboard" if attempt <= 2 else "storyboard_hard"
         story = generate_structured(prompt, Story, system="You output only the JSON story object.", temperature=0.6, task=task)
         (logs / f"story_attempt{attempt}.json").write_text(story.model_dump_json(indent=1), encoding="utf-8")
-        data, problems, warns = build(story, tm, year, appear, era, custom=set(custom), need_props=True)
+        data, problems, warns = build(story, tm, year, appear, era, custom=set(custom), need_props=True, need_acting=True)
         for w in warns:
             print("   warning:", w)
         print(f"[storyboard] attempt {attempt} ({task}): {len(problems)} problem(s), {len(warns)} warning(s)")
@@ -223,7 +232,7 @@ def build_shots(project: Path, max_tries: int = 3) -> None:
                       "It has these problems. Fix them and return the FULL corrected story object:\n- " + "\n- ".join(problems))
             continue
         ok, plain, d, out = False, False, data, ""
-        for plain in ((False, True) if os.getenv("SAFE_MODE", "0") == "1" else (False,)): 
+        for plain in ((False, True) if os.getenv("SAFE_MODE", "0") == "1" else (False,)):      # True = safe mode: no scenery, objects or overlays
             d = data if not plain else build(story, tm, year, appear, era, plain=True, custom=set(custom))[0]
             (project / "src" / "shots.js").write_text(to_js(d, list(custom.values())), encoding="utf-8")
             ok, out = run_check(project)
@@ -237,10 +246,10 @@ def build_shots(project: Path, max_tries: int = 3) -> None:
             prompt = (f"{base}\n\nYour previous story object:\n{story.model_dump_json()}\n\n"
                       "It has these problems. Fix them and return the FULL corrected story object:\n- " + "\n- ".join(problems))
             continue
-        best = (to_js(d, list(custom.values())), d)
+        best = to_js(d, list(custom.values()))
         (project / "story.json").write_text(json.dumps(d, indent=1, ensure_ascii=False), encoding="utf-8")
         write_metrics(project, d, custom, attempt, plain, None)
-        if plain or not review:
+        if plain or not review or attempt >= max_tries:          # no round left to rewrite in: the review would only cost time
             return
         rv = relevance(project, d, tm, topic)
         if rv is None:
@@ -248,14 +257,14 @@ def build_shots(project: Path, max_tries: int = 3) -> None:
         write_metrics(project, d, custom, attempt, plain, rv)
         bad = [n for n in rv.shots if not n.shows_topic]
         print(f"[storyboard] relevance {rv.score}/10: {len(bad)} of {len(d['shots'])} shot(s) do not show the topic. {rv.summary[:160]}")
-        if rv.score >= 7 or len(bad) < max(3, int(len(d["shots"]) * 0.3)) or attempt == max_tries:
+        if rv.score >= 7 or len(bad) < max(3, int(len(d["shots"]) * 0.3)):
             return
         notes = "\n".join(f"- {n.id}: {n.problem}. FIX: {n.fix}" for n in bad[:10])
         prompt = (f"{base}\n\nYour previous story object:\n{story.model_dump_json()}\n\nAn editor looked at the rendered picture sheet and says the film does "
                   f"not show its topic well ({rv.score}/10). {rv.summary}\nShots that do not show what the words are about:\n{notes}\n"
-                  "Rewrite the FULL story object so that every shot shows its topic: bring the objects next to the actors, use medium/full/wide framings.")
+                  "Rewrite the FULL story object so that every shot shows its topic: bring the objects and effects next to the actors, use medium/full/wide framings.")
     if best:                                                  # a later attempt failed: put the last good film back
-        (project / "src" / "shots.js").write_text(best[0], encoding="utf-8")
+        (project / "src" / "shots.js").write_text(best, encoding="utf-8")
         return
     raise RuntimeError("Storyboard failed after retries:\n- " + "\n- ".join(problems))
 

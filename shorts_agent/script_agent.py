@@ -60,7 +60,8 @@ def writer_system(st: styles.Style) -> str:
             "- Every line lists the evidence ids that state its facts in `evidence`.\n"
             "- List every number or year you speak, written as digits, in `numbers` (e.g. \"1666\"). Each must appear exactly "
             "in the cited evidence: do not round or estimate.\n"
-            f"- `music`: one of {list(st.music_options)} ('tension' only for disasters or dark events).")
+            f"- `music`: one of {list(st.music_options)} (bounce = funny, ragtime = old-timey, mystery = hoaxes and puzzles, "
+            "tension = disasters only, bed = calm).")
 
 
 def plan_system() -> str:
@@ -70,20 +71,26 @@ def plan_system() -> str:
 
 
 def gather(topic: str) -> list[dict]:
-    plan = generate_structured(f"Topic: {topic}", Plan, system=plan_system(), temperature=0.2, task="research")
-    seen, items = set(), []
-    for q in plan.queries[:5]:
-        for ev in wikipedia_facts(q):
-            key = (ev["url"], ev["text"][:60])
-            if key not in seen:
-                seen.add(key)
-                items.append(ev)
-    items = items[:16]
-    for i, ev in enumerate(items, 1):
-        ev["id"] = f"E{i}"
-    print(f"[research] {len(items)} evidence items from {len({e['url'] for e in items})} pages")
-    return items
-
+    from . import topicgate
+    hint, score = "", 0.0
+    for attempt in (1, 2):
+        plan = generate_structured(f"Topic: {topic}{hint}", Plan, system=plan_system(), temperature=0.2, task="research")
+        seen, items = set(), []
+        for q in (([topic] if attempt == 2 else []) + plan.queries)[:6]:
+            for ev in wikipedia_facts(q):
+                key = (ev["url"], ev["text"][:60])
+                if key not in seen:
+                    seen.add(key)
+                    items.append(ev)
+        items = items[:16]
+        for i, ev in enumerate(items, 1):
+            ev["id"] = f"E{i}"
+        ok, score = topicgate.evidence_ok(topic, items)
+        print(f"[research] {len(items)} evidence items from {len({e['url'] for e in items})} pages, topic match {score:.0%}")
+        if ok:
+            return items
+        hint = "\nThe pages found so far were about something else. Put the exact names and the year from the topic into the queries."
+    raise RuntimeError(f"The research does not match the topic '{topic}' (match {score:.0%}): the topic is too vague or not well documented.")
 
 def evidence_block(items: list[dict]) -> str:
     return "\n".join(f"{e['id']} [{e['title']} | {e['source']}]\n{e['text']}\n" for e in items)
@@ -130,6 +137,10 @@ def write_from_evidence(topic: str, items: list[dict]) -> tuple[RScript, ScriptD
         if st.caps_mode == "chunks":
             draft = repair_caps(draft)
         problems = check_research(r, ev) + check_script(draft)
+        from . import topicgate
+        miss = topicgate.script_misses(topic, " ".join(l.text for l in draft.lines))
+        if miss:
+            problems.append(f"The script must be about '{topic}': it never mentions {', '.join(miss)}.")
         print(f"[script] attempt {attempt} ({task}): {len(problems)} problem(s)")
         if not problems:
             return r, draft

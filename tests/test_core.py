@@ -45,8 +45,16 @@ def test_metadata_limits(tmp_path):
     (tmp_path / "script.json").write_text(json.dumps(
         {"title": "A " * 80, "sources": ["x: http://e"], "lines": [{"text": "Hook line.", "caps": "*Hook"}]}))
     m = build_metadata(tmp_path, "history")
-    assert len(m["title"]) <= 100 and "Sources:" in m["description"] and "#historyfacts" in m["description"]
+    assert len(m["title"]) <= 100 and "#historyfacts" in m["description"]
+    assert "Sources:" not in m["description"] and "http" not in m["description"] and "sources above" not in m["description"]
     assert sum(len(t) + 1 for t in m["tags"]) <= 450
+
+
+def test_sources_can_be_switched_on(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOURCES_IN_DESCRIPTION", "1")
+    (tmp_path / "script.json").write_text(json.dumps(
+        {"title": "t", "sources": ["x: http://e"], "lines": [{"text": "Hook line.", "caps": "*Hook"}]}))
+    assert "Sources:" in build_metadata(tmp_path, "history")["description"]
 
 
 def test_metadata_falls_back_for_an_unknown_niche(tmp_path):

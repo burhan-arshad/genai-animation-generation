@@ -1,4 +1,4 @@
-"""Director: the LLM writes a story (cast, sets, props, shots, acting beats). This module checks it against the narration
+"""Director: the LLM writes a story (cast, sets, objects, effects, shots, acting beats). This module checks it against the narration
 timing, turns every spoken word into seconds and compiles src/shots.js for the Tall Tale engine (core/director.js)."""
 from __future__ import annotations
 
@@ -23,16 +23,21 @@ GESTURES = ["none", "wave", "point", "cheer", "arms_up", "shrug", "hip", "presen
 HELD = ["parcels", "ticket", "purse", "letters", "rubberStamp", "stamp", "bill", "stack", "mirror", "cup", "key", "book", "paper", "sign", "cash"]
 SFX = ["ding", "chirp", "chug", "stamp", "inhale", "heartbeat", "whoosh", "slide", "pop", "plop", "gulp", "boing", "bubbles",
        "sizzle", "sparkle", "thud", "slam", "tock", "zip", "alarm"]
-TRANSITIONS = ["cut", "flash", "dip", "punch"]
+TRANSITIONS = ["cut", "flash", "dip", "punch", "fade", "wipe", "slide", "zoom"]
 CALLOUT_STYLES = ["stamp", "pop", "label"]
 FX_TYPES = ["shake", "flash"]
+MOTIONS = ["fly", "spin", "bounce", "swing", "shake", "rise"]
+EFFECTS = ["quake", "rain", "storm", "snow", "dust"]
+EFFECT_CUE = {"quake": "rumble", "rain": "rain", "storm": "rain", "snow": "wind", "dust": "wind"}
+PROP_CUE = {"fire": "crackle", "crowd": "crowd"}
 SLOT_RE = re.compile(r"(?:(?:front|back)_)?(?:far_left|left|center|right|far_right)")
 SPECIAL_SLOTS = {"street": {"boardwalk_left", "boardwalk_right"}, "interior": {"counter_clerk", "counter_top"}, "meadow": set(), "open": set()}
+_EVENT = {"fire", "smoke", "water", "crack", "rubble", "crowd", "board"}
 DRESS = {
-    "street": {"tree", "barrel", "crate", "car", "lamp", "signpost", "parcel", "mail_sack", "fence", "crowd", "board"},
-    "meadow": {"tree", "barrel", "crate", "car", "fence", "house", "signpost", "train", "pole", "parcel", "mail_sack", "crowd", "board"},
-    "interior": {"desk", "cubbies", "poster", "scale", "chick_crate", "parcel", "mail_sack", "barrel", "crate", "crowd", "board"},
-    "open": {"tree", "barrel", "crate", "car", "fence", "signpost", "parcel", "mail_sack", "house", "crowd", "board"},
+    "street": {"tree", "barrel", "crate", "car", "lamp", "signpost", "parcel", "mail_sack", "fence"} | _EVENT,
+    "meadow": {"tree", "barrel", "crate", "car", "fence", "house", "signpost", "train", "pole", "parcel", "mail_sack"} | _EVENT,
+    "interior": {"desk", "cubbies", "poster", "scale", "chick_crate", "parcel", "mail_sack", "barrel", "crate"} | _EVENT,
+    "open": {"tree", "barrel", "crate", "car", "fence", "signpost", "parcel", "mail_sack", "house"} | _EVENT,
 }
 BUILTIN_PROPS = sorted(set().union(*DRESS.values()))
 BOUNDS = {"street": (-4.2, 4.2, -24, 3), "meadow": (-14, 14, -24, 3), "interior": (-3.2, 3.2, -3.5, 1.5), "open": (-14, 14, -24, 3)}
@@ -123,6 +128,9 @@ class ShotProp(BaseModel):
     rot: float
     word: str
     text: str
+    move: str
+    dx: float
+    dz: float
 
 
 class Shot(BaseModel):
@@ -133,6 +141,7 @@ class Shot(BaseModel):
     camera: str
     focus: list[str]
     transition: str
+    effect: str
     actors: list[Actor]
     callouts: list[Callout]
     props: list[ShotProp]
@@ -212,6 +221,10 @@ def _num(v, lo, hi, default=0.0) -> float:
     return default if x != x else max(lo, min(hi, x))
 
 
+def _text(s, n=70) -> str:
+    return re.sub(r"[^A-Za-z0-9 |!?.,&'$%:/-]", "", str(s))[:n]
+
+
 _HELD = {h.lower(): h for h in HELD}
 
 
@@ -248,10 +261,6 @@ def _cast(items, warns) -> list[dict]:
     return out
 
 
-def _text(s, n=70) -> str:
-    return re.sub(r"[^A-Za-z0-9 |!?.,&'$%:/-]", "", str(s))[:n]
-
-
 def _sets(items, year: int, era: dict, warns, custom: set) -> list[dict]:
     out, seen = [], set()
     for s in items[:3]:
@@ -266,7 +275,7 @@ def _sets(items, year: int, era: dict, warns, custom: set) -> list[dict]:
                 if _hex(getattr(s, k)):
                     d[k] = _hex(getattr(s, k))
             d["sign"] = re.sub(r"[^A-Za-z0-9 .&'!-]", "", str(s.sign))[:26].strip().upper()
-        if kind == "open":                      # reuses the same fields: wall = sky top, motif = horizon, floor = ground, ceiling = hills, sign = "stars"
+        if kind == "open":                      # wall = sky top, motif = horizon, floor = ground, ceiling = hills, sign = "stars"
             d["top"], d["horizon"] = _hex(s.wall, "#3D8EE0"), _hex(s.motif, "#CBEAF8")
             d["ground"], d["hills"] = _hex(s.floor), _hex(s.ceiling)
             d["stars"] = "star" in str(s.sign).lower()
@@ -285,6 +294,7 @@ def _sets(items, year: int, era: dict, warns, custom: set) -> list[dict]:
         out.append(d)
     return out
 
+
 def _shot_props(items, kind, at, end, tm, yr, era, custom, warns) -> list[dict]:
     out = []
     x0, x1, z0, z1 = BOUNDS[kind]
@@ -300,7 +310,8 @@ def _shot_props(items, kind, at, end, tm, yr, era, custom, warns) -> list[dict]:
         t = tm.find(it.word, at, end) if str(it.word).strip() else None
         out.append({"name": name, "x": round(_num(it.x, x0, x1), 2), "y": round(_num(it.y, 0, 3), 2), "z": round(_num(it.z, z0, z1), 2),
                     "scale": round(_num(it.scale, 0.3, 3, 1.0) or 1.0, 2), "rot": round(_num(it.rot, -360, 360), 1),
-                    "t": round(t, 3) if t is not None else None, "text": _text(it.text, 40)})
+                    "t": round(t, 3) if t is not None else None, "text": _text(it.text, 40),
+                    "move": _pick(it.move, MOTIONS, ""), "dx": round(_num(it.dx, -14, 14), 2), "dz": round(_num(it.dz, -14, 14), 2)})
     return out
 
 
@@ -377,7 +388,7 @@ def _split_long(shots, tm) -> list[dict]:
             c["callouts"] = [x for x in c["callouts"] if lo <= x["t"] < hi]
             c["fx"] = [x for x in c["fx"] if lo <= x["t"] < hi]
             props = []
-            for p in c["props"]:                       # already shown earlier: visible from the start; shown later: appears on its word
+            for p in c["props"]:                       # shown earlier: visible from the start; shown later: appears on its word
                 if p["t"] is None or p["t"] < lo:
                     props.append(dict(p, t=None))
                 elif p["t"] < hi:
@@ -425,6 +436,7 @@ def _inject_host(shots, appear: str, tm) -> None:
                 sh["focus"].append("host")
         sh["actors"].append(host)
 
+
 def _set_punch(sh) -> None:
     if sh["camera"] != "punch_in":
         return
@@ -434,9 +446,9 @@ def _set_punch(sh) -> None:
 
 
 def build(story: Story, tm: Timing, year: int | None = None, appear: str = "first", era: dict | None = None, plain: bool = False,
-          strict: bool = True, custom=None, need_props: bool = False):
-    """-> (resolved story dict, problems the LLM must fix, warnings). plain=True drops scenery, objects and overlays (safe mode).
-    custom = names of the objects designed for this video (propgen). need_props = the film must actually show things."""
+          strict: bool = True, custom=None, need_props: bool = False, need_acting: bool = False):
+    """-> (resolved story dict, problems the LLM must fix, warnings). plain=True drops scenery, objects, effects and overlays (safe mode).
+    custom = names of the objects designed for this video. need_props / need_acting = the film must show things / the people must act."""
     problems: list[str] = []
     warns: list[str] = []
     custom = set(custom or [])
@@ -488,9 +500,10 @@ def build(story: Story, tm: Timing, year: int | None = None, appear: str = "firs
                 actors.append(d)
         shot = {"at": round(at, 3), "end": round(end, 3), "set": sid, "framing": _pick(sp.framing, FRAMINGS, "medium"),
                 "camera": _pick(sp.camera, CAMERAS, "drift"), "focus": [f for f in (_ident(x) for x in sp.focus) if f in used][:3],
-                "transition": _pick(sp.transition, TRANSITIONS, "cut") if i else "cut", "actors": actors, "callouts": [], "props": [], "fx": [],
-                "note": str(sp.note)[:120]}
+                "transition": _pick(sp.transition, TRANSITIONS, "cut") if i else "cut", "effect": "", "actors": actors, "callouts": [],
+                "props": [], "fx": [], "note": str(sp.note)[:120]}
         if not plain:
+            shot["effect"] = _pick(sp.effect, EFFECTS, "")
             for c in sp.callouts[:2]:
                 d = _callout(c, at, end, tm)
                 if d:
@@ -522,6 +535,12 @@ def build(story: Story, tm: Timing, year: int | None = None, appear: str = "firs
         used_names = {p["name"] for s in shots for p in s["props"]} | {d["item"] for st in sets for d in st["dress"]}
         if custom and not (used_names & custom):
             problems.append("none of the designed custom objects is used: place them with `props` or `dress` using their exact names")
+    if need_acting and not plain:
+        act = [a for s in shots for a in s["actors"]]
+        lively = sum(1 for a in act if a["beats"] or a["gesture"] != "none" or a["action"] != "stand" or a["prop"])
+        if act and lively < len(act) * 0.6:
+            problems.append("the characters are too static: give most actors a beat (a mood change on a spoken word), a gesture, "
+                            "a walking action or a held prop")
 
     _vary(shots)
     shots = _split_long(shots, tm)
@@ -530,6 +549,11 @@ def build(story: Story, tm: Timing, year: int | None = None, appear: str = "firs
         sh["id"] = f"S{i + 1:02d}"
         _set_punch(sh)
         cues.append({"t": round(sh["at"] + 0.04, 3), "type": "whoosh", "gain": 0.5})
+        if sh["effect"] in EFFECT_CUE:
+            cues.append({"t": round(sh["at"] + 0.05, 3), "type": EFFECT_CUE[sh["effect"]], "dur": round(min(sh["end"] - sh["at"], 6), 2), "gain": 0.8})
+        for p in sh["props"]:
+            if p["name"] in PROP_CUE:
+                cues.append({"t": round(p["t"] if p["t"] is not None else sh["at"], 3), "type": PROP_CUE[p["name"]], "dur": 3, "gain": 0.7})
     cues.sort(key=lambda c: c["t"])
     result = {"year": yr, "era": {"cars": yr >= era_first["car"], "poles": yr >= 1865, "lamps": yr >= era_first["lamp"]},
               "cast": cast, "sets": [dict(s, dress=[]) for s in sets] if plain else sets, "shots": shots, "cues": cues}
@@ -558,17 +582,21 @@ def vocab_text() -> str:
         "mood: " + ", ".join(MOODS),
         "pattern: " + ", ".join(PATTERNS) + " | hat: " + ", ".join(HATS) + " | neck: " + ", ".join(NECKS) + " | extra: " + ", ".join(EXTRAS),
         "set kind: " + ", ".join(SET_KINDS) + " | set mood: day, dusk",
-        "open set = a sky and ground you colour yourself (use it for sports grounds, space, science): wall = top-of-sky hex, motif = horizon hex, "
-        "floor = ground hex (\"\" = no ground, the people stand on a small platform), ceiling = hills hex or \"\", sign = \"stars\" for a night sky with stars",
+        "open set = a sky and ground you colour yourself: wall = top-of-sky hex, motif = horizon hex, floor = ground hex (\"\" = none), "
+        "ceiling = hills hex or \"\", sign = \"stars\" for a night sky",
         "built-in objects for `dress` and `props`: street = " + ", ".join(sorted(DRESS["street"])) + "; meadow = " + ", ".join(sorted(DRESS["meadow"]))
-        + "; interior = " + ", ".join(sorted(DRESS["interior"])),
-        "object text: poster lines separated by | (first line is the title, a line starting with ! is red); board = the sign text; signpost = place name; scale = pounds",
+        + "; interior = " + ", ".join(sorted(DRESS["interior"])) + "; open = " + ", ".join(sorted(DRESS["open"])),
+        "event objects: fire, smoke (rises), water (a flood: put it low, move rise), crack (a crack in the ground), rubble, crowd (spectators), board (sign: text)",
+        "object text: poster lines separated by | (first line is the title, a line starting with ! is red); board = the sign text; signpost = place name",
+        "object move: " + ", ".join(MOTIONS) + " (fly needs dx, dz in metres: a thrown ball, a flying paper)",
+        "shot effect (whole shot): " + ", ".join(EFFECTS) + " or \"\" (quake shakes the world, rain/storm/snow/dust fill the air)",
         "framing: " + ", ".join(FRAMINGS) + " | camera: " + ", ".join(CAMERAS),
         "slot: [front_|back_]far_left|left|center|right|far_right; street also boardwalk_left, boardwalk_right; "
         "interior also counter_clerk (behind the counter), counter_top (standing on it)",
         "action: " + ", ".join(ACTIONS) + " | gesture: " + ", ".join(GESTURES),
         "held props: " + ", ".join(HELD) + " (with text: book:RULES, paper:NEWS, sign:SALE, cash:3)",
-        "transition: " + ", ".join(TRANSITIONS) + " | callout style: " + ", ".join(CALLOUT_STYLES) + " | fx: " + ", ".join(FX_TYPES),
+        "transition INTO the shot: " + ", ".join(TRANSITIONS) + " (fade, wipe, slide, zoom blend with the previous shot; use them for a change of place or time)",
+        "callout style: " + ", ".join(CALLOUT_STYLES) + " | fx: " + ", ".join(FX_TYPES),
         "sfx: " + ", ".join(SFX),
     ])
 
@@ -593,11 +621,12 @@ def _a(who, slot, mood="neutral", action="stand", gesture="none", prop="", looks
             "talk": talk, "beats": [{"word": w, "mood": m, "gesture": g, "prop": "", "sfx": s} for w, m, g, s in beats]}
 
 
-def _s(line, set_, framing, camera, focus, actors, word="", transition="cut", callouts=(), fx=(), note="", props=()):
-    """props = (name, x, z, scale, word, text) tuples"""
+def _s(line, set_, framing, camera, focus, actors, word="", transition="cut", callouts=(), fx=(), note="", props=(), effect=""):
+    """props = (name, x, z, scale, word, text, move, dx, dz) tuples (the last four are optional)"""
     return {"line": line, "word": word, "set": set_, "framing": framing, "camera": camera, "focus": focus, "transition": transition,
-            "actors": actors, "callouts": [{"text": t, "word": w, "style": s} for t, w, s in callouts],
-            "props": [{"name": p[0], "x": p[1], "y": 0, "z": p[2], "scale": p[3], "rot": 0, "word": p[4], "text": p[5] if len(p) > 5 else ""} for p in props],
+            "effect": effect, "actors": actors, "callouts": [{"text": t, "word": w, "style": s} for t, w, s in callouts],
+            "props": [{"name": p[0], "x": p[1], "y": 0, "z": p[2], "scale": p[3], "rot": 0, "word": p[4], "text": p[5] if len(p) > 5 else "",
+                       "move": p[6] if len(p) > 6 else "", "dx": p[7] if len(p) > 7 else 0, "dz": p[8] if len(p) > 8 else 0} for p in props],
             "fx": [{"word": w, "type": t} for w, t in fx], "note": note}
 
 
@@ -619,22 +648,22 @@ DEMO = {
         _s(0, "main", "wide", "crane_down", ["may", "dad"],
            [_a("dad", "left", "happy", gesture="present", talk=True), _a("may", "center", "happy", "walk_in", beats=[("mailed", "shock", "", "pop")])],
            callouts=[("IDAHO 1914", "idaho", "label")], note="hook: the family arrives", props=[("board", 3.0, -2.0, 1, "mailed", "MAIL A KID?")]),
-        _s(1, "home", "wide", "push_in", ["grandma"], [_a("grandma", "center", "happy", gesture="wave")], note="grandma's house"),
+        _s(1, "home", "wide", "push_in", ["grandma"], [_a("grandma", "center", "happy", gesture="wave")], note="grandma's house", transition="fade"),
         _s(2, "office", "close", "push_in", ["may"],
            [_a("may", "center", "proud", beats=[("stamps", "laugh", "", "stamp")]), _a("clerk", "right", "shock")],
-           fx=[("stamps", "shake")], note="stamps on the coat"),
+           fx=[("stamps", "shake")], note="stamps on the coat", transition="wipe"),
         _s(3, "main", "medium", "truck_left", ["dad"],
            [_a("dad", "center", "happy", "cross_left", prop="parcels", beats=[("packages", "proud", "", "plop")])], transition="punch",
-           props=[("parcel", 1.6, 0.6, 1, "packages", ""), ("crowd", -2.6, -3, 1, "", "")]),
+           props=[("parcel", 1.6, 0.6, 1, "packages", "", "bounce"), ("crowd", -2.6, -3, 1, "", "")]),
         _s(4, "home", "medium", "orbit_left", ["dad", "may"],
            [_a("dad", "left", "happy", looks_at="may", talk=True), _a("may", "right", "happy", "jump", looks_at="dad")]),
         _s(5, "home", "wide", "crane_up", ["may"], [_a("may", "center", "worried", gesture="point")],
-           callouts=[("73 MILES", "miles", "pop")], note="signpost"),
+           callouts=[("73 MILES", "miles", "pop")], note="signpost", effect="dust"),
         _s(6, "main", "close", "handheld", ["dad"], [_a("dad", "center", "worried", prop="ticket", beats=[("ticket", "worried", "", "gulp")])],
            transition="flash"),
         _s(7, "office", "wide", "drift", ["dad", "may", "clerk"],
            [_a("dad", "left", "happy", talk=True), _a("may", "center", "happy"), _a("clerk", "counter_clerk", "neutral")],
-           callouts=[("53 CENTS", "post", "stamp")]),
+           callouts=[("53 CENTS", "post", "stamp")], transition="slide"),
     ],
 }
 EXAMPLE = {**DEMO, "shots": DEMO["shots"][:4]}

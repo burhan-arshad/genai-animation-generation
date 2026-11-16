@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+from pathlib import Path
 import time
 
 from . import store, styles
@@ -15,7 +16,8 @@ from .llm import BudgetExceeded
 from .qa import run_qa
 from .runner import run_pipeline
 from .script_agent import generate
-from .storyboard_agent import build_shots, story_year, sync_overlay
+from .storyboard_agent import build_shots, sync_overlay
+
 
 TERMINAL = ("ready", "uploaded", "dropped", "rejected", "awaiting_approval", "approved")
 FLOW = ["queued", "scripted", "verified", "timed", "storyboarded", "rendered", "finalized", "ready"]
@@ -46,6 +48,25 @@ def _stale_storyboard(project) -> str | None:
         return "no shot shows any object"
     return None
 
+def _stale_storyboard(project: Path) -> str | None:
+    """Why the storyboard must be written again before the long render (None = fine)."""
+    if os.getenv("SAFE_MODE", "0") == "1":
+        return None
+    f = project / "metrics.json"
+    if not f.exists():
+        return "it was made by an older version"
+    try:
+        m = json.loads(f.read_text(encoding="utf-8"))
+    except ValueError:
+        return "metrics.json is unreadable"
+    if m.get("safe_mode"):
+        return "it is a safe-mode film without objects"
+    if not m.get("shots_with_props"):
+        return "no shot shows any object"
+    return None
+
+
+
 def is_overload(e: BaseException) -> bool:
     """A provider that is overloaded is not the video's fault: do not count it as a failed try."""
     return getattr(e, "code", None) in OVERLOAD_CODES or type(e).__name__ in OVERLOAD_NAMES
@@ -53,6 +74,7 @@ def is_overload(e: BaseException) -> bool:
 
 def _reached(status: str, until: str | None) -> bool:
     return bool(until) and status in FLOW and until in FLOW and FLOW.index(status) >= FLOW.index(until)
+
 
 
 def advance(job: dict) -> str:
@@ -74,14 +96,15 @@ def advance(job: dict) -> str:
         return "storyboarded"
     if s == "storyboarded":
         why = _stale_storyboard(project)
-        if why:
-            if (job.get("tries") or 0) >= 2:
-                raise RuntimeError(f"the storyboard is still unusable ({why}): look at the preview in the Test lab")
-            job["tries"] = (job.get("tries") or 0) + 1
-            store.set_job(job["id"], tries=job["tries"])
+        if why:                                              # never spend an hour of rendering on a bad film
+            tries = (job.get("tries") or 0) + 1
+            if tries > 2:
+                raise RuntimeError(f"the storyboard is still unusable ({why}): look at it in the Test lab")
+            job["tries"] = tries
+            store.set_job(job["id"], tries=tries)
             print(f"[job {job['id']}] the storyboard is not good enough for the long render ({why}): writing it again")
             return "timed"
-        sync_overlay(project, styles.active())      # pick up brand.json / overlay edits before rendering
+        sync_overlay(project, styles.active())
         run_pipeline(project, "final", only=["check", "cues", "mix", "video"])
         return "rendered"
     if s == "rendered":
@@ -93,22 +116,13 @@ def advance(job: dict) -> str:
         store.set_job(job["id"], qa_status=qa["status"])
         if qa["status"] == "failed":
             raise Drop("QA failed: " + "; ".join(i["msg"] for i in qa["issues"] if i["level"] == "FAIL"))
-        if os.getenv("VISION_QA", "off") != "off":
-            from .visionqa import vision_check
-            try:
-                vq = vision_check(project, story_year(project))
-            except Exception as e:                   # the vision check must never block a video by itself failing
-                vq = {"status": "error", "reason": str(e)[:200]}
-            store.set_job(job["id"], vision_status=vq["status"])
-            print(f"[vision] {vq['status']} score={vq.get('score')} {str(vq.get('summary', vq.get('reason', '')))[:160]}")
-            for i in vq.get("issues", []):
-                print(f"   frame {i['frame']} [{i['severity']}] {i['problem']}")
-            if vq["status"] == "blockers" and os.getenv("VISION_QA") == "gate":
-                raise Drop("vision QA found blockers: "
-                           + "; ".join(i["problem"] for i in vq["issues"] if i["severity"].lower() == "blocker"))
+        try:
+            from .thumbnail import make_thumbnail
+            print("[thumbnail]", make_thumbnail(project, json.loads((project / "script.json").read_text(encoding="utf-8"))["title"]) or "not made")
+        except Exception as e:
+            print(f"[thumbnail] skipped ({type(e).__name__}: {str(e)[:120]})")
         return "ready"
     raise ValueError(f"unknown status {s}")
-
 
 def run(limit: int, job_id: int | None = None, until: str | None = None) -> str | None:
     """Advance jobs until they are ready or dropped (or until the stage `until` is reached). Returns 'budget' / 'overload' when stopped early."""

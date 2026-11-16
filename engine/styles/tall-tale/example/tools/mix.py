@@ -112,6 +112,21 @@ FX = dict(ding=ding, chirp=chirp, chug=chug, stamp=stampit, inhale=inhale, heart
 LEVEL = dict(ding=-17, chirp=-19, chug=-20, stamp=-12, inhale=-15, heartbeat=-8, whoosh=-17, slide=-19, pop=-14, plop=-15, gulp=-11, boing=-15, bubbles=-21, sizzle=-18, sparkle=-17,
              thud=-11, slam=-9, tock=-18, zip=-14, alarm=-17)
 
+def rumble(d=3.0, **_):
+    t = tt(d); x = lp(noise(d), 140) * 2.2 + np.sin(2 * np.pi * 38 * t) * 0.6
+    x *= (0.6 + 0.4 * np.sin(2 * np.pi * 7 * t)) * np.minimum(1, t / 0.3) * np.minimum(1, (d - t) / 0.5)
+    return x / (np.abs(x).max() + 1e-9) * 0.9
+def rain(d=3.0, **_):
+    x = hp(lp(noise(d), 6000), 1500) * np.minimum(1, tt(d) / 0.5); return x / (np.abs(x).max() + 1e-9) * 0.5
+def wind(d=3.0, **_):
+    t = tt(d); x = bp(noise(d), 200, 900) * (0.55 + 0.45 * np.sin(2 * np.pi * 0.5 * t) ** 2); return x / (np.abs(x).max() + 1e-9) * 0.5
+def crackle(d=3.0, **_):
+    x = (rng.random(int(d * SR)) < 0.0015).astype(float); x = lp(x, 1800) * 60 + lp(noise(d), 500) * 0.15; return x / (np.abs(x).max() + 1e-9) * 0.6
+def crowd(d=3.0, **_):
+    t = tt(d); x = bp(noise(d), 250, 1400) * (0.5 + 0.5 * np.sin(2 * np.pi * 1.3 * t + 1) ** 2) * np.minimum(1, t / 0.4)
+    return x / (np.abs(x).max() + 1e-9) * 0.45
+FX.update(rumble=rumble, rain=rain, wind=wind, crackle=crackle, crowd=crowd)
+LEVEL.update(rumble=-13, rain=-22, wind=-24, crackle=-21, crowd=-24)
 
 # ---------- the music bed: soft pad + plucked arpeggio, 100 BPM, I–vi–IV–V ----------
 def music_bed():
@@ -165,6 +180,35 @@ def music_tension():
     x = lp(x, 2200); fade = np.ones(N); fo = int(1.5 * SR); fade[-fo:] = np.linspace(1, 0, fo); fi = int(0.8 * SR); fade[:fi] *= np.linspace(0, 1, fi)
     return x / (np.abs(x).max() + 1e-9) * fade
 
+def music_ragtime():
+    """old-timey: stride piano bass + syncopated right hand, 104 BPM (script.json "music": "ragtime")"""
+    bpm = 104; beat = 60 / bpm; x = np.zeros(N)
+    prog = [(130.8, [261.6, 329.6, 392.0]), (98.0, [246.9, 293.7, 392.0]), (130.8, [261.6, 329.6, 392.0]), (196.0, [246.9, 293.7, 349.2])]
+    mel = [2, 1, 0, 1, 2, 1, 0, 2]
+    pl = lambda f, d, g: (np.sin(2 * np.pi * f * tt(d)) + 0.5 * np.sin(4 * np.pi * f * tt(d))) * env(int(d * SR), 0.003, 8) * g
+    for k in range(int(DUR / beat) + 1):
+        bass, ch = prog[(k // 4) % 4]; i = int(k * beat * SR)
+        lh = pl(bass, 0.28, 0.3) if k % 2 == 0 else sum(pl(f / 2, 0.2, 0.07) for f in ch)
+        if i + len(lh) < N: x[i:i + len(lh)] += lh
+        for q, sub in enumerate((0, 0.75)):
+            j = i + int(sub * beat * SR); m = pl(ch[mel[(k * 2 + q) % 8]] * 2, 0.16, 0.09)
+            if j + len(m) < N: x[j:j + len(m)] += m
+    x = lp(x, 3800); fade = np.ones(N); fo = int(1.2 * SR); fade[-fo:] = np.linspace(1, 0, fo)
+    return x / (np.abs(x).max() + 1e-9) * fade
+
+def music_mystery():
+    """low drone + plucked minor line, 92 BPM (script.json "music": "mystery")"""
+    beat = 60 / 92; x = np.zeros(N); t = np.arange(N) / SR
+    x += (np.sin(2 * np.pi * 73.4 * t) * 0.3 + np.sin(2 * np.pi * 110 * t) * 0.15) * (0.6 + 0.4 * np.sin(2 * np.pi * t / 6) ** 2)
+    seq = [293.7, 349.2, 440.0, 349.2, 329.6, 261.6, 293.7, 220.0]
+    pl = lambda f, d, g: (np.sin(2 * np.pi * f * tt(d)) + 0.3 * np.sin(4 * np.pi * f * tt(d))) * env(int(d * SR), 0.003, 9) * g
+    for k in range(int(DUR / beat) + 1):
+        if k % 4 == 3: continue
+        i = int(k * beat * SR); m = pl(seq[k % 8], 0.25, 0.22)
+        if i + len(m) < N: x[i:i + len(m)] += m
+    x = lp(x, 2600); fade = np.ones(N); fo = int(1.5 * SR); fade[-fo:] = np.linspace(1, 0, fo); fi = int(0.8 * SR); fade[:fi] *= np.linspace(0, 1, fi)
+    return x / (np.abs(x).max() + 1e-9) * fade
+
 def load_audio(f):
     out = subprocess.run(['ffmpeg', '-v', 'error', '-i', str(f), '-f', 'f32le', '-ac', '2', '-ar', str(SR), '-'], capture_output=True, check=True).stdout
     a = np.frombuffer(out, dtype=np.float32).reshape(-1, 2).astype(np.float64); return a
@@ -181,7 +225,7 @@ if vf.exists():
 # music
 mus = script.get('music', 'bed')
 if mus and mus != 'none':
-    m = music_bed() if mus == 'bed' else music_tension() if mus == 'tension' else music_bounce() if mus == 'bounce' else None
+    m = {'bed': music_bed, 'tension': music_tension, 'bounce': music_bounce, 'ragtime': music_ragtime, 'mystery': music_mystery}.get(mus, lambda: None)()
     if m is None:
         a = load_audio(P / mus)[:N]; m = np.zeros(N); m[:len(a)] = a.mean(1); m /= np.abs(m).max() + 1e-9
     m = np.stack([m, m], 1) * db(-24 if voice is not None else -20)

@@ -18,7 +18,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from pydantic import BaseModel
 
-from . import automation, brand, niche, settings, store, styles
+from . import analytics, automation, brand, cleanup, launch, niche, settings, store, styles
 from .config import HOME, REPO, _path
 from .pipeline import FLOW, STAGE_NAME
 from .uploader import CLIENT, TOKEN
@@ -268,9 +268,13 @@ class NewJob(BaseModel):
 
 @app.post("/api/jobs")
 def add_job(b: NewJob):
+    from . import topicgate
     topic = b.topic.strip()
     if len(topic) < 5:
         raise HTTPException(400, "topic too short")
+    why = topicgate.check_topic(topic)
+    if why:
+        raise HTTPException(400, why)
     return {"id": store.add_job(topic, styles.default_key())}
 
 
@@ -485,6 +489,68 @@ def job_plan(job_id: int):
               "actors": [f'{a["who"]}:{a["mood"]}' for a in s["actors"]], "props": [x["name"] for x in s.get("props", [])]}
              for s in story.get("shots", [])]
     return {"shots": shots, "props": [{"name": x["name"], "desc": x["desc"], "span": x["span"]} for x in props], "metrics": _read_json(p / "metrics.json")}
+
+# ───────────── channel: launch plan, approvals, results, disk ─────────────
+@app.get("/api/launch")
+def launch_get():
+    return {**launch.status(), "pending": launch.pending()}
+
+
+class Pub(BaseModel):
+    when: str = "now"
+
+
+@app.post("/api/approvals/{job_id}/publish")
+def approval_publish(job_id: int, b: Pub):
+    try:
+        return {"note": launch.publish(job_id, b.when)}
+    except Exception as e:
+        raise HTTPException(400, f"{type(e).__name__}: {str(e)[:300]}")
+
+
+@app.get("/api/jobs/{job_id}/thumb")
+def job_thumb(job_id: int):
+    job = store.get_job(job_id)
+    f = _project(job) / "thumb.jpg" if job else None
+    if not f or not f.exists():
+        raise HTTPException(404, "no thumbnail")
+    return FileResponse(f, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/insights")
+def insights_get():
+    try:
+        return {"rows": analytics.rows()}
+    except Exception:
+        return {"rows": []}
+
+
+@app.post("/api/insights/refresh")
+def insights_refresh():
+    try:
+        return analytics.refresh()
+    except Exception as e:
+        raise HTTPException(400, f"{type(e).__name__}: {str(e)[:250]}")
+
+
+@app.get("/api/disk")
+def disk_get():
+    return cleanup.scan()
+
+
+class Clean(BaseModel):
+    mode: str
+    days: int | None = None
+
+
+@app.post("/api/cleanup")
+def cleanup_run(b: Clean):
+    if _running():
+        raise HTTPException(409, "Stop the running work first")
+    try:
+        return cleanup.apply(b.mode, b.days)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 # ───────────── YouTube ─────────────
 @app.get("/api/youtube")

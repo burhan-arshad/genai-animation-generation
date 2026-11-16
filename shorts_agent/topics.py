@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import re
+from .topicgate import evidence_ok
 
 from pydantic import BaseModel
 
@@ -43,8 +44,11 @@ def reject_reason(i: Idea, cfg: dict, block: re.Pattern, used_tok: list[set[str]
     a = _tokens(i.topic)
     if any(a and len(a & b) / len(a | b) >= 0.6 for b in used_tok):
         return "duplicate"
-    if len(wikipedia_facts(i.topic)) < int(cfg.get("min_evidence", 4)):
+    items = wikipedia_facts(i.topic)
+    if len(items) < int(cfg.get("min_evidence", 4)):
         return "thin evidence"
+    if not evidence_ok(i.topic, items)[0]:
+        return "wikipedia does not match"
     return None
 
 
@@ -56,6 +60,11 @@ def suggest(n: int = 3, key: str | None = None) -> list[Idea]:
     formats = cfg.get("formats") or ["a surprising true story"]
     prompt = ("Topics already used (do not repeat):\n" + ("\n".join(f"- {t}" for t in used[-60:]) or "(none yet)")
               + f"\n\nPreferred kind of story this time: {formats[len(used) % len(formats)]}.\nPropose 12 topics.")
+    try:
+        from . import analytics
+        prompt += "\n\n" + analytics.lessons()
+    except Exception:
+        pass
     ideas = generate_structured(prompt, IdeaList, system=cfg["system"], temperature=0.9, task="topics").ideas
     used_tok, ok = [_tokens(t) for t in used], []
     for i in ideas:

@@ -2,7 +2,7 @@
   "label": "Funny true history stories told by cartoon people in a 3D world, for viewers in the United States and Europe",
   "engine": "tall-tale",
   "writing": {
-    "music_options": ["bounce", "bed", "tension"],
+    "music_options": ["bounce", "ragtime", "mystery", "bed", "tension"],
     "min_words": 100,
     "max_words": 140,
     "rules": "- 110-135 words in total.\n- Only well-documented events. If the evidence shows historians disagree, say so in a few words or pick another angle.\n- Explain unfamiliar places, people or terms with one short clause.\n- Tell it with objects, places and consequences; the trick, loophole or misunderstanding is the star."
