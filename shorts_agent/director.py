@@ -410,19 +410,20 @@ def _inject_host(shots, appear: str, tm) -> None:
         if any(a["who"] == "host" for a in sh["actors"]):
             continue
         used = {a["slot"] for a in sh["actors"]}
-        slot = next((s for s in ("front_right", "front_far_right", "front_left", "front_far_left") if s not in used), "front_right")
-        if idx == 0:
+        if idx == 0:                                           # the introduction: the host stands in front, big and alone in the frame
             t = round(sh["at"] + (sh["end"] - sh["at"]) * 0.55, 3)
-            host = {"who": "host", "slot": slot, "mood": "happy", "action": "stand", "gesture": "wave", "prop": None, "looks_at": "",
+            host = {"who": "host", "slot": "front_center", "mood": "happy", "action": "stand", "gesture": "wave", "prop": None, "looks_at": "",
                     "speech": tm.speech(sh["at"], sh["end"]), "beats": [{"t": t, "mood": "smug", "gesture": "point", "prop": None}]}
-            if sh["framing"] in ("extreme_close", "close", "medium"):
-                sh["framing"] = "wide"
-        else:
+            sh["focus"], sh["framing"], sh["intro"] = ["host"], "full", True
+            if sh["camera"] in ("crane_up", "crane_down", "punch_in", "handheld"):
+                sh["camera"] = "push_in"
+        else:                                                  # the ending: back in the picture with a smug look
+            slot = next((s for s in ("front_right", "front_far_right", "front_left", "front_far_left") if s not in used), "front_right")
             host = {"who": "host", "slot": slot, "mood": "smug", "action": "stand", "gesture": "hip", "prop": None, "looks_at": "",
                     "speech": [], "beats": []}
+            if sh["focus"] and "host" not in sh["focus"]:
+                sh["focus"].append("host")
         sh["actors"].append(host)
-        if sh["focus"] and "host" not in sh["focus"]:      # the camera must frame him too, or he is cut off at the edge
-            sh["focus"].append("host")
 
 def _set_punch(sh) -> None:
     if sh["camera"] != "punch_in":

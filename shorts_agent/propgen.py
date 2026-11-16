@@ -80,39 +80,9 @@ EXAMPLES = [
         _p("cylinder", (0.1, 0.09, 0.75), (-0.1, 0.45, 0.5), (0, 0, 90), "#C4BFB1"),
         _p("cylinder", (0.1, 0.09, 0.75), (-0.1, 0.45, -0.5), (0, 0, 90), "#C4BFB1")]},
 ]
-def _ring(r0, r1, y, color):
-    return _p("lathe", (1, 1, 1), color=color, profile=[(r0, y), (r1, y), (r1, y + 0.06), (r0, y + 0.06)])
 
 
-def _stadium():
-    parts = [
-        _p("cylinder", (9, 9, 0.2), (0, 0.1, 0), color="#6DBB4A"),                              # the ground
-        _p("box", (1.4, 0.03, 6.5), (0, 0.215, 0), color="#D9B87A"),                           # the pitch
-        _p("box", (1.9, 0.035, 0.07), (0, 0.23, 3.0), color="#FFFFFF"),
-        _p("box", (1.9, 0.035, 0.07), (0, 0.23, -3.0), color="#FFFFFF"),
-        _p("torus", (8.6, 0.07, 0), (0, 0.26, 0), (90, 0, 0), "#FFFFFF"),                       # the boundary rope
-        _p("lathe", (1, 1, 1), color="#C9C2B5", profile=[(9.2, 0), (9.2, 1.4), (10.4, 1.4), (10.4, 2.6), (11.6, 2.6), (11.6, 3.8), (12.8, 3.8), (12.8, 0)]),
-        _ring(9.3, 10.35, 1.42, "#C8283A"), _ring(10.5, 11.55, 2.62, "#2E5A9E"), _ring(11.7, 12.75, 3.82, "#E2B33C"),   # seats
-    ]
-    for sx in (-1, 1):
-        for sz in (-1, 1):                                                                       # four floodlight towers
-            parts.append(_p("cylinder", (0.15, 0.2, 7), (sx * 10, 3.5, sz * 9), color="#8A8F9C"))
-            parts.append(_p("box", (1.6, 0.9, 0.2), (sx * 10, 7.3, sz * 9), (0, math.degrees(math.atan2(-sx * 10, -sz * 9)), 0), "#FFF3C8"))
-    parts += [_p("box", (4, 1.8, 0.4), (0, 5.2, -13.6), color="#26304A"),
-              _p("label", (3.6, 1.3, 0), (0, 5.2, -13.38), color="#26304A", text="SCORE", fg="#FFD35A")]
-    return {"name": "stadium", "desc": "a cricket stadium: oval green ground with a pitch, boundary rope, three-tier stands, floodlights and a scoreboard",
-            "span": 26.0, "parts": parts}
-
-
-# hand-made blueprints for objects the LLM draws badly; a niche that lists one in props.required gets it for free
-def _ball():
-    parts = [_p("sphere", (0.1, 0.1, 0.1), color="#C8283A")]
-    for dy in (-0.014, 0, 0.014):                              # the white seam: three thin rings round the middle
-        parts.append(_p("torus", (0.102, 0.006, 0), (0, dy, 0), (90, 0, 0), "#F4EBD6"))
-    return {"name": "ball", "desc": "a red leather cricket ball with a white seam", "span": 0.5, "parts": parts}
-
-
-LIBRARY = {"stadium": _stadium(), "ball": _ball()}
+LIBRARY:dict = {}
 
 SYSTEM = """You are the prop designer of a 3D cartoon film (flat saturated colours, cut-out people, simple solid shapes).
 You design objects as BLUEPRINTS: a list of parts made of primitive shapes. You never write code.

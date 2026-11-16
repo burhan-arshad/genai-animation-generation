@@ -29,6 +29,22 @@ OVERLOAD_NAMES = ("ServerError", "RemoteProtocolError", "ReadTimeout", "ConnectE
 class Drop(RuntimeError):
     """A gate failed in a way retrying will not fix: drop the video."""
 
+def _stale_storyboard(project) -> str | None:
+    """Why the storyboard must be written again before the long render (None = fine)."""
+    if os.getenv("SAFE_MODE", "0") == "1":
+        return None
+    f = project / "metrics.json"
+    if not f.exists():
+        return "it was made by an older version"
+    try:
+        m = json.loads(f.read_text(encoding="utf-8"))
+    except ValueError:
+        return "metrics.json is unreadable"
+    if m.get("safe_mode"):
+        return "it is a safe-mode film without objects"
+    if not m.get("shots_with_props"):
+        return "no shot shows any object"
+    return None
 
 def is_overload(e: BaseException) -> bool:
     """A provider that is overloaded is not the video's fault: do not count it as a failed try."""
@@ -57,6 +73,14 @@ def advance(job: dict) -> str:
         build_shots(project)
         return "storyboarded"
     if s == "storyboarded":
+        why = _stale_storyboard(project)
+        if why:
+            if (job.get("tries") or 0) >= 2:
+                raise RuntimeError(f"the storyboard is still unusable ({why}): look at the preview in the Test lab")
+            job["tries"] = (job.get("tries") or 0) + 1
+            store.set_job(job["id"], tries=job["tries"])
+            print(f"[job {job['id']}] the storyboard is not good enough for the long render ({why}): writing it again")
+            return "timed"
         sync_overlay(project, styles.active())      # pick up brand.json / overlay edits before rendering
         run_pipeline(project, "final", only=["check", "cues", "mix", "video"])
         return "rendered"

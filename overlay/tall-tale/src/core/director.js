@@ -21,12 +21,12 @@ const CENTER = { street: [0, 0, -10], interior: [-0.5, 0, -2.6], meadow: [0, 0, 
 const FOV = { street: 40, interior: 52, meadow: 40, open: 40 };
 const LOOK = { street: { bloom: 0.15, aperture: 0.0012, maxblur: 0.008 }, interior: { bloom: 0.3, aperture: 0.001, maxblur: 0.008 }, meadow: { bloom: 0.25, aperture: 0.001, maxblur: 0.007 }, open: { bloom: 0.25, aperture: 0.001, maxblur: 0.007 } };
 // framing: d = metres from the subject (at fov 40), y = height of the look point, e = camera height above it
-const FR = { extreme_close: { d: 1.05, y: 1.6, e: 0 }, close: { d: 1.55, y: 1.5, e: 0.05 }, medium: { d: 2.2, y: 1.3, e: 0.1 }, full: { d: 3.3, y: 1.0, e: 0.2 }, wide: { d: 7, y: 1.2, e: 0.7 }, establishing: { d: 14, y: 2.4, e: 4.5 } };
+const FR = { extreme_close: { d: 1.3, y: 1.6, e: 0 }, close: { d: 1.8, y: 1.5, e: 0.05 }, medium: { d: 2.4, y: 1.3, e: 0.1 }, full: { d: 3.4, y: 1.0, e: 0.2 }, wide: { d: 7, y: 1.2, e: 0.7 }, establishing: { d: 14, y: 2.4, e: 4.5 } };
 const YAWS = [0, 12, -12, 20, -20, 8, -8];
 const MOVES = {
-  drift: { d: [1.05, 0.95], yaw: [-3, 3] }, push_in: { d: [1.3, 0.9] }, pull_out: { d: [0.8, 1.25] },
-  truck_left: { lat: [1.1, -1.1] }, truck_right: { lat: [-1.1, 1.1] }, orbit_left: { yaw: [-22, 16] }, orbit_right: { yaw: [22, -16] },
-  crane_down: { elev: [3.2, 0], d: [1.15, 1] }, crane_up: { elev: [0, 3], d: [1, 1.2] }, punch_in: { d: [1.15, 0.72] }, handheld: { d: [1, 0.97] },
+  drift: { d: [1.05, 0.95], yaw: [-3, 3] }, push_in: { d: [1.25, 0.92] }, pull_out: { d: [0.85, 1.2] },
+  truck_left: { lat: [1.0, -1.0] }, truck_right: { lat: [-1.0, 1.0] }, orbit_left: { yaw: [-18, 14] }, orbit_right: { yaw: [18, -14] },
+  crane_down: { elev: [1.6, 0], d: [1.1, 1] }, crane_up: { elev: [0, 1.4], d: [1, 1.12] }, punch_in: { d: [1.1, 0.86] }, handheld: { d: [1, 0.97] },
 };
 const CLAMP = {
   street: (p) => { p.x = clamp(p.x, -4.3, 4.3); p.y = clamp(p.y, 0.5, 14); },
@@ -183,7 +183,7 @@ function rig(S, sh, live, lt, d, t) {
   const tight = sh.framing === 'close' || sh.framing === 'extreme_close';
   // everything that must be in the picture: the people AND the objects the shot shows (huge scenery stays background)
   const pts = pool.map((l) => ({ x: l.p.x, z: l.p.z, r: tight ? 0.12 : 0.45 }));
-  sh.objs.forEach(({ it, rad }) => { if (rad < 3.5) pts.push({ x: S.C.x + it.x, z: S.C.z + it.z, r: Math.max(0.35, rad * 0.9) }); });
+  if (!sh.intro) sh.objs.forEach(({ it, rad }) => { if (rad < 3.5) pts.push({ x: S.C.x + it.x, z: S.C.z + it.z, r: Math.max(0.35, rad * 0.9) }); });
   const F = V3(0, 0, 0);
   if (pts.length) { pts.forEach((p) => F.add(V3(p.x, 0, p.z))); F.multiplyScalar(1 / pts.length); } else F.copy(S.C);
   const baseY = pool.length ? Math.max(...pool.map((l) => l.p.y)) : 0;
@@ -200,7 +200,7 @@ function rig(S, sh, live, lt, d, t) {
   const fit = Math.min(14, ((span + 0.1) * 0.55) / (Math.tan(fov * DEG / 2) * 0.5625));   // portrait frames are narrow: keep everything inside
   const base = Math.max(fr.d * hk * (Math.tan(20 * DEG) / Math.tan(fov * DEG / 2)), fit);
   const dist = Math.min(24, base * m(mv.d, 1));
-  const yaw = (yaw0 + m(mv.yaw, 0)) * DEG, elev = fr.e + m(mv.elev, 0), lat = m(mv.lat, 0);
+  const yaw = (yaw0 + m(mv.yaw, 0)) * DEG, elev = fr.e + m(mv.elev, 0) * (tight ? 0.3 : 1), lat = m(mv.lat, 0);
   const ly = baseY + fr.y * hk;
   const right = V3(Math.cos(yaw), 0, -Math.sin(yaw));
   const target = V3(F.x, ly, F.z).addScaledVector(right, lat);

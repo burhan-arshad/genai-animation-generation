@@ -33,7 +33,7 @@ def test_good_story_has_no_problems_and_resolves_times():
     data, problems, _ = D.build(story(five()), mk_timing(), 1914, "first")
     assert problems == []
     first = data["shots"][0]
-    assert first["at"] == 0 and first["framing"] == "wide"                       # the host needs a wide first shot
+    assert first["at"] == 0 and first["framing"] == "full" and first["focus"] == ["host"]      # the host introduces himself, big
     assert any(a["who"] == "host" for a in first["actors"])
     may = next(a for a in first["actors"] if a["who"] == "may")
     assert 0 < may["beats"][0]["t"] < 3.5
