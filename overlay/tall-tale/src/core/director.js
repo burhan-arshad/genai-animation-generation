@@ -30,7 +30,7 @@ const MOVES = {
 };
 const TRANS = { fade: 0.35, wipe: 0.35, slide: 0.3, zoom: 0.35 };            // blends with the previous shot
 const CLAMP = {
-  street: (p) => { p.x = clamp(p.x, -4.3, 4.3); p.y = clamp(p.y, 0.5, 14); },
+  street: (p) => { p.x = clamp(p.x, -3.3, 3.3); p.y = clamp(p.y, 0.5, 14); },
   interior: (p, S) => { p.x = clamp(p.x, -S.w / 2 + 0.5, S.w / 2 - 2.0); p.z = clamp(p.z, -S.depth + 1.2, 1.8); p.y = clamp(p.y, 0.5, S.h - 0.5); },
   meadow: (p) => { p.y = Math.max(p.y, 0.4); },
   open: (p) => { p.y = Math.max(p.y, 0.4); },
@@ -220,7 +220,9 @@ function evalBeats(a, t) {
 }
 
 function rig(S, sh, live, lt, d, t) {
-  const fr = FR[sh.framing] || FR.medium, fov = FOV[S.kind];
+  let fr = FR[sh.framing] || FR.medium;
+  if (S.kind === 'interior' && (sh.framing === 'wide' || sh.framing === 'establishing')) fr = FR.full;
+  const fov = FOV[S.kind];
   const pool = sh.focus.length ? live.filter((l) => sh.focus.includes(l.a.who)) : live;
   const tight = sh.framing === 'close' || sh.framing === 'extreme_close';
   const pts = pool.map((l) => ({ x: l.p.x, z: l.p.z, r: tight ? 0.12 : 0.45 }));      // everything that must be in the picture

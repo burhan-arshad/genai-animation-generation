@@ -32,7 +32,7 @@ SKILL_PY = _path("SKILL_PY", HOME / ".faceless-shorts" / "venv" / _venv_py)
 
 # Render quality. The 3D renderer runs in headless Chrome; without a graphics card it is software rendering on the CPU.
 PROFILES = {
-    "preview": {"QS": "&res=0.25&aa=0&shadow=512&dof=0&bloom=0&lite=0.2", "FPS": "24"},      # checks and contact sheets
+    "preview": {"QS": "&res=0.25&aa=0&shadow=512&dof=0&bloom=0&lite=0.2", "FPS": "24", "CHECK_STEP": "1.5"},      # checks and contact sheets      # checks and contact sheets
     "draft": {"QS": "&res=0.4&aa=0&shadow=512&dof=0&bloom=0&lite=0.25", "FPS": "15", "OUT_FPS": "30"},    # fastest real video
     "balanced": {"QS": "&res=0.6&aa=0&shadow=512&dof=0&bloom=0&lite=0.4", "FPS": "15", "OUT_FPS": "30"},
     "quality": {"QS": "&res=1&aa=4&shadow=2048", "FPS": "30"},
