@@ -25,7 +25,7 @@ def run_stage(label: str, cmd: list[str], cwd: Path, must_contain: str | None = 
     """Run one stage, save its log, raise StageError on failure. Returns seconds taken."""
     print(f"[{label}] running ...", flush=True)
     start = time.time()
-    env = {**os.environ, **render_env("preview" if label == "check" else None)}   # the check only looks for errors: draw it tiny
+    env = {**os.environ, **render_env("preview" if label == "check" else None, project=cwd)}   # the check only looks for errors: draw it tiny
     p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, creationflags=proc_flags())
     secs = time.time() - start
     log_dir = cwd / "logs"

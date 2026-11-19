@@ -1,0 +1,143 @@
+
+brand
+    assets
+        avatar.png
+        avatar_98px_preview.png
+        banner.jpg
+        banner.png
+        host_sheet.jpg
+    brand.json
+engine
+    scripts
+        estimate.py
+        new_video.sh
+        py
+        selftest.sh
+        setup.sh
+        voice.py
+        words.py
+    styles
+        tall-tale
+            example
+                data
+                    cues.json
+                    lines.json
+                    words.json
+                    words.txt
+                fonts
+                    Caladea-Bold.ttf
+                    Inter-Black.otf
+                    Inter-ExtraBold.otf
+                src
+                    core
+                        board.js
+                        captions.js
+                        engine.js
+                        hero.js
+                        lib.js
+                        props.js
+                        timing.js
+                        toon.js
+                        world.js
+                    main.js
+                    sheet.js
+                    shots.js
+                tools
+                    capture.mjs
+                    mix.py
+                vendor
+                    addons
+                        environments
+                            RoomEnvironment.js
+                        postprocessing
+                            BokehPass.js
+                            EffectComposer.js
+                            MaskPass.js
+                            OutputPass.js
+                            Pass.js
+                            RenderPass.js
+                            ShaderPass.js
+                            UnrealBloomPass.js
+                        shaders
+                            BokehShader.js
+                            CopyShader.js
+                            LuminosityHighPassShader.js
+                            OutputShader.js
+                    LICENSE-three.txt
+                    three.module.js
+                index.html
+                script.json
+                sheet.html
+            STYLE.md
+    SKILL.md
+logs
+    daily.log
+    worker.log
+niches
+    _template.json
+    cricket.json
+    history.json
+overlay
+    tall-tale
+        src
+            core
+                director.js
+                propkit.js
+shorts_agent
+    web
+        index.html
+    __init__.py
+    analytics.py
+    api.py
+    audition.py
+    automation.py
+    brand.py
+    brandkit.py
+    cleanup.py
+    config.py
+    daily.py
+    director.py
+    doctor.py
+    factcheck_agent.py
+    finalize.py
+    launch.py
+    llm.py
+    niche.py
+    notify.py
+    pipeline.py
+    preview.py
+    propgen.py
+    qa.py
+    render.py
+    retrieval.py
+    runner.py
+    schemas.py
+    script_agent.py
+    settings.py
+    store.py
+    storyboard_agent.py
+    styles.py
+    thumbnail.py
+    topicgate.py
+    topics.py
+    uploader.py
+tests
+    test_automation.py
+    test_core.py
+    test_director.py
+    test_lab.py
+    test_llm.py
+    test_niche.py
+    test_props.py
+    test_v2.py
+.env
+.env.example
+.gitignore
+client_secret.json
+jobs.db
+PROJECT_STRUCTURE.txt
+README.md
+requirements.txt
+start_ui.bat
+token.json
+usage.db

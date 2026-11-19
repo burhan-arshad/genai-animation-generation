@@ -1,0 +1,1423 @@
+{
+ "title": "The Cardiff Giant Hoax",
+ "meta": {
+  "place": "Cardiff, New York",
+  "date": "1869"
+ },
+ "duration": 51.918,
+ "cast": {
+  "hull": {
+   "body": "#B5553C",
+   "pattern": "vest",
+   "patCol": "#2B3A55",
+   "hat": "bowler",
+   "hatCol": "#2B2638",
+   "neck": "bowtie",
+   "neckCol": "#F4C542",
+   "extra": [
+    "mustache"
+   ],
+   "hair": "#4A3020",
+   "hairStyle": "short",
+   "skin": "#F1C9A0",
+   "dress": false,
+   "kid": false
+  },
+  "preacher": {
+   "body": "#2B2638",
+   "pattern": "plain",
+   "patCol": "#6B422B",
+   "hat": "none",
+   "hatCol": "#8C5A3A",
+   "neck": "collar",
+   "neckCol": "#F4F1E8",
+   "extra": [
+    "glasses"
+   ],
+   "hair": "#9A9A9A",
+   "hairStyle": "side",
+   "skin": "#F1C9A0",
+   "dress": false,
+   "kid": false
+  },
+  "sculptor": {
+   "body": "#C98B2E",
+   "pattern": "apron",
+   "patCol": "#8C8F99",
+   "hat": "beret",
+   "hatCol": "#3F5B9A",
+   "neck": "none",
+   "neckCol": "#F26B5B",
+   "extra": [
+    "mustache"
+   ],
+   "hair": "#2B1A10",
+   "hairStyle": "short",
+   "skin": "#C98B5E",
+   "dress": false,
+   "kid": false
+  },
+  "digger": {
+   "body": "#5B79B8",
+   "pattern": "overalls",
+   "patCol": "#3A4F8F",
+   "hat": "cap",
+   "hatCol": "#8C5A3A",
+   "neck": "none",
+   "neckCol": "#F26B5B",
+   "extra": [
+    "freckles"
+   ],
+   "hair": "#6B422B",
+   "hairStyle": "messy",
+   "skin": "#E0A97A",
+   "dress": false,
+   "kid": false
+  },
+  "woman": {
+   "body": "#F2B8C6",
+   "pattern": "apron",
+   "patCol": "#FFFFFF",
+   "hat": "bonnet",
+   "hatCol": "#F4EAD0",
+   "neck": "none",
+   "neckCol": "#F26B5B",
+   "extra": [],
+   "hair": "#7A4A2A",
+   "hairStyle": "long",
+   "skin": "#C98B5E",
+   "dress": true,
+   "kid": false
+  },
+  "barnum": {
+   "body": "#C8283A",
+   "pattern": "vest",
+   "patCol": "#F4C542",
+   "hat": "tophat",
+   "hatCol": "#2B2638",
+   "neck": "bowtie",
+   "neckCol": "#F4C542",
+   "extra": [
+    "mustache"
+   ],
+   "hair": "#8A8A8A",
+   "hairStyle": "side",
+   "skin": "#F1C9A0",
+   "dress": false,
+   "kid": false
+  }
+ },
+ "sets": {
+  "den": {
+   "kind": "room",
+   "time": "sepia",
+   "sign": "",
+   "deck": false,
+   "dress": [
+    {
+     "item": "bookshelf",
+     "x": 10.0,
+     "d": 0,
+     "s": 0.9
+    },
+    {
+     "item": "table",
+     "x": 80.0,
+     "d": 0,
+     "s": 0.9
+    }
+   ]
+  },
+  "quarry": {
+   "kind": "mountain",
+   "time": "day",
+   "sign": "",
+   "deck": false,
+   "dress": [
+    {
+     "item": "pine",
+     "x": 12.0,
+     "d": 0,
+     "s": 1.0
+    },
+    {
+     "item": "pine",
+     "x": 90.0,
+     "d": 0,
+     "s": 0.9
+    }
+   ]
+  },
+  "shop": {
+   "kind": "room",
+   "time": "day",
+   "sign": "",
+   "deck": false,
+   "dress": [
+    {
+     "item": "table",
+     "x": 20.0,
+     "d": 0,
+     "s": 0.8
+    },
+    {
+     "item": "crate",
+     "x": 90.0,
+     "d": 1,
+     "s": 0.8
+    }
+   ]
+  },
+  "farm": {
+   "kind": "field",
+   "time": "day",
+   "sign": "",
+   "deck": false,
+   "dress": [
+    {
+     "item": "barn",
+     "x": 84.0,
+     "d": 0,
+     "s": 1.2
+    },
+    {
+     "item": "tree",
+     "x": 8.0,
+     "d": 0,
+     "s": 1.0
+    },
+    {
+     "item": "fence",
+     "x": 40.0,
+     "d": 0,
+     "s": 1.0
+    }
+   ]
+  },
+  "farmnight": {
+   "kind": "field",
+   "time": "night",
+   "sign": "",
+   "deck": false,
+   "dress": [
+    {
+     "item": "barn",
+     "x": 84.0,
+     "d": 0,
+     "s": 1.2
+    },
+    {
+     "item": "tree",
+     "x": 8.0,
+     "d": 0,
+     "s": 1.0
+    }
+   ]
+  },
+  "town": {
+   "kind": "street",
+   "time": "day",
+   "sign": "CARDIFF",
+   "deck": false,
+   "dress": []
+  },
+  "museum": {
+   "kind": "room",
+   "time": "dusk",
+   "sign": "",
+   "deck": false,
+   "dress": [
+    {
+     "item": "podium",
+     "x": 55.0,
+     "d": 0,
+     "s": 1.2
+    },
+    {
+     "item": "bookshelf",
+     "x": 90.0,
+     "d": 0,
+     "s": 0.8
+    }
+   ]
+  },
+  "study": {
+   "kind": "study",
+   "time": "night",
+   "dress": []
+  }
+ },
+ "custom": {},
+ "shots": [
+  {
+   "set": "study",
+   "framing": "full",
+   "camera": "push_in",
+   "focus_x": 50,
+   "transition": "cut",
+   "effect": "",
+   "fx": "dust",
+   "note": "host introduces the story",
+   "at": 0.0,
+   "end": 4.041,
+   "actors": [
+    {
+     "who": "hero",
+     "x0": -14,
+     "x1": 30,
+     "d": 1,
+     "face": "r",
+     "mood": "happy",
+     "arms": {
+      "l": "down",
+      "r": "present"
+     },
+     "legs": "stand",
+     "talk": true,
+     "held": {},
+     "beats": [
+      {
+       "t": 1.55,
+       "arms": {
+        "l": "down",
+        "r": "wave"
+       }
+      },
+      {
+       "t": 3.0,
+       "arms": {
+        "l": "down",
+        "r": "present"
+       },
+       "act": "pop"
+      }
+     ],
+     "t0": 0.1,
+     "t1": 1.5
+    }
+   ],
+   "props": [],
+   "callouts": [
+    {
+     "text": "The Cardiff | Giant Hoax",
+     "t": 0.9,
+     "style": "title",
+     "dur": 3.841,
+     "y": 210
+    }
+   ],
+   "panel": {
+    "prop": "stone_giant",
+    "s": 1.0
+   },
+   "id": "S01"
+  },
+  {
+   "set": "study",
+   "framing": "medium",
+   "camera": "drift",
+   "focus_x": 44,
+   "transition": "cut",
+   "effect": "",
+   "fx": "dust",
+   "note": "host introduces the story",
+   "at": 4.041,
+   "end": 7.443,
+   "actors": [
+    {
+     "who": "hero",
+     "x0": 32,
+     "x1": 32,
+     "d": 1,
+     "face": "r",
+     "mood": "smug",
+     "arms": {
+      "l": "down",
+      "r": "point"
+     },
+     "legs": "stand",
+     "talk": true,
+     "held": {},
+     "beats": []
+    }
+   ],
+   "props": [],
+   "callouts": [
+    {
+     "text": "Cardiff, New York \u00b7 1869",
+     "t": 4.441,
+     "style": "label",
+     "dur": 3.0,
+     "y": 210
+    }
+   ],
+   "panel": {
+    "prop": "stone_giant",
+    "s": 1.0
+   },
+   "id": "S02"
+  },
+  {
+   "set": "study",
+   "framing": "medium",
+   "camera": "push_in",
+   "focus_x": 44,
+   "transition": "cut",
+   "effect": "",
+   "fx": "dust",
+   "note": "host introduces the story",
+   "at": 7.443,
+   "end": 9.663,
+   "actors": [
+    {
+     "who": "hero",
+     "x0": 34,
+     "x1": 34,
+     "d": 1,
+     "face": "r",
+     "mood": "think",
+     "arms": {
+      "l": "down",
+      "r": "chin"
+     },
+     "legs": "stand",
+     "talk": true,
+     "held": {},
+     "beats": []
+    }
+   ],
+   "props": [],
+   "callouts": [],
+   "panel": {
+    "prop": "stone_giant",
+    "s": 1.0
+   },
+   "id": "S03"
+  },
+  {
+   "set": "den",
+   "framing": "wide",
+   "camera": "push_in",
+   "focus_x": 50.0,
+   "transition": "whip",
+   "effect": "",
+   "fx": "dust",
+   "note": "Hull and a preacher argue",
+   "at": 9.663,
+   "end": 11.544,
+   "actors": [
+    {
+     "who": "hull",
+     "x0": 30.0,
+     "x1": 30.0,
+     "d": 1,
+     "face": "r",
+     "mood": "angry",
+     "arms": {
+      "l": "down",
+      "r": "point"
+     },
+     "legs": "stand",
+     "talk": true,
+     "held": {},
+     "beats": [
+      {
+       "t": 10.831,
+       "mood": "shock",
+       "act": "jump"
+      }
+     ]
+    },
+    {
+     "who": "preacher",
+     "x0": 72.0,
+     "x1": 72.0,
+     "d": 1,
+     "face": "l",
+     "mood": "smug",
+     "arms": {
+      "l": "down",
+      "r": "hip"
+     },
+     "legs": "stand",
+     "talk": false,
+     "held": {},
+     "beats": []
+    }
+   ],
+   "props": [
+    {
+     "name": "openbook",
+     "x": 50.0,
+     "d": 2,
+     "s": 0.9,
+     "t0": 10.831,
+     "move": "pop",
+     "c": "",
+     "text": ""
+    }
+   ],
+   "callouts": [
+    {
+     "text": "IOWA",
+     "t": 9.963,
+     "style": "label",
+     "dur": 2.4
+    }
+   ],
+   "id": "S04"
+  },
+  {
+   "set": "den",
+   "framing": "medium",
+   "camera": "drift",
+   "focus_x": 32.0,
+   "transition": "cut",
+   "effect": "",
+   "fx": "dust",
+   "note": "Hull the cigar maker",
+   "at": 11.544,
+   "end": 13.765,
+   "actors": [
+    {
+     "who": "hull",
+     "x0": 32.0,
+     "x1": 32.0,
+     "d": 1,
+     "face": "r",
+     "mood": "happy",
+     "arms": {
+      "l": "down",
+      "r": "present"
+     },
+     "legs": "stand",
+     "talk": true,
+     "held": {},
+     "beats": [
+      {
+       "t": 12.838,
+       "mood": "proud",
+       "arms": {
+        "l": "down",
+        "r": "point_up"
+       }
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "name": "crate",
+     "x": 62.0,
+     "d": 1,
+     "s": 0.8,
+     "t0": 11.718,
+     "move": "pop",
+     "c": "",
+     "text": ""
+    }
+   ],
+   "callouts": [
+    {
+     "text": "GEORGE HULL",
+     "t": 12.838,
+     "style": "label",
+     "dur": 2.4
+    }
+   ],
+   "id": "S05"
+  },
+  {
+   "set": "den",
+   "framing": "medium",
+   "camera": "pan_right",
+   "focus_x": 48.0,
+   "transition": "cut",
+   "effect": "",
+   "fx": "dust",
+   "note": "They argue about Bible giants",
+   "at": 13.765,
+   "end": 17.006,
+   "actors": [
+    {
+     "who": "hull",
+     "x0": 34.0,
+     "x1": 34.0,
+     "d": 1,
+     "face": "r",
+     "mood": "angry",
+     "arms": {
+      "l": "down",
+      "r": "point_up"
+     },
+     "legs": "stand",
+     "talk": true,
+     "held": {},
+     "beats": [
+      {
+       "t": 15.553,
+       "mood": "shock",
+       "arms": {
+        "l": "both_up",
+        "r": "both_up"
+       },
+       "act": "shake"
+      }
+     ]
+    },
+    {
+     "who": "preacher",
+     "x0": 66.0,
+     "x1": 66.0,
+     "d": 1,
+     "face": "l",
+     "mood": "smug",
+     "arms": {
+      "l": "shrug",
+      "r": "shrug"
+     },
+     "legs": "stand",
+     "talk": false,
+     "held": {},
+     "beats": [
+      {
+       "t": 16.459,
+       "mood": "laugh",
+       "arms": {
+        "l": "down",
+        "r": "hip"
+       }
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "name": "openbook",
+     "x": 50.0,
+     "d": 2,
+     "s": 0.8,
+     "t0": 16.459,
+     "move": "pop",
+     "c": "",
+     "text": ""
+    }
+   ],
+   "callouts": [],
+   "id": "S06"
+  },
+  {
+   "set": "den",
+   "framing": "close",
+   "camera": "punch_in",
+   "focus_x": 36.0,
+   "transition": "cut",
+   "effect": "",
+   "fx": "",
+   "note": "Hull gets an idea",
+   "at": 17.006,
+   "end": 19.227,
+   "actors": [
+    {
+     "who": "hull",
+     "x0": 36.0,
+     "x1": 36.0,
+     "d": 1,
+     "face": "r",
+     "mood": "sly",
+     "arms": {
+      "l": "down",
+      "r": "chin"
+     },
+     "legs": "stand",
+     "talk": false,
+     "held": {},
+     "beats": [
+      {
+       "t": 18.385,
+       "mood": "smug",
+       "arms": {
+        "l": "down",
+        "r": "point_up"
+       },
+       "act": "pop"
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "name": "lightbulb",
+     "x": 62.0,
+     "d": 2,
+     "s": 0.9,
+     "t0": 17.613,
+     "move": "rise",
+     "c": "",
+     "text": ""
+    }
+   ],
+   "callouts": [],
+   "id": "S07"
+  },
+  {
+   "set": "quarry",
+   "framing": "wide",
+   "camera": "crane_down",
+   "focus_x": 50.0,
+   "transition": "wipe",
+   "effect": "",
+   "fx": "",
+   "note": "A huge block of stone",
+   "at": 19.227,
+   "end": 22.968,
+   "actors": [
+    {
+     "who": "hull",
+     "x0": 28.0,
+     "x1": 28.0,
+     "d": 1,
+     "face": "r",
+     "mood": "proud",
+     "arms": {
+      "l": "down",
+      "r": "point"
+     },
+     "legs": "stand",
+     "talk": true,
+     "held": {},
+     "beats": []
+    }
+   ],
+   "props": [
+    {
+     "name": "stone_block",
+     "x": 62.0,
+     "d": 1,
+     "s": 1.5,
+     "t0": 20.442,
+     "move": "drop",
+     "c": "",
+     "text": ""
+    }
+   ],
+   "callouts": [
+    {
+     "text": "IOWA GYPSUM",
+     "t": 21.171,
+     "style": "label",
+     "dur": 2.4
+    }
+   ],
+   "id": "S08"
+  },
+  {
+   "set": "shop",
+   "framing": "medium",
+   "camera": "push_in",
+   "focus_x": 52.0,
+   "transition": "wipe",
+   "effect": "",
+   "fx": "dust",
+   "note": "The sculptor carves the giant",
+   "at": 22.968,
+   "end": 25.869,
+   "actors": [
+    {
+     "who": "sculptor",
+     "x0": 33.0,
+     "x1": 33.0,
+     "d": 1,
+     "face": "r",
+     "mood": "proud",
+     "arms": {
+      "l": "down",
+      "r": "hold"
+     },
+     "legs": "stand",
+     "talk": false,
+     "held": {
+      "r": "hammer"
+     },
+     "beats": [
+      {
+       "t": 24.03,
+       "mood": "happy",
+       "arms": {
+        "l": "down",
+        "r": "point_up"
+       },
+       "act": "pop"
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "name": "stone_giant",
+     "x": 68.0,
+     "d": 1,
+     "s": 0.8,
+     "t0": 25.281,
+     "move": "grow",
+     "c": "",
+     "text": ""
+    }
+   ],
+   "callouts": [
+    {
+     "text": "CHICAGO",
+     "t": 23.458,
+     "style": "label",
+     "dur": 2.4
+    }
+   ],
+   "id": "S09"
+  },
+  {
+   "set": "farm",
+   "framing": "wide",
+   "camera": "pan_right",
+   "focus_x": 55.0,
+   "transition": "wipe",
+   "effect": "",
+   "fx": "",
+   "note": "Hull buries the giant on a farm",
+   "at": 25.869,
+   "end": 29.271,
+   "actors": [
+    {
+     "who": "hull",
+     "x0": 30.0,
+     "x1": 52.0,
+     "d": 1,
+     "face": "r",
+     "mood": "sly",
+     "arms": {
+      "l": "down",
+      "r": "down"
+     },
+     "legs": "walk",
+     "talk": false,
+     "held": {
+      "r": "shovel"
+     },
+     "beats": [
+      {
+       "t": 26.511,
+       "mood": "smug",
+       "act": "pop"
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "name": "mound",
+     "x": 66.0,
+     "d": 1,
+     "s": 1.4,
+     "t0": 26.511,
+     "move": "rise",
+     "c": "",
+     "text": ""
+    }
+   ],
+   "callouts": [
+    {
+     "text": "CARDIFF, N.Y.",
+     "t": 28.377,
+     "style": "label",
+     "dur": 2.4
+    }
+   ],
+   "id": "S10"
+  },
+  {
+   "set": "farmnight",
+   "framing": "establishing",
+   "camera": "drift",
+   "focus_x": 55.0,
+   "transition": "dissolve",
+   "effect": "",
+   "fx": "fireflies",
+   "note": "A year passes",
+   "at": 29.271,
+   "end": 30.811,
+   "actors": [],
+   "props": [
+    {
+     "name": "mound",
+     "x": 66.0,
+     "d": 1,
+     "s": 1.4,
+     "t0": 29.271,
+     "move": "none",
+     "c": "",
+     "text": ""
+    }
+   ],
+   "callouts": [
+    {
+     "text": "1 YEAR",
+     "t": 30.247,
+     "style": "pop",
+     "dur": 2.4
+    }
+   ],
+   "id": "S11"
+  },
+  {
+   "set": "farm",
+   "framing": "medium",
+   "camera": "handheld",
+   "focus_x": 55.0,
+   "transition": "dissolve",
+   "effect": "shake",
+   "fx": "dust",
+   "note": "Diggers hit the stone foot",
+   "at": 30.811,
+   "end": 33.532,
+   "actors": [
+    {
+     "who": "digger",
+     "x0": 30.0,
+     "x1": 30.0,
+     "d": 1,
+     "face": "r",
+     "mood": "neutral",
+     "arms": {
+      "l": "down",
+      "r": "hip"
+     },
+     "legs": "stand",
+     "talk": false,
+     "held": {
+      "r": "shovel"
+     },
+     "beats": [
+      {
+       "t": 32.886,
+       "mood": "shock",
+       "arms": {
+        "l": "both_up",
+        "r": "both_up"
+       },
+       "act": "jump"
+      }
+     ]
+    },
+    {
+     "who": "hull",
+     "x0": 78.0,
+     "x1": 78.0,
+     "d": 1,
+     "face": "l",
+     "mood": "sly",
+     "arms": {
+      "l": "cross",
+      "r": "cross"
+     },
+     "legs": "stand",
+     "talk": false,
+     "held": {},
+     "beats": []
+    }
+   ],
+   "props": [
+    {
+     "name": "pit",
+     "x": 62.0,
+     "d": 1,
+     "s": 1.3,
+     "t0": 30.811,
+     "move": "none",
+     "c": "",
+     "text": ""
+    },
+    {
+     "name": "stone_giant",
+     "x": 62.0,
+     "d": 1,
+     "s": 0.9,
+     "t0": 32.532,
+     "move": "rise",
+     "c": "",
+     "text": ""
+    }
+   ],
+   "callouts": [],
+   "id": "S12"
+  },
+  {
+   "set": "town",
+   "framing": "wide",
+   "camera": "crane_down",
+   "focus_x": 50.0,
+   "transition": "wipe",
+   "effect": "",
+   "fx": "confetti",
+   "note": "The town goes wild",
+   "at": 33.532,
+   "end": 35.413,
+   "actors": [
+    {
+     "who": "woman",
+     "x0": 26.0,
+     "x1": 26.0,
+     "d": 1,
+     "face": "r",
+     "mood": "happy",
+     "arms": {
+      "l": "both_up",
+      "r": "both_up"
+     },
+     "legs": "stand",
+     "talk": false,
+     "held": {},
+     "beats": [
+      {
+       "t": 34.893,
+       "mood": "laugh",
+       "arms": {
+        "l": "both_up",
+        "r": "both_up"
+       },
+       "act": "jump"
+      }
+     ]
+    },
+    {
+     "who": "digger",
+     "x0": 74.0,
+     "x1": 74.0,
+     "d": 1,
+     "face": "l",
+     "mood": "laugh",
+     "arms": {
+      "l": "down",
+      "r": "point_up"
+     },
+     "legs": "stand",
+     "talk": false,
+     "held": {},
+     "beats": []
+    }
+   ],
+   "props": [
+    {
+     "name": "crowd",
+     "x": 52.0,
+     "d": 1,
+     "s": 1.0,
+     "t0": 34.212,
+     "move": "rise",
+     "c": "",
+     "text": ""
+    }
+   ],
+   "callouts": [
+    {
+     "text": "CARDIFF GIANT!",
+     "t": 34.893,
+     "style": "pop",
+     "dur": 2.4
+    }
+   ],
+   "id": "S13"
+  },
+  {
+   "set": "town",
+   "framing": "medium",
+   "camera": "push_in",
+   "focus_x": 45.0,
+   "transition": "cut",
+   "effect": "",
+   "fx": "",
+   "note": "Visitors pay to see the giant",
+   "at": 35.413,
+   "end": 37.974,
+   "actors": [
+    {
+     "who": "woman",
+     "x0": 30.0,
+     "x1": 30.0,
+     "d": 1,
+     "face": "r",
+     "mood": "happy",
+     "arms": {
+      "l": "down",
+      "r": "present"
+     },
+     "legs": "stand",
+     "talk": false,
+     "held": {
+      "r": "coin"
+     },
+     "beats": [
+      {
+       "t": 36.709,
+       "mood": "proud",
+       "act": "pop"
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "name": "sign",
+     "x": 74.0,
+     "d": 1,
+     "s": 1.0,
+     "t0": 35.814,
+     "move": "pop",
+     "c": "#F4EAD0",
+     "text": "25 CENTS"
+    },
+    {
+     "name": "coins",
+     "x": 52.0,
+     "d": 2,
+     "s": 1.0,
+     "t0": 36.709,
+     "move": "drop",
+     "c": "",
+     "text": ""
+    }
+   ],
+   "callouts": [
+    {
+     "text": "25 CENTS",
+     "t": 36.12,
+     "style": "pop",
+     "dur": 2.4
+    }
+   ],
+   "id": "S14"
+  },
+  {
+   "set": "town",
+   "framing": "full",
+   "camera": "pull_out",
+   "focus_x": 50.0,
+   "transition": "cut",
+   "effect": "",
+   "fx": "",
+   "note": "Showman Barnum",
+   "at": 37.974,
+   "end": 40.835,
+   "actors": [
+    {
+     "who": "barnum",
+     "x0": 55.0,
+     "x1": 55.0,
+     "d": 1,
+     "face": "l",
+     "mood": "smug",
+     "arms": {
+      "l": "down",
+      "r": "present"
+     },
+     "legs": "stand",
+     "talk": true,
+     "held": {},
+     "beats": [
+      {
+       "t": 40.186,
+       "mood": "proud",
+       "arms": {
+        "l": "down",
+        "r": "point_up"
+       },
+       "act": "bow"
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "name": "poster",
+     "x": 24.0,
+     "d": 1,
+     "s": 1.0,
+     "t0": 38.636,
+     "move": "slide_l",
+     "c": "#F4EAD0",
+     "text": "BARNUM"
+    }
+   ],
+   "callouts": [
+    {
+     "text": "P. T. BARNUM",
+     "t": 40.186,
+     "style": "label",
+     "dur": 2.4
+    }
+   ],
+   "id": "S15"
+  },
+  {
+   "set": "shop",
+   "framing": "wide",
+   "camera": "pan_left",
+   "focus_x": 52.0,
+   "transition": "wipe",
+   "effect": "",
+   "fx": "",
+   "note": "Barnum builds his own copy",
+   "at": 40.835,
+   "end": 42.375,
+   "actors": [
+    {
+     "who": "barnum",
+     "x0": 28.0,
+     "x1": 28.0,
+     "d": 1,
+     "face": "r",
+     "mood": "smug",
+     "arms": {
+      "l": "down",
+      "r": "point"
+     },
+     "legs": "stand",
+     "talk": true,
+     "held": {},
+     "beats": []
+    }
+   ],
+   "props": [
+    {
+     "name": "stone_giant",
+     "x": 64.0,
+     "d": 1,
+     "s": 0.8,
+     "t0": 41.542,
+     "move": "slide_r",
+     "c": "#D3D5DB",
+     "text": ""
+    },
+    {
+     "name": "sparkle",
+     "x": 64.0,
+     "d": 2,
+     "s": 1.0,
+     "t0": 41.841,
+     "move": "pop",
+     "c": "",
+     "text": ""
+    }
+   ],
+   "callouts": [
+    {
+     "text": "A COPY",
+     "t": 41.841,
+     "style": "pop",
+     "dur": 2.4
+    }
+   ],
+   "id": "S16"
+  },
+  {
+   "set": "den",
+   "framing": "close",
+   "camera": "push_in",
+   "focus_x": 40.0,
+   "transition": "dissolve",
+   "effect": "",
+   "fx": "",
+   "note": "Hull confesses",
+   "at": 42.375,
+   "end": 45.776,
+   "actors": [
+    {
+     "who": "hull",
+     "x0": 40.0,
+     "x1": 40.0,
+     "d": 1,
+     "face": "r",
+     "mood": "sad",
+     "arms": {
+      "l": "cross",
+      "r": "cross"
+     },
+     "legs": "stand",
+     "talk": false,
+     "held": {},
+     "beats": [
+      {
+       "t": 45.238,
+       "mood": "worried",
+       "arms": {
+        "l": "shrug",
+        "r": "shrug"
+       }
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "name": "stone_giant",
+     "x": 72.0,
+     "d": 1,
+     "s": 0.7,
+     "t0": 42.375,
+     "move": "none",
+     "c": "",
+     "text": ""
+    }
+   ],
+   "callouts": [
+    {
+     "text": "CONFESSED",
+     "t": 43.092,
+     "style": "stamp",
+     "dur": 2.4
+    }
+   ],
+   "id": "S17"
+  },
+  {
+   "set": "museum",
+   "framing": "wide",
+   "camera": "pull_out",
+   "focus_x": 50.0,
+   "transition": "dissolve",
+   "effect": "",
+   "fx": "dust",
+   "note": "The giant is in a museum",
+   "at": 45.776,
+   "end": 49.018,
+   "actors": [
+    {
+     "who": "woman",
+     "x0": 28.0,
+     "x1": 28.0,
+     "d": 1,
+     "face": "r",
+     "mood": "happy",
+     "arms": {
+      "l": "down",
+      "r": "point"
+     },
+     "legs": "stand",
+     "talk": false,
+     "held": {},
+     "beats": [
+      {
+       "t": 47.532,
+       "mood": "happy",
+       "arms": {
+        "l": "down",
+        "r": "present"
+       }
+      }
+     ]
+    },
+    {
+     "who": "digger",
+     "x0": 80.0,
+     "x1": 80.0,
+     "d": 1,
+     "face": "l",
+     "mood": "happy",
+     "arms": {
+      "l": "down",
+      "r": "hip"
+     },
+     "legs": "stand",
+     "talk": false,
+     "held": {},
+     "beats": []
+    }
+   ],
+   "props": [
+    {
+     "name": "stone_giant",
+     "x": 52.0,
+     "d": 1,
+     "s": 1.15,
+     "t0": 46.393,
+     "move": "grow",
+     "c": "",
+     "text": ""
+    },
+    {
+     "name": "sparkle",
+     "x": 55.0,
+     "d": 2,
+     "s": 1.0,
+     "t0": 48.197,
+     "move": "pop",
+     "c": "",
+     "text": ""
+    }
+   ],
+   "callouts": [
+    {
+     "text": "COOPERSTOWN, N.Y.",
+     "t": 48.197,
+     "style": "label",
+     "dur": 2.4
+    }
+   ],
+   "id": "S18"
+  },
+  {
+   "set": "study",
+   "framing": "medium",
+   "camera": "push_in",
+   "focus_x": 44,
+   "transition": "fade",
+   "effect": "",
+   "fx": "dust",
+   "note": "host closes the story",
+   "at": 49.018,
+   "end": 51.918,
+   "actors": [
+    {
+     "who": "hero",
+     "x0": 32,
+     "x1": 32,
+     "d": 1,
+     "face": "r",
+     "mood": "proud",
+     "arms": {
+      "l": "down",
+      "r": "hip"
+     },
+     "legs": "stand",
+     "talk": true,
+     "held": {},
+     "beats": [
+      {
+       "t": 49.218,
+       "act": "nod"
+      },
+      {
+       "t": 50.318,
+       "mood": "laugh",
+       "act": "pop"
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "callouts": [
+    {
+     "text": "HOAX",
+     "t": 50.318,
+     "style": "stamp",
+     "dur": 1.5,
+     "x": 700,
+     "y": 520
+    }
+   ],
+   "panel": {
+    "prop": "stone_giant",
+    "s": 1.0
+   },
+   "id": "S19"
+  }
+ ]
+}

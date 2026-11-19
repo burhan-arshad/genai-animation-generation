@@ -29,7 +29,7 @@ def _ff(cmd: list[str]) -> None:
 def render_parallel(project: Path, out_name: str = "final") -> float:
     from .runner import StageError
     t0 = time.time()
-    n, env = workers(), {**os.environ, **render_env()}
+    n, env = workers(), {**os.environ, **render_env(project=project)}
     fps = float(env["FPS"])
     dur = float(json.loads((project / "data" / "lines.json").read_text(encoding="utf-8"))["duration"])
     total = round(dur * fps)

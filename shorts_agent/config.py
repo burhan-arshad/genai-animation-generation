@@ -36,11 +36,22 @@ PROFILES = {
     "draft": {"QS": "&res=0.4&aa=0&shadow=512&dof=0&bloom=0&lite=0.25", "FPS": "15", "OUT_FPS": "30"},    # fastest real video
     "balanced": {"QS": "&res=0.6&aa=0&shadow=512&dof=0&bloom=0&lite=0.4", "FPS": "15", "OUT_FPS": "30"},
     "quality": {"QS": "&res=1&aa=4&shadow=2048", "FPS": "30"},
+    "film": {"QS": "", "FPS": "30", "CHECK_STEP": "0.5"},          # the 2D film engine is cheap to draw: always full frame rate
 }
 
 
-def render_env(profile: str | None = None) -> dict[str, str]:
+def is_film(project) -> bool:
+    """A project made by the 2D film engine (it has src/core/film.js)."""
+    try:
+        return (Path(project) / "src" / "core" / "film.js").exists()
+    except TypeError:
+        return False
+
+
+def render_env(profile: str | None = None, project=None) -> dict[str, str]:
     p = profile or (os.getenv("RENDER_PROFILE") or "balanced")
+    if project is not None and p != "preview" and is_film(project):
+        p = "film"
     env = dict(PROFILES.get(p, PROFILES["balanced"]))
     if os.getenv("RENDER_SOFTWARE", "1") != "0":    # capture.mjs only checks that SOFTWARE_GL is set
         env["SOFTWARE_GL"] = "1"

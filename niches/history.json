@@ -1,18 +1,27 @@
 {
-  "label": "Funny true history stories told by cartoon people in a 3D world, for viewers in the United States and Europe",
-  "engine": "tall-tale",
+  "label": "True history stories told as a short film by the History Student, for viewers in the United States and Europe",
+  "engine": "film",
   "writing": {
-    "music_options": ["bounce", "ragtime", "mystery", "bed", "tension"],
+    "music_options": [
+      "bounce",
+      "ragtime",
+      "mystery",
+      "bed",
+      "tension"
+    ],
     "min_words": 100,
     "max_words": 140,
-    "rules": "- 110-135 words in total.\n- Only well-documented events. If the evidence shows historians disagree, say so in a few words or pick another angle.\n- Explain unfamiliar places, people or terms with one short clause.\n- Tell it with objects, places and consequences; the trick, loophole or misunderstanding is the star."
+    "rules": "- 110-135 words in total.\n- Only well-documented events. If the evidence shows historians disagree, say so in a few words or pick another angle.\n- Explain unfamiliar places, people or terms with one short clause.\n- Tell it with people, objects, places and consequences; the trick, loophole or misunderstanding is the star."
   },
   "research": {
     "plan_hint": "Prefer the page about the specific event, person or place over generic pages."
   },
   "topics": {
     "system": "You propose topics for 45-second funny true history Shorts for viewers in the United States and Europe.\nEach topic is ONE specific, well-documented event, place or invention that has its own Wikipedia article, told as a surprising true story with a trick, loophole, misunderstanding or accident (cause and effect, not a list of facts). Rules:\n- Year between 1850 and 1990; region is exactly 'United States' or 'Europe'.\n- Nothing graphic, political, religious, medical, criminal, about war atrocities or about living people. No contested claims.\n- `topic` is a plain noun phrase with the year, e.g. 'The Great Molasses Flood of 1919'.\n- Be varied: different decades, countries and kinds of events. Never repeat or closely resemble a topic that was already used.",
-    "regions": ["United States", "Europe"],
+    "regions": [
+      "United States",
+      "Europe"
+    ],
     "year_min": 1850,
     "year_max": 1990,
     "min_evidence": 4,
@@ -28,12 +37,22 @@
   },
   "storyboard": {
     "rules": "\n- Era: use only things that existed in the story's year (the engine removes cars, trains, poles and lamps that are too early).",
-    "era": { "props": { "train": 1825, "car": 1895, "lamp": 1807 } }
+    "era": {
+      "props": {
+        "train": 1825,
+        "car": 1895,
+        "lamp": 1807
+      }
+    }
   },
   "upload": {
     "category_id": "27",
     "hashtags": "#shorts #history #historyfacts",
-    "tags": ["history", "history facts", "true story"],
+    "tags": [
+      "history",
+      "history facts",
+      "true story"
+    ],
     "footer": "Narrated and animated with AI tools. The script is written from the sources above."
   }
 }

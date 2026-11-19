@@ -16,7 +16,7 @@ from .llm import BudgetExceeded
 from .qa import run_qa
 from .runner import run_pipeline
 from .script_agent import generate
-from .storyboard_agent import build_shots, sync_overlay
+from .filmboard import build_shots, sync_overlay
 
 
 TERMINAL = ("ready", "uploaded", "dropped", "rejected", "awaiting_approval", "approved")

@@ -54,7 +54,22 @@ TALL_TALE = Style(
     min_words=100, max_words=145, write_rules=TALL_RULES, board_rules=TALL_BOARD,
     engine="tall-tale", caps_mode="auto", min_lines=10, max_lines=24, overlay="tall-tale")
 
-STYLES: dict[str, Style] = {"tall-tale": TALL_TALE}
+FILM_RULES = """- You are 'the History Student', a curious, warm host who tells a true story to a friend. Simple words, short sentences with connecting words ("So,", "But", "Then").
+- Lines 1-2 are the HOOK: the most surprising fact of the story in two short lines (the host says them on camera). Then go back and tell the story in order, like a film:
+  places, people, objects, cause and effect, one picture per line. The last line is a punchline that echoes the hook.
+- Each entry in `lines` is one CUT of 2-4 s (5-11 words). Name the people, the place and the objects (they will be drawn): a viewer should be able to picture every line.
+- Funny or amazing but true, never mean. Nothing graphic. No invented quotes or dialogue. Write every year and number as spoken words in `text`."""
+
+FILM_BOARD = """- Film look: flat vector people and places, layered scenes with parallax, a camera that moves in every shot, people who act, objects that move.
+- The host (History Student) appears only in the first lines (the hook) and the last line (the punchline); everything in between is the story as a film."""
+
+FILM = Style(
+    key="film", voice="am_michael", speed=1.05, lead=0.3, outro=1.2, gap=0.18,
+    music="bounce", music_options=("bounce", "ragtime", "mystery", "bed", "tension"), caps_max_words=2, caps_example="",
+    min_words=100, max_words=140, write_rules=FILM_RULES, board_rules=FILM_BOARD,
+    engine="film", caps_mode="auto", min_lines=10, max_lines=24, overlay="film")
+
+STYLES: dict[str, Style] = {"tall-tale": TALL_TALE, "film": FILM}
 
 
 def _from_niche(key: str) -> Style:

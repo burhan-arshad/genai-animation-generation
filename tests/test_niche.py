@@ -28,9 +28,10 @@ def test_unknown_niche_gives_a_helpful_error():
 
 def test_niche_rules_reach_the_style():
     st = styles.STYLES["history"]
-    assert st.engine == "tall-tale" and st.caps_mode == "auto" and "Faces do the acting" in st.board_rules
-    assert era_props(st)["train"] == 1825
+    assert st.engine == "film" and st.caps_mode == "auto" and "Film look" in st.board_rules and "History Student" in st.write_rules
+    assert era_props(st)["train"] == 1825                      # the niche file still carries the era table (used by the old Tall Tale engine)
     assert era_props(styles.STYLES["tall-tale"]) == {}
+    assert styles.STYLES["tall-tale"].engine == "tall-tale"
 
 
 def test_default_key_follows_env(monkeypatch):

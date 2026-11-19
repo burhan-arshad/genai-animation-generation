@@ -11,14 +11,14 @@ import subprocess
 from . import store
 from .config import PROJECTS_ROOT, proc_flags, render_env
 from .pipeline import run
-from .storyboard_agent import contact_sheet
+from .filmboard import contact_sheet
 
 
 def clip(project, a: float, b: float):
     out = "renders/clip.mp4"
     (project / "renders").mkdir(exist_ok=True)
     p = subprocess.run(["node", "tools/capture.mjs", "video", out, str(a), str(b), "--draft"], cwd=project, capture_output=True, text=True,
-                       encoding="utf-8", errors="replace", env={**os.environ, **render_env()}, creationflags=proc_flags())
+                       encoding="utf-8", errors="replace", env={**os.environ, **render_env(project=project)}, creationflags=proc_flags())
     print((p.stdout + p.stderr)[-500:])
     return project / out if p.returncode == 0 else None
 
