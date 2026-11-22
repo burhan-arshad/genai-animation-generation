@@ -9,11 +9,11 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from . import brand, niche, styles
+from . import brand, hooks, niche, store, styles
 from .config import REPO, SKILL_DIR
 from .llm import generate_structured
 from .retrieval import wikipedia_facts
-from .schemas import Line, ScriptDraft, check_script, repair_caps, to_script_json
+from .schemas import Line, ScriptDraft, check_script, repair_caps, repair_numbers, to_script_json
 
 
 class Plan(BaseModel):
@@ -30,6 +30,11 @@ class RLine(BaseModel):
 class RScript(BaseModel):
     title: str
     music: str
+    hook_type: str
+    end_type: str
+    hook_text: str
+    end_question: str
+    hook_candidates: list[str]
     lines: list[RLine]
 
 
@@ -52,7 +57,7 @@ def system_prompt() -> str:
     return f"You edit scripts for 40-second faceless Shorts in the '{st.key}' style.\n{st.write_rules}\n{caption_rules(st)}"
 
 
-def writer_system(st: styles.Style) -> str:
+def writer_system(st: styles.Style, plan: tuple[str, str] | None = None) -> str:
     return (f"You write scripts for 40-second faceless YouTube Shorts in the '{st.key}' style.\n{st.write_rules}\n"
             f"{caption_rules(st)}\nSOURCE RULES (strict):\n"
             "- Use ONLY facts stated in the EVIDENCE. Never add facts, numbers, names or dates from memory. "
@@ -61,7 +66,12 @@ def writer_system(st: styles.Style) -> str:
             "- List every number or year you speak, written as digits, in `numbers` (e.g. \"1666\"). Each must appear exactly "
             "in the cited evidence: do not round or estimate.\n"
             f"- `music`: one of {list(st.music_options)} (bounce = funny, ragtime = old-timey, mystery = hoaxes and puzzles, "
-            "tension = disasters only, bed = calm).")
+            "tension = disasters only, bed = calm).\n"
+            + hooks.RULES + ("\n" + hooks.formula_text(*plan) if plan else "") + "\n"
+            "HOOK OUTPUT: `hook_candidates` = three different possible first lines (different formulas) written BEFORE the script; use the best one as lines[0]. "
+            "`hook_type` = the hook formula you used, `end_type` = the ending formula you used. "
+            "`hook_text` = 3-6 words shown on screen in the first second as a claim or a question (digits are allowed here, e.g. A 10-FOOT STONE MAN?). "
+            "`end_question` = a short question to the viewer shown on screen at the end (26 characters at most, e.g. WOULD YOU HAVE PAID?).")
 
 
 def plan_system() -> str:
@@ -125,18 +135,19 @@ def check_research(r: RScript, ev: dict[str, dict]) -> list[str]:
     return problems
 
 
-def write_from_evidence(topic: str, items: list[dict]) -> tuple[RScript, ScriptDraft]:
+def write_from_evidence(topic: str, items: list[dict], plan: tuple[str, str] | None = None) -> tuple[RScript, ScriptDraft]:
     st, ev = styles.active(), {e["id"]: e for e in items}
     base = f"Topic: {topic}\n\nEVIDENCE:\n{evidence_block(items)}\nWrite the script."
     prompt, problems = base, []
     for attempt in range(1, 6):
         task = "script" if attempt <= 3 else "script_hard"
-        r = generate_structured(prompt, RScript, system=writer_system(st), task=task)
+        r = generate_structured(prompt, RScript, system=writer_system(st, plan), task=task)
         draft = ScriptDraft(title=r.title, sources=sources_for(r, ev),
                             lines=[Line(text=l.text, caps=l.caps if st.caps_mode == "chunks" else "") for l in r.lines])
+        draft = repair_numbers(draft)                         # digits in the spoken text become words, in code
         if st.caps_mode == "chunks":
             draft = repair_caps(draft)
-        problems = check_research(r, ev) + check_script(draft)
+        problems = check_research(r, ev) + check_script(draft) + hooks.check([l.text for l in draft.lines])
         from . import topicgate
         miss = topicgate.script_misses(topic, " ".join(l.text for l in draft.lines))
         if miss:
@@ -154,7 +165,11 @@ def generate(topic: str, project: Path) -> None:
     items = gather(topic)
     if len(items) < 4:
         raise RuntimeError("Research found too little evidence: try a more specific, well-known topic.")
-    r, draft = write_from_evidence(topic, items)
+    job_id = hooks.job_id_of(project)
+    recent_h, recent_e = store.recent_hooks()
+    plan = hooks.pick(recent_h, recent_e, seed=job_id or len(topic))
+    print(f"[hook] formula: {plan[0]} / ending: {plan[1]} (recent: {recent_h[:4]})")
+    r, draft = write_from_evidence(topic, items, plan)
     if not project.exists():
         shutil.copytree(SKILL_DIR / "styles" / (st.engine or st.key) / "example", project)
         shutil.rmtree(project / "data", ignore_errors=True)       # the example's timing must never be mistaken for ours
@@ -164,8 +179,17 @@ def generate(topic: str, project: Path) -> None:
         shutil.copytree(overlay, project, dirs_exist_ok=True)
     brand.write_js(project)
     music = r.music if r.music in st.music_options else st.music
-    (project / "script.json").write_text(
-        json.dumps(to_script_json(draft, st, music), indent=2, ensure_ascii=False), encoding="utf-8")
+    sj = to_script_json(draft, st, music)
+    hook_type = r.hook_type if r.hook_type in hooks.HOOKS else plan[0]
+    end_type = r.end_type if r.end_type in hooks.ENDINGS else plan[1]
+    sj["hook"] = {"type": hook_type, "text": re.sub(r"\s+", " ", r.hook_text).strip()[:30].upper(), "end_type": end_type,
+                  "end_question": re.sub(r"\s+", " ", r.end_question).strip()[:26].upper(), "candidates": [c[:140] for c in r.hook_candidates[:3]]}
+    (project / "script.json").write_text(json.dumps(sj, indent=2, ensure_ascii=False), encoding="utf-8")
+    if job_id:
+        try:
+            store.set_job(job_id, hook_type=hook_type, end_type=end_type)
+        except Exception as e:                                 # the hook log is a convenience: never break the video
+            print(f"[hook] not logged: {e}")
     (project / "research.json").write_text(json.dumps({
         "topic": topic, "style": st.key, "evidence": items,
         "lines": [{"text": d.text, "evidence": l.evidence, "numbers": l.numbers}

@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from . import brand, styles
 from .config import REPO, SKILL_DIR
 from .director import Timing
+from .gemini_voice import MOOD_FOR, load_plan
 from .llm import BudgetExceeded, generate_structured
 
 # ───────────── vocabulary (the engine's names: see engine/styles/film/example/src/core/*.js) ─────────────
@@ -36,7 +37,7 @@ TIMES = ["day", "dusk", "night", "dawn", "sepia", "storm"]
 CAMERAS = ["static", "push_in", "pull_out", "pan_left", "pan_right", "drift", "crane_down", "crane_up", "punch_in", "handheld"]
 FRAMINGS = ["establishing", "wide", "full", "medium", "close", "extreme_close"]
 TRANSITIONS = ["cut", "fade", "dissolve", "whip", "wipe", "flash", "iris"]
-EFFECTS = ["none", "shake", "quake", "flash", "storm"]
+EFFECTS = ["none", "shake", "quake", "flash", "storm", "dutch"]
 FXS = ["none", "dust", "rain", "snow", "embers", "confetti", "leaves", "fireflies"]
 ACTS = ["", "jump", "shake", "bow", "pop", "nod"]
 MOVES = ["pop", "rise", "drop", "slide_l", "slide_r", "grow", "shake", "spin", "none"]
@@ -227,14 +228,26 @@ def split_title(title: str) -> str:
 
 
 # ───────────── draft -> story.json ─────────────
-def build(d: StoryDraft, tm: Timing, hero_ok: bool = True) -> tuple[dict, list[str], list[str]]:
+def build(d: StoryDraft, tm: Timing, hero_ok: bool = True, hook: dict | None = None, appear: str = "first_last", plan: dict | None = None,
+          cold: float = 0.0, loop: bool = False) -> tuple[dict, list[str], list[str]]:
+    """hook = script.json "hook" (on-screen hook text and end question); appear = brand.json host setting; plan = the narrator's emotion per line;
+    cold = seconds of cold open before the host appears; loop = repeat the opening picture in the last second."""
     problems: list[str] = []
     warns: list[str] = []
+    hook, plan = hook or {}, plan or {}
     n = len(tm.lines)
     intro = int(_num(d.intro_lines, 1, 3, 2))
     outro = int(_num(d.outro_lines, 1, 2, 1))
+    if appear == "none":
+        intro = outro = 0
+    elif appear == "first":
+        outro = 0
     if intro + outro >= n:
-        intro, outro = 1, 1
+        intro, outro = (1, 1) if appear == "first_last" else (1 if appear == "first" else 0, 0)
+    loop_s = 1.0 if (loop and appear != "none" and tm.dur > 12) else 0.0
+    mood_of = lambda i, default: MOOD_FOR.get((plan.get(i) or {}).get("emotion", ""), default)
+    hook_text = re.sub(r"\s+", " ", str(hook.get("text") or "")).strip()[:30] or re.sub(r"[^A-Za-z0-9 ?!'-]", "", d.title).upper()[:28]
+    end_q = re.sub(r"\s+", " ", str(hook.get("end_question") or "")).strip()[:26]
 
     custom: dict[str, dict] = {}
     for c in d.custom_props[:8]:
@@ -243,7 +256,7 @@ def build(d: StoryDraft, tm: Timing, hero_ok: bool = True) -> tuple[dict, list[s
             custom[cc["name"]] = cc
     known = set(PROPS) | set(custom)
     cast = {}
-    for l in d.cast[:6]:
+    for l in d.cast[:8]:
         i = _id(l.id)
         if i and i not in ("hero", "host"):
             cast[i] = clean_look(l, warns)
@@ -264,7 +277,7 @@ def build(d: StoryDraft, tm: Timing, hero_ok: bool = True) -> tuple[dict, list[s
     shots: list[dict] = []
     lo_line, hi_line = intro, n - outro                  # story shots cover lines [lo_line, hi_line)
     t_lo = tm.start(lo_line) if lo_line < n else tm.dur
-    t_hi = tm.start(hi_line) if hi_line < n else tm.dur
+    t_hi = tm.start(hi_line) if hi_line < n else tm.dur - loop_s
 
     def stamp(line: int, word: str) -> float:
         lo, hi = tm.start(line), tm.end(line)
@@ -375,10 +388,19 @@ def build(d: StoryDraft, tm: Timing, hero_ok: bool = True) -> tuple[dict, list[s
     prop = _id(d.intro_prop)
     prop = prop if prop in known else "scroll"
     poses = [("happy", "present", "full", "push_in", 30), ("smug", "point", "medium", "drift", 32), ("think", "chin", "medium", "push_in", 34)]
+    first_end = tm.start(1) if n > 1 else tm.dur
+    cold = max(0.0, min(cold, first_end - 2.0)) if (intro and appear != "none") else 0.0
+    if cold >= 0.8:                                           # cold open: the key picture and a question, before the host walks in
+        hero_shots.append({"set": "study", "framing": "panel", "camera": "punch_in", "focus_x": 50, "transition": "cut", "effect": "flash", "fx": "dust",
+                           "note": "cold open: the key picture and a question", "at": 0.0, "end": round(cold, 3), "actors": [], "props": [],
+                           "callouts": [{"text": hook_text, "t": 0.12, "style": "pop", "dur": round(cold - 0.15, 2), "y": 300}], "panel": {"prop": prop, "s": 1.0}})
+    else:
+        cold = 0.0
     for i in range(intro):
-        s0 = 0.0 if i == 0 else tm.start(i)
+        s0 = (cold if i == 0 else tm.start(i))
         e0 = tm.start(i + 1) if i + 1 < n else tm.dur
         mood, arm, fr, cam, hx = poses[i % 3]
+        mood = mood_of(i, mood)
         sh = {"set": "study", "framing": fr, "camera": cam, "focus_x": 50 if i == 0 else 44, "transition": "cut", "effect": "", "fx": "dust", "note": "host introduces the story", "at": round(s0, 3), "end": round(e0, 3),
               "actors": [{"who": "hero", "x0": hx, "x1": hx, "d": 1, "face": "r", "mood": mood, "arms": {"l": "down", "r": arm}, "legs": "stand", "talk": True, "held": {}, "beats": []}],
               "props": [], "callouts": [], "panel": {"prop": prop, "s": 1.0}}
@@ -394,15 +416,20 @@ def build(d: StoryDraft, tm: Timing, hero_ok: bool = True) -> tuple[dict, list[s
     outro_shots = []
     for i in range(outro):
         ln = n - outro + i
-        s0, e0 = tm.start(ln), (tm.start(ln + 1) if ln + 1 < n else tm.dur)
+        s0, e0 = tm.start(ln), (tm.start(ln + 1) if ln + 1 < n else tm.dur - loop_s)
         sh = {"set": "study", "framing": "medium" if i == 0 else "close", "camera": "push_in", "focus_x": 44, "transition": "fade" if i == 0 else "cut", "effect": "", "fx": "dust", "note": "host closes the story", "at": round(s0, 3), "end": round(e0, 3),
-              "actors": [{"who": "hero", "x0": 32, "x1": 32, "d": 1, "face": "r", "mood": "proud", "arms": {"l": "down", "r": "hip"}, "legs": "stand", "talk": True, "held": {}, "beats": []}],
+              "actors": [{"who": "hero", "x0": 32, "x1": 32, "d": 1, "face": "r", "mood": mood_of(ln, "proud"), "arms": {"l": "down", "r": "hip"}, "legs": "stand", "talk": True, "held": {}, "beats": []}],
               "props": [], "callouts": [], "panel": {"prop": prop, "s": 1.0}}
-        sh["actors"][0]["beats"] = [{"t": round(s0 + 0.2, 3), "act": "nod"}, {"t": round(max(s0 + 0.3, e0 - 1.6), 3), "mood": "laugh", "act": "pop"}]
+        sh["actors"][0]["beats"] = [{"t": round(s0 + 0.2, 3), "act": "nod"}, {"t": round(max(s0 + 0.3, e0 - 1.6), 3), "mood": "happy", "act": "pop"}]
+        if i == outro - 1 and end_q:
+            sh["callouts"].append({"text": end_q, "t": round(s0 + 0.5, 3), "style": "label", "dur": round(max(1.0, e0 - s0 - 0.6), 2), "y": 210})
         if i == outro - 1 and d.outro_stamp.strip():
-            sh["callouts"].append({"text": re.sub(r"[^A-Za-z0-9 !?]", "", d.outro_stamp).strip().upper()[:12], "t": round(max(s0 + 0.3, e0 - 1.6), 3), "style": "stamp", "dur": 1.5, "x": 700, "y": 520})
+            sh["callouts"].append({"text": re.sub(r"[^A-Za-z0-9 !?]", "", d.outro_stamp).strip().upper()[:12], "t": round(max(s0 + 0.3, e0 - 1.6), 3), "style": "stamp", "dur": 1.5, "x": 730, "y": 380})
         outro_shots.append(sh)
 
+    if appear != "first_last" and shots and end_q:
+        last = shots[-1]
+        last["callouts"].append({"text": end_q, "t": round(max(last["at"] + 0.4, last["end"] - 2.2), 3), "style": "label", "dur": 2.0, "y": 210})
     # the first story shot follows the host's intro with a transition
     if shots and shots[0]["transition"] == "cut":
         shots[0]["transition"] = "whip"
@@ -410,11 +437,18 @@ def build(d: StoryDraft, tm: Timing, hero_ok: bool = True) -> tuple[dict, list[s
         outro_shots[0]["transition"] = "fade"
 
     allshots = hero_shots + shots + outro_shots
+    if loop_s and allshots:                                   # the last second repeats the opening picture: the video replays into itself
+        allshots[-1]["end"] = round(tm.dur - loop_s, 3)
+        allshots.append({"set": "study", "framing": "panel", "camera": "drift", "focus_x": 50, "transition": "flash", "effect": "", "fx": "dust", "note": "loop: back to the opening picture",
+                         "at": round(tm.dur - loop_s, 3), "end": round(tm.dur, 3), "actors": [], "props": [], "callouts": [{"text": hook_text, "t": round(tm.dur - loop_s, 3) - 0.6, "style": "pop", "dur": loop_s + 0.6, "y": 300}],
+                         "panel": {"prop": prop, "s": 1.0}})
     for i, s in enumerate(allshots):
         s["id"] = f"S{i + 1:02d}"
     if allshots:
         allshots[0]["at"] = 0.0
         allshots[-1]["end"] = round(tm.dur, 3)
+        if not any(sh_["at"] < 0 for sh_ in allshots):
+            allshots[0]["at"] = 0.0
 
     # ---- checks the LLM must pass ----
     body = [s for s in shots]
@@ -462,7 +496,7 @@ STAGE: x runs 0..100 (percent of the stage width, 0 = far left, 100 = far right)
 d = depth: 0 behind, 1 normal, 2 in front of the others. Big scenery (house, barn, tent, tree, ship, train) goes at d 0 with s 1-1.6; small objects
 (book, coin, tools) go beside the actors at d 1-2 with s 0.5-1; the main object of the story is large (s 1.3-2.2) and stays in frame. A person is about
 as tall as a door.
-CAST (2-5 characters for THIS story; never 'hero' or 'host'): id (lowercase letters), body/hatCol/neckCol/hair colours as #RRGGBB, pattern {', '.join(PATTERNS)},
+CAST (2-6 characters for THIS story; never 'hero' or 'host'): id (lowercase letters), body/hatCol/neckCol/hair colours as #RRGGBB, pattern {', '.join(PATTERNS)},
 hat {', '.join(HATS)}, neck {', '.join(NECKS)}, extra (any of {', '.join(EXTRAS)}), hairStyle {', '.join(HAIRS)}, skin one of {', '.join(SKINS)}, dress true
 for a woman's dress, kid true for a child. Clothes must fit the era and the people, with clearly different colours. Unused text = "".
 SETS (2-6, one per place or time of the story): kind {', '.join(SET_KINDS)}; time {', '.join(TIMES)} (use sepia for a flashback, night for a mystery, dusk for an ending, storm for a disaster);
@@ -484,7 +518,7 @@ Put an object in a person's hand with `held` when they use it. A scene with only
 drops or rises with a `move`, the person reacts on the same word with a beat (shock, jump), and a callout names it. Use time of day to carry the story (dawn = start, dusk = end).
 DIRECTION: no two neighbouring shots with the same set + framing + camera move; use at least 4 camera moves and 3 framings; close-ups only for reactions (max 30%).
 Open the story with a wide or establishing shot of the place. Transitions: cut by default; fade/dissolve when time passes, wipe/whip when the place changes, flash on an impact.
-Effects: shake or quake for impacts and earthquakes, storm for storms, flash for a bang. fx: dust (indoors), rain, snow, embers (fire), confetti (celebration), leaves.
+Effects: shake or quake for impacts and earthquakes, storm for storms, flash for a bang, dutch (a tilted camera) for lies, danger, unease and the moment a trick is exposed. fx: dust (indoors), rain, snow, embers (fire), confetti (celebration), leaves.
 CALLOUTS (max two per shot, 26 characters): years, numbers, names, signs as digits ("1869", "10 FEET", "CARDIFF, N.Y."); style label (place/date tag), pop (one big word),
 stamp (rubber stamp: HOAX, BANNED).
 INTRO/OUTRO: intro_lines = how many of the first script lines the host says alone (1-3: the hook), outro_lines = how many of the last lines (1-2: the punchline).
@@ -493,10 +527,21 @@ title = the short title, place = "Cardiff, New York", date = "1869" (short, for 
 Facts: show only what the narration says. Nothing graphic."""
 
 
-def build_prompt(script: dict, tm: Timing, topic: str, year) -> str:
+def build_prompt(script: dict, tm: Timing, topic: str, year, plan: dict | None = None, appear: str = "first_last") -> str:
     lines = "\n".join(f"{i}: [{l['start']:.1f}-{l['end']:.1f}s] {l['text']}" for i, l in enumerate(tm.lines))
     ex = json.dumps(EXAMPLE, ensure_ascii=False)
-    return f"{SYSTEM}\n\nEXAMPLE of a good story object (another topic, copy the way of working, never the content):\n{ex}\n\nTOPIC: {topic}\nTITLE: {script['title']}\nYEAR: {year or 'unknown'}\nSCRIPT (index: [start-end] text):\n{lines}\n\nWrite the story object for THIS script."
+    host = {"first_last": "The host says the first `intro_lines` lines (the hook) and the last `outro_lines` lines (the punchline) on camera; you direct the lines in between.",
+            "first": "The host appears only at the start (`intro_lines` = 1-3). Set `outro_lines` to 0: the last line is part of YOUR story, direct it too.",
+            "none": "There is no host in this video: set `intro_lines` and `outro_lines` to 0 and direct EVERY line as a scene."}.get(appear, "")
+    emo = ""
+    if plan:
+        emo = ("\nNARRATOR'S EMOTION PER LINE (the voice actor performs it: make the people on screen feel the same, so a viewer SEES what he hears. "
+               "shocked -> a shock beat and a jump; amused -> laugh or smug; tense -> worried; curious -> think; excited, awe -> happy with arms up; triumphant -> proud; "
+               "deadpan -> neutral or tired):\n" + "\n".join(f"{i}: {d['emotion']}, energy {d['energy']}, {d['note']}" for i, d in sorted(plan.items())))
+    return (f"{SYSTEM}\n\n{host}\nThe video opens with a 2-second cold open (the `intro_prop` picture huge on screen with the hook as a question) and ends with a 1-second loop back to it: "
+            "choose the single most striking object or picture of the story as `intro_prop`.\n\n"
+            f"EXAMPLE of a good story object (another topic, copy the way of working, never the content):\n{ex}\n\nTOPIC: {topic}\nTITLE: {script['title']}\nYEAR: {year or 'unknown'}\n"
+            f"SCRIPT (index: [start-end] text):\n{lines}\n{emo}\n\nWrite the story object for THIS script.")
 
 
 def _beat(word, mood="", arms="", act="", face=""):
@@ -599,15 +644,21 @@ def build_shots(project: Path) -> None:
     tm = Timing.load(project)
     script = json.loads(read(project / "script.json"))
     topic, year = topic_of(project, script), story_year(project)
+    try:
+        appear = brand.appear()
+    except ValueError:
+        appear = "first_last"
+    hook, plan = script.get("hook") or {}, load_plan(project)
+    opts = {"hook": hook, "appear": appear, "plan": plan, "cold": float(os.getenv("FILM_COLD_OPEN") or 2), "loop": (os.getenv("FILM_LOOP") or "1") != "0"}
     logs = project / "logs"
     logs.mkdir(exist_ok=True)
-    base = build_prompt(script, tm, topic, year)
+    base = build_prompt(script, tm, topic, year, plan, appear)
     prompt, problems, last = base, [], None
     for attempt in range(1, max_tries + 1):
         task = "storyboard" if attempt <= 2 else "storyboard_hard"
         draft = generate_structured(prompt, StoryDraft, system="You output only the JSON story object.", temperature=0.6, task=task)
         (logs / f"story_attempt{attempt}.json").write_text(draft.model_dump_json(indent=1), encoding="utf-8")
-        story, problems, warns = build(draft, tm)
+        story, problems, warns = build(draft, tm, **opts)
         for w in warns:
             print("   warning:", w)
         print(f"[storyboard] attempt {attempt} ({task}): {len(problems)} problem(s), {len(warns)} warning(s)")
@@ -627,7 +678,7 @@ def build_shots(project: Path) -> None:
         prompt = f"{base}\n\nYour previous story object:\n{draft.model_dump_json()}\n\nIt has these problems. Fix them and return the FULL corrected story object:\n- " + "\n- ".join(problems)
     # nothing passed: a plain film is better than no film
     print("[storyboard] the director could not deliver a clean story: SAFE MODE (plain scenes with the host narrating)")
-    story, _, _ = build(fallback(tm, script), tm)
+    story, _, _ = build(fallback(tm, script), tm, **opts)
     (project / "data").mkdir(exist_ok=True)
     (project / "data" / "story.json").write_text(json.dumps(story, indent=1, ensure_ascii=False), encoding="utf-8")
     ok, out = run_check(project)

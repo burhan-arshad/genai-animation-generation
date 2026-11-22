@@ -32,3 +32,13 @@ export function makeGrainTile(makeCanvas) {
   for (let i = 0; i < 64 * 64; i++) { const v = (rnd(i) * 255) | 0; d.data[i * 4] = v; d.data[i * 4 + 1] = v; d.data[i * 4 + 2] = v; d.data[i * 4 + 3] = 255; }
   x.putImageData(d, 0, 0); return c;
 }
+
+// a cinematic colour grade: cool shadows on top, warm light below (soft-light blend), tuned for the time of day
+const GRADES = { day: ['rgba(80,120,190,0.30)', 'rgba(255,175,100,0.26)'], dawn: ['rgba(110,130,200,0.30)', 'rgba(255,170,120,0.30)'], dusk: ['rgba(90,70,160,0.34)', 'rgba(255,140,80,0.34)'],
+  night: ['rgba(40,70,170,0.45)', 'rgba(90,110,200,0.30)'], sepia: ['rgba(120,90,50,0.35)', 'rgba(230,180,110,0.30)'], storm: ['rgba(60,80,110,0.40)', 'rgba(120,130,140,0.26)'] };
+export function grade(g, time) {
+  const c = GRADES[time] || GRADES.day;
+  g.save(); g.globalCompositeOperation = 'soft-light';
+  const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, c[0]); gr.addColorStop(1, c[1]);
+  g.fillStyle = gr; g.fillRect(0, 0, W, H); g.restore();
+}

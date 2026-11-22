@@ -55,8 +55,8 @@ TALL_TALE = Style(
     engine="tall-tale", caps_mode="auto", min_lines=10, max_lines=24, overlay="tall-tale")
 
 FILM_RULES = """- You are 'the History Student', a curious, warm host who tells a true story to a friend. Simple words, short sentences with connecting words ("So,", "But", "Then").
-- Lines 1-2 are the HOOK: the most surprising fact of the story in two short lines (the host says them on camera). Then go back and tell the story in order, like a film:
-  places, people, objects, cause and effect, one picture per line. The last line is a punchline that echoes the hook.
+- Lines 1-2 are the HOOK (the host says them on camera): a concrete cold open that raises a question the story answers only in its last third. Then go back and tell the story
+  in order, like a film: places, people, objects, cause and effect, one picture per line, a turn (But, Then, Until) every 2-3 lines. The last line pays off the hook.
 - Each entry in `lines` is one CUT of 2-4 s (5-11 words). Name the people, the place and the objects (they will be drawn): a viewer should be able to picture every line.
 - Funny or amazing but true, never mean. Nothing graphic. No invented quotes or dialogue. Write every year and number as spoken words in `text`."""
 

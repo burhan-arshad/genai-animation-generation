@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from . import styles
 from .llm import generate_structured
 from .retrieval import collect_evidence
-from .schemas import Line, ScriptDraft, check_script, repair_caps
+from .schemas import Line, ScriptDraft, check_script, repair_caps, repair_numbers
 from .script_agent import system_prompt
 
 VALID = {"SUPPORTED", "PARTIAL", "CONTRADICTED", "NO_EVIDENCE"}
@@ -119,7 +119,7 @@ def rewrite(draft: ScriptDraft, bad: list[dict], weak: list[dict]) -> ScriptDraf
             "in total (smooth the flow after deleting a claim). Numbers stay spoken words.\n\nScript:\n" + draft.model_dump_json(indent=1))
     prompt, problems = base, []
     for _ in range(3):
-        new = generate_structured(prompt, ScriptDraft, system=system_prompt(), task="script")
+        new = repair_numbers(generate_structured(prompt, ScriptDraft, system=system_prompt(), task="script"))
         if st.caps_mode == "chunks":
             new = repair_caps(new)
         problems = check_script(new, st)

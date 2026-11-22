@@ -16,8 +16,12 @@ FIELDS = [
     ("NICHE", "Niche", "hidden", "", "hidden"),
     ("GEMINI_API_KEY", "Gemini API key", "secret", "Free key: aistudio.google.com/apikey", "ai"),
     ("GEMINI_MODEL", "AI model", "text", "Example: gemini-3.5-flash-lite", "ai"),
+    ("GEMINI_TTS_MODELS", "Gemini voice models", "text", "Comma separated, tried in order. Empty = gemini-2.5-flash-preview-tts, gemini-2.5-pro-preview-tts", "ai"),
     ("PROJECTS_ROOT", "Folder where videos are saved", "text", "Empty = your home folder / faceless-shorts", "paths"),
     ("RENDER_WORKERS", "Parallel render workers", "number", "1-4. More = faster only if your CPU has free cores. Try 2", "paths"),
+    ("VOICE_SEGMENTS", "Voice scenes per video", "number", "1-8. The narrator changes emotion between scenes: more scenes = more feeling, more voice requests. Default 5", "adv"),
+    ("FILM_COLD_OPEN", "Cold open (seconds)", "number", "0-4. A flash of the story's key picture with a question before the host appears. 0 = off. Default 2", "adv"),
+    ("FILM_LOOP", "Loop ending", "select:1,0", "1 = the last second repeats the opening picture so the video replays into itself (default)", "adv"),
     ("STORYBOARD_ROUNDS", "Storyboard tries", "number", "1-3. Fewer = faster. 2 is a good balance", "adv"),
     ("RELEVANCE_CHECK", "A reviewer checks the film shows the topic", "select:1,0", "1 = better films, a few minutes more", "adv"),
     ("PROPS_CRITIC", "A reviewer checks the 3D objects", "select:1,0", "1 = better objects, a few minutes more", "adv"),
@@ -71,6 +75,10 @@ def _check(key: str, kind: str, v: str) -> str | None:
             return "must be 0-23"
         if key == "VIDEOS_PER_DAY" and not 1 <= int(v) <= 10:
             return "must be 1-10"
+        if key == "VOICE_SEGMENTS" and not 1 <= int(v) <= 8:
+            return "must be 1-8"
+        if key == "FILM_COLD_OPEN" and not 0 <= int(v) <= 4:
+            return "must be 0-4"
     if kind.startswith("select:") and v not in kind[7:].split(","):
         return "invalid choice"
     if key == "NICHE" and v not in niche.available():

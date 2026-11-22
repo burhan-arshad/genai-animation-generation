@@ -601,6 +601,38 @@ def voice_audio(name: str):
     return FileResponse(f, media_type="audio/wav")
 
 
+@app.get("/api/gemini_voices")
+def gemini_voices():
+    from . import gemini_voice as gv
+    have = {p.stem[7:] for p in (REPO / "brand" / "assets").glob("gemini_*.wav")}
+    return [{"name": k, "tone": v, "sample": k in have} for k, v in gv.VOICES.items()]
+
+
+@app.get("/api/gemini_voices/{name}/audio")
+def gemini_voice_audio(name: str):
+    f = REPO / "brand" / "assets" / f"gemini_{name}.wav"
+    if not re.fullmatch(r"[A-Za-z]+", name) or not f.exists():
+        raise HTTPException(404, "no sample for this voice yet")
+    return FileResponse(f, media_type="audio/wav")
+
+
+class VoiceSample(BaseModel):
+    persona: str = ""
+    intensity: str = ""
+
+
+@app.post("/api/gemini_voices/{name}/sample")
+def gemini_voice_sample(name: str, b: VoiceSample):
+    from . import gemini_voice as gv
+    if name not in gv.VOICES:
+        raise HTTPException(404, "unknown voice")
+    try:
+        gv.sample(name, b.persona.strip() or None, b.intensity if b.intensity in gv.INTENSITY else None)
+    except Exception as e:
+        raise HTTPException(400, f"The sample could not be made: {str(e)[:200]}")
+    return {"ok": True}
+
+
 @app.get("/api/brand")
 def get_brand():
     return {"text": json.dumps(brand.load(), indent=2)}
@@ -617,6 +649,8 @@ def put_brand(b: Text):
         if ch["appear"] not in ("first", "first_last", "none"):
             raise ValueError("character.appear must be first, first_last or none")
         float(merged["voice"]["speed"])
+        if merged["voice"].get("engine", "gemini") not in ("gemini", "kokoro"):
+            raise ValueError("voice.engine must be gemini or kokoro")
     except (ValueError, TypeError, KeyError) as e:
         raise HTTPException(400, str(e))
     brand.PATH.write_text(json.dumps(data, indent=2), encoding="utf-8")

@@ -9,7 +9,7 @@ from pathlib import Path
 DB = Path(__file__).resolve().parent.parent / "jobs.db"
 EXTRA_COLUMNS = {"style": "TEXT DEFAULT 'history'", "fact_status": "TEXT", "qa_status": "TEXT",
                  "approved": "INTEGER DEFAULT 0", "note": "TEXT", "youtube_id": "TEXT",
-                 "tries": "INTEGER DEFAULT 0", "vision_status": "TEXT"}
+                 "tries": "INTEGER DEFAULT 0", "vision_status": "TEXT", "hook_type": "TEXT", "end_type": "TEXT"}
 
 
 def db() -> sqlite3.Connection:
@@ -65,3 +65,8 @@ def delete_jobs(ids: list[int]) -> None:
     con.execute(f"DELETE FROM events WHERE job_id IN ({marks})", ids)
     con.execute(f"DELETE FROM jobs WHERE id IN ({marks})", ids)
     con.commit()
+
+def recent_hooks(n: int = 8) -> tuple[list[str], list[str]]:
+    """Hook and ending formulas of the latest videos (newest first): the writer must not repeat them."""
+    rows = db().execute("SELECT hook_type, end_type FROM jobs WHERE hook_type IS NOT NULL AND hook_type != '' ORDER BY id DESC LIMIT ?", (n,)).fetchall()
+    return [r[0] for r in rows], [r[1] for r in rows if r[1]]

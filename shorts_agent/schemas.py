@@ -79,3 +79,85 @@ def repair_caps(d: ScriptDraft, max_words: int | None = None) -> ScriptDraft:
     for l in d.lines:
         l.caps = " | ".join(x for c in l.caps.split("|") for x in _fix_chunk(c.strip(), mw))
     return d
+
+
+# ───────────── numbers: the narration is spoken, so digits become words in code (the LLM keeps forgetting) ─────────────
+_ONES = "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen".split()
+_TENS = "_ _ twenty thirty forty fifty sixty seventy eighty ninety".split()
+_UNITS_AFTER = re.compile(r"\s*(?:feet|foot|ft|inch|inches|miles?|pounds?|lbs|tons?|people|men|women|years?|days?|hours?|dollars?|cents?|percent|times|degrees|miles|kilometers?|meters?|acres?)\b", re.I)
+
+
+def _below_100(n: int) -> str:
+    return _ONES[n] if n < 20 else _TENS[n // 10] + ("-" + _ONES[n % 10] if n % 10 else "")
+
+
+def cardinal(n: int) -> str:
+    if n < 100:
+        return _below_100(n)
+    if n < 1000:
+        return _ONES[n // 100] + " hundred" + (" " + _below_100(n % 100) if n % 100 else "")
+    for size, name in ((10 ** 9, "billion"), (10 ** 6, "million"), (1000, "thousand")):
+        if n >= size:
+            rest = n % size
+            return cardinal(n // size) + " " + name + (" " + cardinal(rest) if rest else "")
+    return str(n)
+
+
+def _year(n: int) -> str:
+    if 2000 <= n <= 2009:
+        return "two thousand" + (" " + _ONES[n - 2000] if n > 2000 else "")
+    if n < 1100 or n % 100 == 0 and n % 1000 == 0:
+        return cardinal(n)
+    hi, lo = n // 100, n % 100
+    if lo == 0:
+        return cardinal(hi) + " hundred"
+    return cardinal(hi) + " " + ("oh " + _ONES[lo] if lo < 10 else _below_100(lo))
+
+
+def _ordinal(words: str) -> str:
+    head, sep, last = words.rpartition(" ")
+    parts = last.rsplit("-", 1)
+    w = parts[-1]
+    irregular = {"one": "first", "two": "second", "three": "third", "five": "fifth", "eight": "eighth", "nine": "ninth", "twelve": "twelfth"}
+    w = irregular.get(w) or (w[:-1] + "ieth" if w.endswith("y") else w + "th")
+    return (head + sep if head else "") + ("-".join(parts[:-1] + [w]) if len(parts) > 1 else w)
+
+
+def _digits(s: str) -> str:
+    return " ".join(_ONES[int(c)] for c in s if c.isdigit())
+
+
+_NUM = re.compile(r"(\$)?(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?(st|nd|rd|th|s|%)?(?![\d])")
+
+
+def speak_numbers(text: str) -> str:
+    """'In 1869, 10 men paid $25 for the 3rd show' -> 'In eighteen sixty-nine, ten men paid twenty-five dollars for the third show'."""
+    def one(m: re.Match) -> str:
+        dollar, whole, frac, suf = m.group(1), m.group(2), m.group(3), m.group(4)
+        n = int(whole.replace(",", ""))
+        after = text[m.end():m.end() + 20]
+        if suf in ("st", "nd", "rd", "th") and not frac:
+            return _ordinal(cardinal(n))
+        if suf == "s" and not frac and 1100 <= n <= 2090 and n % 10 == 0 and "," not in whole:
+            w = _year(n)
+            return (w[:-1] + "ies" if w.endswith("y") else w + "s")
+        if suf == "%":
+            return (cardinal(n) + (" point " + _digits(frac) if frac else "")) + " percent"
+        if dollar:
+            out = cardinal(n) + (" dollar" if n == 1 else " dollars")
+            if frac and int(frac[:2].ljust(2, "0")):
+                out += " and " + cardinal(int(frac[:2].ljust(2, "0"))) + " cents"
+            return out
+        if frac:
+            return cardinal(n) + " point " + _digits(frac)
+        if 1000 <= n <= 2099 and "," not in whole and not _UNITS_AFTER.match(after):
+            return _year(n) + ("" if suf != "s" else "s")
+        return cardinal(n) + ("s" if suf == "s" else "")
+    return _NUM.sub(one, text)
+
+
+def repair_numbers(d: ScriptDraft) -> ScriptDraft:
+    """Spoken text must not contain digits: fix it in code instead of burning LLM retries."""
+    for l in d.lines:
+        l.text = speak_numbers(l.text)
+    return d

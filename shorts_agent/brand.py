@@ -26,7 +26,7 @@ DEFAULTS = {
                   "extra": ["freckles"], "hair": "#1B1410", "hairStyle": "curly", "satchel": "#A8322D", "kid": False},
         },
     },
-    "voice": {"name": "am_michael", "speed": 1.05, "music": "bounce", "fx": ""},
+    "voice": {"name": "am_michael", "speed": 1.05, "music": "bounce", "fx": "", "engine": "gemini", "gemini_voice": "Puck", "persona": "", "intensity": "normal", "direct": "1"},
     "audience": {
         "regions": ["United States", "Europe"],
         "writing_note": (

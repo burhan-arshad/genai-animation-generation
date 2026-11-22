@@ -4,11 +4,12 @@ import { W, H, TAU, clamp, lerp, seg, eo, eio, eob, ease, rnd, circ, ell, rr, sh
 import { drawPerson, personShadow, armAngles, drawEmote, EMOTES, ARMS } from './people.js';
 import { drawProp, propSize } from './props.js';
 import { makeSet, WW } from './worlds.js';
-import { drawFx, vignette, lightWash, grain, makeGrainTile } from './fx.js';
+import { drawFx, vignette, lightWash, grain, makeGrainTile, grade } from './fx.js';
 
 const U = 3;                                        // pixels per drawing unit of a person
-const FRAMING = { establishing: [0.75, 700], wide: [0.95, 520], full: [1.15, 430], medium: [1.6, 330], close: [2.4, 390], extreme_close: [3.6, 405] };
+const FRAMING = { panel: [1.45, 0], establishing: [0.75, 700], wide: [0.95, 520], full: [1.15, 430], medium: [1.6, 330], close: [2.4, 390], extreme_close: [3.6, 405] };
 export const CAMERAS = ['static', 'push_in', 'pull_out', 'pan_left', 'pan_right', 'drift', 'crane_down', 'crane_up', 'punch_in', 'handheld'];
+export const EFFECTS = ['none', 'shake', 'quake', 'flash', 'storm', 'dutch'];
 export const TRANSITIONS = ['cut', 'fade', 'dissolve', 'whip', 'wipe', 'flash', 'iris'];
 export const ACTS = ['jump', 'shake', 'bow', 'pop', 'nod'];
 export const PROP_MOVES = ['pop', 'rise', 'drop', 'slide_l', 'slide_r', 'grow', 'shake', 'spin', 'none'];
@@ -23,6 +24,14 @@ export function createFilm({ story, hero, makeCanvas }) {
   const firstSet = Object.values(sets)[0] || makeSet({ kind: 'field' });
   const custom = story.custom || {};
   const grainTile = makeGrainTile(makeCanvas);
+  const softCache = {};
+  /** draws one layer at a lower resolution and scales it up: far scenery and the foreground get a soft, out-of-focus look, and it is cheap (no blur filter) */
+  function drawSoft(g, cam, l, t, sf) {
+    const oc = softCache[sf] || (softCache[sf] = makeCanvas(Math.round(W * sf), Math.round(H * sf))), x = oc.getContext('2d');
+    x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, oc.width, oc.height); x.setTransform(sf, 0, 0, sf, 0, 0);
+    x.save(); place(x, cam, l.p); l.draw(x, t); x.restore();
+    g.save(); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(oc, 0, 0, W, H); g.restore();
+  }
   const lookOf = (who) => (who === 'hero' ? hero : (story.cast || {})[who]);
   const duration = story.duration || (shots.length ? shots[shots.length - 1].end : 1);
 
@@ -41,6 +50,7 @@ export function createFilm({ story, hero, makeCanvas }) {
     const fit = frameTarget(sh, z00), z0 = fit ? fit.z : z00, hf = close ? FRAMING[sh.framing][1] : 460 / z0;
     const dur = Math.max(0.1, sh.end - sh.at), u = clamp((t - sh.at) / dur), e = eio(u);
     let x = fit ? fit.cx : wx(sh.focus_x ?? 50), y = set.groundY - hf, z = z0;
+    if (sh.framing === 'panel' && set.panel) { x = set.panel.x; y = set.panel.y + 130; }
     switch (sh.camera) {
       case 'push_in': z = z0 * lerp(0.92, 1.1, e); break;
       case 'pull_out': z = z0 * lerp(1.12, 0.93, e); break;
@@ -108,11 +118,11 @@ export function createFilm({ story, hero, makeCanvas }) {
     const held = a.held || {};
     const idle = (a.who.length * 1.7) % 6, sway = Math.sin(t * 1.25 + idle) * 1.6, talkBob = f.talking ? Math.abs(Math.sin(t * 8 + idle)) * 2.2 : 0;
     const st = { mood: f.mood, armL, armR, legs: f.moving ? 'walk' : (a.legs || 'stand'), phase: t * 9, lean: f.lean, headTilt: sway + (f.talking ? Math.sin(t * 3.1) * 2 : 0), headDy: -talkBob, t, blink: ((t + (a.who.length * 0.37)) % 3.3) < 0.13 ? 1 : 0,
-      talk: f.talking ? 0.35 + 0.65 * Math.abs(Math.sin(t * 16 + a.who.length)) : 0, look: [a.look_x ?? (f.face === 'l' ? -0.6 : 0.6) * 0.5, 0],
-      onHand: (side, hx, hy) => { const nm = held[side]; if (!nm) return; g.save(); g.translate(hx, hy); g.scale((a.held_s || 0.55) / U * (f.face === 'l' ? 1 : 1), (a.held_s || 0.55) / U); drawProp(g, nm, { t, text: a.held_text }, custom); g.restore(); } };
+      talk: f.talking ? 0.35 + 0.65 * Math.abs(Math.sin(t * 16 + a.who.length)) : 0, look: [a.look_x ?? 0.3, 0],
+      onHand: (side, hx, hy) => { const nm = held[side]; if (!nm) return; g.save(); g.translate(hx, hy); if (f.face === 'l') g.scale(-1, 1); g.scale((a.held_s || 0.55) / U * (f.face === 'l' ? 1 : 1), (a.held_s || 0.55) / U); drawProp(g, nm, { t, text: a.held_text }, custom); g.restore(); } };
     st.armL = typeof st.armL === 'object' ? st.armL : ARMS.down; st.armR = typeof st.armR === 'object' ? st.armR : ARMS.down;
     drawPerson(g, look, st);
-    if (f.emote) drawEmote(g, f.emote.kind, f.emote.age);
+    if (f.emote) { g.save(); if (f.face === 'l') g.scale(-1, 1); drawEmote(g, f.emote.kind, f.emote.age); g.restore(); }
     g.restore();
   }
 
@@ -123,7 +133,7 @@ export function createFilm({ story, hero, makeCanvas }) {
     if (mv === 'pop') k = age < 0.4 ? eob(age / 0.4) : 1;
     else if (mv === 'grow') k = eo(clamp(age / 1.2));
     else if (mv === 'rise') { oy = (1 - eo(clamp(age / 0.7))) * 260; k = clamp(age / 0.2); }
-    else if (mv === 'drop') { const u = clamp(age / 0.6); oy = -(1 - (u < 1 ? (1 - Math.pow(1 - u, 2)) : 1)) * 800 * (u < 1 ? 1 : 0); k = 1; }
+    else if (mv === 'drop') { const fall = 0.42; if (age < fall) { const u = age / fall; oy = -820 * (1 - u * u); } else { const b = age - fall; oy = -Math.abs(Math.sin(b * 13)) * 70 * Math.exp(-b * 5.5); } k = 1; }
     else if (mv === 'slide_l') ox = (1 - eo(clamp(age / 0.8))) * 700;
     else if (mv === 'slide_r') ox = -(1 - eo(clamp(age / 0.8))) * 700;
     else if (mv === 'shake') ox = Math.sin(age * 40) * 8;
@@ -167,19 +177,25 @@ export function createFilm({ story, hero, makeCanvas }) {
     g.fillStyle = '#111'; g.fillRect(0, 0, W, H);
     g.save();
     if (cam.shake) g.translate(Math.sin(t * 83) * 9 * cam.shake, Math.cos(t * 71) * 9 * cam.shake);
+    if (sh.effect === 'dutch') { const k = eo(clamp((t - sh.at) / 0.6)); g.translate(540, 960); g.rotate(0.058 * k); g.scale(1 + 0.1 * k, 1 + 0.1 * k); g.translate(-540, -960); }
     const front = [];
-    set.layers.forEach((l) => { if (l.front) { front.push(l); return; } g.save(); if (set.bare) { g.translate(540, 960); g.scale(cam.z, cam.z); g.translate(-540, -960); } else place(g, cam, l.p); l.draw(g, t); g.restore(); });
+    set.layers.forEach((l) => {
+      if (l.front) { front.push(l); return; }
+      if (!set.bare && makeCanvas && l.p >= 0.2 && l.p < 0.6) { drawSoft(g, cam, l, t, 0.45); return; }          // far scenery: slightly out of focus
+      g.save(); if (set.bare) { g.translate(540, 960); g.scale(cam.z, cam.z); g.translate(-540, -960); } else place(g, cam, l.p); l.draw(g, t); g.restore();
+    });
     if (sh.panel && set.panel) { g.save(); place(g, cam, 0.94); const pn = set.panel, [pw, ph] = propSize(sh.panel.prop, custom), sc = Math.min(pn.w * 0.86 / pw, pn.h * 0.8 / ph, 3) * (sh.panel.s || 1); g.translate(pn.x, pn.y + ph * sc / 2 + 10); g.scale(sc, sc); drawProp(g, sh.panel.prop, { t: t - sh.at, text: sh.panel.text, c: sh.panel.c }, custom); g.restore(); }
     // actors and props, far to near
     const items = [];
     (sh.props || []).forEach((p) => items.push({ y: set.groundY + ((p.d ?? 1) - 1) * 70 + (p.back ? -5 : 0), draw: () => drawPropPlace(g, p, sh, set, t) }));
     (sh.actors || []).forEach((a) => items.push({ y: set.groundY + ((a.d ?? 1) - 1) * 70 + 0.5, draw: () => drawActor(g, a, sh, set, t, cam) }));
     if (!set.bare) { g.save(); place(g, cam, 1); items.sort((p, q) => p.y - q.y).forEach((it) => it.draw()); g.restore(); }
-    front.forEach((l) => { g.save(); place(g, cam, l.p); l.draw(g, t); g.restore(); });
+    front.forEach((l) => { if (makeCanvas) drawSoft(g, cam, l, t, 0.5); else { g.save(); place(g, cam, l.p); l.draw(g, t); g.restore(); } });
     g.restore();
     if (sh.fx && sh.fx !== 'none') drawFx(g, sh.fx, t, 1);
     if (sh.effect === 'storm') { drawFx(g, 'rain', t, 1); const f = Math.sin(t * 7) * Math.sin(t * 3.1); if (f > 0.93) { g.fillStyle = 'rgba(255,255,255,0.45)'; g.fillRect(0, 0, W, H); } }
     if (sh.effect === 'flash' && t - sh.at < 0.25) { g.fillStyle = `rgba(255,255,255,${1 - (t - sh.at) / 0.25})`; g.fillRect(0, 0, W, H); }
+    if (!set.bare) grade(g, set.time);
     if (set.light && !over.nolight) lightWash(g, set.light);
     vignette(g, set.indoor ? 0.5 : 0.38);
     grain(g, grainTile, t);
@@ -212,8 +228,11 @@ export function createFilm({ story, hero, makeCanvas }) {
   const HEAVY = ['stone_giant', 'stone_block', 'crate', 'barrel', 'podium', 'rubble'];
   function cues() {
     const out = [];
+    const BED = { field: 'wind', mountain: 'wind', desert: 'wind', sea: 'wind', street: 'crowd', city: 'crowd' };
     shots.forEach((sh, i) => {
       if (i) out.push({ t: +(sh.at - 0.02).toFixed(3), type: 'whoosh', gain: 0.5 });
+      const kind = (sets[sh.set] || {}).kind;
+      if (BED[kind] && (!i || shots[i - 1].set !== sh.set)) { let j = i; while (j + 1 < shots.length && shots[j + 1].set === sh.set) j++; out.push({ t: sh.at, type: BED[kind], dur: +Math.min(8, shots[j].end - sh.at).toFixed(2), gain: BED[kind] === 'crowd' ? 0.45 : 0.6 }); }
       (sh.props || []).forEach((p) => { const t = p.t0 ?? sh.at; if (t < sh.at) return;
         const nm = p.name; const type = nm === 'fire' ? 'crackle' : nm === 'water' ? 'bubbles' : nm === 'crowd' ? 'crowd' : nm === 'train' || nm === 'wagon' ? 'chug' : nm === 'bell' || nm === 'lightbulb' ? 'ding' : nm === 'sparkle' ? 'sparkle' : HEAVY.includes(nm) ? 'thud' : (p.move === 'slide_l' || p.move === 'slide_r') ? 'slide' : 'pop';
         out.push({ t: +(t + 0.04).toFixed(3), type, gain: type === 'pop' ? 0.7 : 0.8, ...(['crackle', 'bubbles', 'crowd', 'chug'].includes(type) ? { dur: +Math.min(3, sh.end - t).toFixed(2) } : {}) }); });

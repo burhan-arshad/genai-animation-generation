@@ -57,9 +57,21 @@ export const P = {
   ticket(g, o) { rr(g, -90, -90, 180, 90, 8); g.fillStyle = GOLD; g.fill(); circ(g, -90, -45, 12, 'rgba(0,0,0,0)'); g.fillStyle = WOOD; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '900 34px Inter, sans-serif'; g.fillText(o.text || 'ADMIT', 0, -44); },
   // ---- stone and the ground ----
   stone_block(g, o) { poly(g, [[-150, 0], [150, 0], [130, -140], [-110, -150]], STONE); poly(g, [[-110, -150], [130, -140], [90, -190], [-70, -196]], shade(STONE, 1.15)); poly(g, [[130, -140], [150, 0], [180, -40], [160, -150]], STONE_D); },
-  stone_giant(g, o) { // a huge stone man lying on his back
-    const c = o.c || STONE; ell(g, 0, -34, 230, 58, c); ell(g, -190, -52, 64, 54, shade(c, 1.1)); poly(g, [[-196, -70], [-176, -70], [-186, -52]], shade(c, 0.8)); circ(g, -208, -62, 5, STONE_D); circ(g, -172, -62, 5, STONE_D); ell(g, -190, -36, 16, 6, STONE_D);
-    ell(g, 40, -70, 70, 30, shade(c, 0.95), -0.1); ell(g, 180, -44, 70, 26, shade(c, 0.9)); ell(g, 232, -30, 24, 14, shade(c, 0.85)); ell(g, -60, -22, 46, 12, shade(c, 0.85)); },
+  stone_giant(g, o) { // a huge stone man lying on his back: head on the left, feet (toes up) on the right
+    const c = o.c || STONE, d = shade(c, 0.8), l = shade(c, 1.14), k = shade(c, 0.64);
+    ell(g, 150, -30, 118, 21, d); ell(g, 140, -48, 118, 22, c);                                   // two legs
+    ell(g, 268, -64, 18, 34, c, -0.25); [[274, -96, 7.5], [261, -101, 7], [249, -98, 6.5]].forEach(([x, y, r]) => circ(g, x, y, r, l));   // a foot with toes
+    ell(g, -50, -58, 156, 50, c);                                                                   // chest and belly
+    rr(g, 70, -90, 66, 58, 16); g.fillStyle = d; g.fill();                                          // a stone kilt
+    ell(g, -44, -96, 84, 17, l, -0.04); circ(g, -126, -98, 14, l); circ(g, 40, -100, 14, l);        // arms folded on the chest
+    circ(g, -208, -72, 54, c);                                                                       // head
+    g.beginPath(); g.arc(-208, -72, 54, Math.PI * 1.02, Math.PI * 1.98); g.quadraticCurveTo(-208, -104, -262, -76); g.fillStyle = k; g.fill();   // stone hair
+    ell(g, -208, -56, 12, 15, l);                                                                    // nose
+    [-228, -188].forEach((x) => { g.beginPath(); g.arc(x, -78, 9, Math.PI * 0.1, Math.PI * 0.9); g.strokeStyle = k; g.lineWidth = 4; g.lineCap = 'round'; g.stroke(); });   // closed eyes
+    g.beginPath(); g.moveTo(-228, -40); g.quadraticCurveTo(-208, -32, -188, -40); g.strokeStyle = k; g.lineWidth = 4; g.stroke();
+    g.beginPath(); g.moveTo(-248, -46); g.quadraticCurveTo(-246, 0, -208, 4); g.quadraticCurveTo(-170, 0, -168, -46); g.quadraticCurveTo(-190, -26, -208, -28); g.quadraticCurveTo(-226, -26, -248, -46); g.fillStyle = d; g.fill();  // beard
+    g.strokeStyle = k; g.lineWidth = 3.5; g.beginPath(); g.moveTo(-60, -80); g.lineTo(-48, -64); g.lineTo(-58, -50); g.moveTo(120, -46); g.lineTo(134, -36); g.stroke();   // cracks
+  },
   pit(g, o) { const w = o.w || 360; ell(g, 0, 0, w / 2 + 20, 34, '#5A3A22'); ell(g, 0, 6, w / 2, 26, '#2B1A10'); },
   mound(g, o) { g.beginPath(); g.moveTo(-170, 0); g.quadraticCurveTo(0, -120, 170, 0); g.closePath(); g.fillStyle = '#8C5A3A'; g.fill(); g.beginPath(); g.moveTo(-120, 0); g.quadraticCurveTo(-20, -70, 60, -50); g.quadraticCurveTo(10, -30, 20, 0); g.fillStyle = '#A8734A'; g.fill(); },
   // ---- transport ----

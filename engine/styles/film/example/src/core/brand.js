@@ -3,7 +3,7 @@ export const BRAND = {
   "character": {
     "name": "History Student",
     "preset": "a",
-    "appear": "first",
+    "appear": "first_last",
     "scale": 1.0,
     "look": {
       "body": "#3FA7A0",

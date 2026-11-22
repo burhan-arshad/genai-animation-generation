@@ -99,8 +99,17 @@ details{margin-top:12px}summary{cursor:pointer;color:var(--mut)}
     <div class="field"><label>Tagline</label><input id="btag"></div>
     <div class="field"><label>Host look</label><select id="bpreset"></select></div>
     <div class="field"><label>Host appears</label><select id="bappear"><option value="first">Only at the start</option><option value="first_last">Start and end</option><option value="none">Never</option></select></div>
-    <div class="field"><label>Voice</label><div class="row"><select id="bvoice" style="flex:1"></select><button id="bplay">Listen</button></div></div>
-    <div class="field"><label>Voice speed</label><input id="bspeed" type="number" step="0.05" min="0.6" max="1.5"></div>
+    <div class="field"><label>Voice engine</label><select id="bveng"><option value="gemini">Gemini: an actor that acts the story (best)</option><option value="kokoro">Kokoro: local voice (free, flat)</option></select></div>
+    <div id="bgbox">
+      <div class="field"><label>Actor (Gemini voice)</label><div class="row"><select id="bgv" style="flex:1"></select><button id="bgplay">Listen</button></div><span class="hint">Pick the actor. "Listen" makes a short sample with the character below (one voice request, the first time; Shift+click makes a new one).</span></div>
+      <div class="field"><label>Actor's character</label><textarea id="bgpersona" rows="3" placeholder="the History Student: a quick-witted, warm young historian who tells true stories to a friend"></textarea><span class="hint">Who is speaking and how he feels about the stories. Empty = the History Student.</span></div>
+      <div class="field"><label>Emotion</label><select id="bgint"><option value="subtle">Subtle</option><option value="normal">Normal</option><option value="dramatic">Dramatic</option></select></div>
+      <div class="field"><label>Direction</label><select id="bgdir"><option value="1">AI director: the emotion changes scene by scene (best)</option><option value="0">One reading (fewer requests)</option></select></div>
+    </div>
+    <div id="bkbox">
+      <div class="field"><label>Voice (Kokoro)</label><div class="row"><select id="bvoice" style="flex:1"></select><button id="bplay">Listen</button></div></div>
+      <div class="field"><label>Voice speed</label><input id="bspeed" type="number" step="0.05" min="0.6" max="1.5"></div>
+    </div>
     <div class="field"><label>Audience and writing note</label><textarea id="bnote" rows="4"></textarea><span class="hint">Applies to every niche. Change it to match your viewers (country, language style).</span></div>
     <details><summary>Advanced: full brand.json (colours of the host)</summary><textarea id="badv" rows="20" class="wide" style="font-family:ui-monospace,Consolas,monospace;font-size:12px"></textarea></details>
     <div class="row" style="margin-top:10px"><button class="pri" id="bsave">Save</button><span id="bmsg" class="mut"></span></div>
@@ -336,7 +345,20 @@ async function loadBrand(){
   const vs=v.includes(B.voice.name)?v:[B.voice.name,...v];
   $('#bvoice').innerHTML=vs.map(n=>`<option ${n===B.voice.name?'selected':''}>${n}</option>`).join('');
   $('#bspeed').value=B.voice.speed;$('#bnote').value=B.audience.writing_note;$('#badv').value=r.text;$('#bmsg').textContent='';
+  const gv=await api('/api/gemini_voices');
+  $('#bgv').innerHTML=gv.map(x=>`<option value="${x.name}" ${x.name===B.voice.gemini_voice?'selected':''}>${x.name} · ${x.tone}${x.sample?' ✓':''}</option>`).join('');
+  $('#bveng').value=B.voice.engine||'gemini';$('#bgpersona').value=B.voice.persona||'';$('#bgint').value=B.voice.intensity||'normal';$('#bgdir').value=String(B.voice.direct??'1');engToggle();
 }
+function engToggle(){const g=$('#bveng').value==='gemini';$('#bgbox').style.display=g?'':'none';$('#bkbox').style.display=g?'none':''}
+$('#bveng').onchange=engToggle;
+$('#bgplay').onclick=async e=>{
+  const n=$('#bgv').value;
+  try{
+    let r=await fetch('/api/gemini_voices/'+n+'/audio');
+    if(!r.ok||e.shiftKey){say('#bmsg','Making the sample (a few seconds)…');await api('/api/gemini_voices/'+n+'/sample',{persona:$('#bgpersona').value,intensity:$('#bgint').value})}
+    await new Audio('/api/gemini_voices/'+n+'/audio?'+Date.now()).play();say('#bmsg','');
+  }catch(err){say('#bmsg','Error: '+err.message,1)}
+};
 $('#bplay').onclick=()=>new Audio('/api/voices/'+$('#bvoice').value+'/audio').play().catch(()=>say('#bmsg','No preview file for this voice',1));
 $('#bsave').onclick=async()=>{
   try{
@@ -344,6 +366,7 @@ $('#bsave').onclick=async()=>{
     D.channel.name=$('#bname').value;D.channel.tagline=$('#btag').value;
     D.character.preset=$('#bpreset').value;D.character.appear=$('#bappear').value;
     D.voice.name=$('#bvoice').value;D.voice.speed=parseFloat($('#bspeed').value)||1;D.audience.writing_note=$('#bnote').value;
+    D.voice.engine=$('#bveng').value;D.voice.gemini_voice=$('#bgv').value;D.voice.persona=$('#bgpersona').value;D.voice.intensity=$('#bgint').value;D.voice.direct=$('#bgdir').value;
     await api('/api/brand',{text:JSON.stringify(D)},'PUT');
     say('#bmsg','Saved. New videos use it. To redo an old video, open it and choose "Go back to this step" = storyboarded.');
     $('#title').textContent=D.channel.name+' · dashboard';$('#badv').value=JSON.stringify(D,null,2);

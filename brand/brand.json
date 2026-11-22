@@ -6,7 +6,7 @@
   "character": {
     "name": "History Student",
     "preset": "a",
-    "appear": "first",
+    "appear": "first_last",
     "scale": 1.0,
     "presets": {
       "a": {
@@ -62,7 +62,12 @@
     "name": "am_michael",
     "speed": 1.05,
     "music": "bounce",
-    "fx": ""
+    "fx": "",
+    "engine": "gemini",
+    "gemini_voice": "Puck",
+    "persona": "",
+    "intensity": "normal",
+    "direct": "1"
   },
   "audience": {
     "regions": [

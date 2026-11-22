@@ -10,18 +10,22 @@
   "Wikipedia: Cardiff Giant",
   "Farmers' Museum"
  ],
+ "hook": {
+  "type": "cold_open",
+  "text": "A 10-FOOT STONE MAN?",
+  "end_type": "comment_bait",
+  "end_question": "WOULD YOU HAVE PAID?",
+  "candidates": []
+ },
  "lines": [
   {
-   "text": "In eighteen sixty-nine, workers digging a well in New York"
+   "text": "They dug up a ten-foot stone man in eighteen sixty-nine."
   },
   {
-   "text": "found a giant stone man, almost ten feet tall."
+   "text": "But somebody had buried the giant there on purpose."
   },
   {
-   "text": "But he was no ancient giant."
-  },
-  {
-   "text": "He started as an argument."
+   "text": "And the reason is ridiculous."
   },
   {
    "text": "A cigar maker named George Hull"
@@ -45,28 +49,28 @@
    "text": "for a whole year."
   },
   {
-   "text": "When diggers finally hit the stone foot,"
+   "text": "Until diggers finally hit the stone foot."
   },
   {
-   "text": "the whole town went wild."
+   "text": "And the whole town went wild."
   },
   {
    "text": "People paid twenty-five cents to see him."
   },
   {
-   "text": "Even the showman P. T. Barnum"
+   "text": "But experts called him a fake."
   },
   {
-   "text": "built his own copy."
+   "text": "Even the showman P. T. Barnum built his own copy."
   },
   {
-   "text": "Then Hull confessed, and it was all a hoax."
+   "text": "Then Hull confessed. The giant was a hoax."
   },
   {
-   "text": "Today the giant is still on display in Cooperstown."
+   "text": "Today he is still on display in Cooperstown."
   },
   {
-   "text": "Not bad for one argument."
+   "text": "Would you have paid to see the giant?"
   }
  ]
 }

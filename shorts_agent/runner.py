@@ -63,6 +63,16 @@ def run_pipeline(project: Path, out_name: str = "out", only: list[str] | None = 
             if workers() > 1:
                 timings[label] = render_parallel(project, out_name)
                 continue
+        if label == "voice":
+            from . import gemini_voice
+            if gemini_voice.wanted():
+                try:
+                    timings[label] = gemini_voice.synthesize(project)
+                    from .brand import apply_voice_fx
+                    apply_voice_fx(project)
+                    continue
+                except (Exception, SystemExit) as e:
+                    print(f"[voice] the Gemini voice failed ({type(e).__name__}: {str(e)[:220]}): using the local Kokoro voice for this video", flush=True)
         timings[label] = run_stage(label, cmd, project, must)
         if label == "voice":
             from .brand import apply_voice_fx

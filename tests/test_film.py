@@ -26,15 +26,15 @@ def timing(n=12, each=3.0):
     return Timing(lines, words, 0.3 + n * each + 1.0)
 
 
-def good_draft(**over):
+def good_draft(lines=range(2, 10), **over):
     cast = [L("amy", "#7FC8E8", hat="bonnet", hatCol="#F4EAD0", hairStyle="long", dress=True), L("bob", "#C98B2E", pattern="vest", hat="cap", extra=["mustache"])]
     sets = [{"id": "a", "kind": "field", "time": "day", "sign": "", "deck": False, "dress": [{"item": "barn", "x": 80, "d": 0, "s": 1.0}]},
             {"id": "b", "kind": "street", "time": "dusk", "sign": "SHOP", "deck": False, "dress": []}]
     cams = ["push_in", "pan_right", "pull_out", "drift", "crane_down", "handheld", "punch_in", "pan_left"]
     frs = ["wide", "medium", "full", "medium", "wide", "full", "medium", "wide"]
     shots = []
-    for i, ln in enumerate(range(2, 10)):
-        shots.append(S(ln, "", "ab"[i % 2], frs[i], cams[i], 50, "cut", "none", "none",
+    for i, ln in enumerate(lines):
+        shots.append(S(ln, "", "ab"[i % 2], frs[i % 8], cams[i % 8], 50, "cut", "none", "none",
                        [A("amy", 30, 45 if i % 2 else 30, face="r", mood="happy", arms="present", talk=True, beats=[B("stone", "shock", "both_up", "jump")]), A("bob", 70, face="l", mood="smug", arms="hip")],
                        [Pr("barrel", 55, 1, 1.0, "stone", "rise" if i % 2 else "drop")], [{"text": f"YEAR {i}", "word": "stone", "style": "label"}], "scene"))
     d = {"title": "The Test Story Here", "place": "Idaho", "date": "1914", "intro_lines": 2, "outro_lines": 2, "intro_prop": "scroll", "outro_stamp": "HOAX",
@@ -53,7 +53,7 @@ def test_vocabulary_matches_the_engine():
     assert js_list("people.js", "MOODS") == F.MOODS and js_list("people.js", "HATS") == F.HATS and js_list("people.js", "HAIRS") == F.HAIRS
     assert js_list("people.js", "NECKS") == F.NECKS and js_list("people.js", "PATTERNS") == F.PATTERNS and js_list("people.js", "EXTRAS") == F.EXTRAS
     assert js_list("film.js", "CAMERAS") == F.CAMERAS and js_list("film.js", "TRANSITIONS") == F.TRANSITIONS and js_list("film.js", "ACTS") == [a for a in F.ACTS if a]
-    assert js_list("film.js", "PROP_MOVES") == F.MOVES
+    assert js_list("film.js", "PROP_MOVES") == F.MOVES and js_list("film.js", "EFFECTS") == F.EFFECTS
     assert set(js_list("worlds.js", "KINDS")) == set(F.SET_KINDS) | {"study"} and js_list("worlds.js", "TIMES") == F.TIMES
 
 
@@ -124,3 +124,41 @@ def test_safe_mode_story_is_valid():
     tm = timing()
     story, _, _ = F.build(F.fallback(tm, {"title": "A Plain Story"}), tm)
     assert len(story["shots"]) == len(tm.lines) and story["shots"][0]["set"] == "study"
+
+
+HOOK = {"text": "A 10-FOOT STONE MAN?", "end_question": "WOULD YOU HAVE PAID?"}
+
+
+def test_cold_open_loop_and_end_question():
+    tm = timing()
+    story, problems, _ = F.build(good_draft(), tm, hook=HOOK, appear="first_last", cold=2.0, loop=True)
+    shots = story["shots"]
+    assert problems == []
+    assert shots[0]["framing"] == "panel" and shots[0]["actors"] == [] and shots[0]["callouts"][0]["text"] == HOOK["text"] and shots[0]["end"] == 1.3
+    assert shots[1]["actors"][0]["who"] == "hero" and shots[1]["at"] == 1.3                     # the host walks in after the cold open
+    assert shots[-1]["framing"] == "panel" and shots[-1]["end"] == round(tm.dur, 3) and round(shots[-1]["end"] - shots[-1]["at"], 3) == 1.0
+    assert any(c["text"] == HOOK["end_question"] for s in shots for c in s["callouts"])
+    assert all(a["end"] <= b["at"] + 1e-6 for a, b in zip(shots, shots[1:]))
+
+
+def test_host_setting_is_respected():
+    tm = timing()
+    first, p1, _ = F.build(good_draft(lines=range(2, 12)), tm, hook=HOOK, appear="first", cold=2.0, loop=True)
+    assert p1 == [] and [s for s in first["shots"] if s["note"] == "host closes the story"] == []
+    assert any(c["text"] == HOOK["end_question"] for s in first["shots"] for c in s["callouts"])      # the question still appears
+    none, p2, _ = F.build(good_draft(lines=range(0, 12)), tm, hook=HOOK, appear="none", cold=2.0, loop=True)
+    assert all(s["set"] != "study" for s in none["shots"]) and none["shots"][0]["at"] == 0.0 and none["shots"][-1]["end"] == round(tm.dur, 3)
+    assert min(s["at"] for s in none["shots"]) == 0.0
+
+
+def test_the_hosts_mood_follows_the_narrators_emotion():
+    tm = timing()
+    plan = {0: {"emotion": "shocked"}, 1: {"emotion": "amused"}, tm.lines[-1]["i"]: {"emotion": "triumphant"}}
+    story, _, _ = F.build(good_draft(), tm, plan=plan)
+    moods = [s["actors"][0]["mood"] for s in story["shots"] if s["set"] == "study"]
+    assert moods[0] == "shock" and moods[1] == "laugh"
+
+
+def test_default_build_has_no_cold_open_or_loop():
+    story, _, _ = F.build(good_draft(), timing())
+    assert all(s["framing"] != "panel" for s in story["shots"])
