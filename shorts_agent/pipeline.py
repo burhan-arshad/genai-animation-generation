@@ -19,7 +19,7 @@ from .script_agent import generate
 from .filmboard import build_shots, sync_overlay
 
 
-TERMINAL = ("ready", "uploaded", "dropped", "rejected", "awaiting_approval", "approved")
+TERMINAL = ("ready", "uploaded", "dropped", "rejected", "awaiting_approval", "approved", "suggested")
 FLOW = ["queued", "scripted", "verified", "timed", "storyboarded", "rendered", "finalized", "ready"]
 STAGE_NAME = {"queued": "research+script", "scripted": "fact-check", "verified": "voice+timing",
               "timed": "storyboard", "storyboarded": "render", "rendered": "loudness", "finalized": "qa"}
@@ -31,22 +31,6 @@ OVERLOAD_NAMES = ("ServerError", "RemoteProtocolError", "ReadTimeout", "ConnectE
 class Drop(RuntimeError):
     """A gate failed in a way retrying will not fix: drop the video."""
 
-def _stale_storyboard(project) -> str | None:
-    """Why the storyboard must be written again before the long render (None = fine)."""
-    if os.getenv("SAFE_MODE", "0") == "1":
-        return None
-    f = project / "metrics.json"
-    if not f.exists():
-        return "it was made by an older version"
-    try:
-        m = json.loads(f.read_text(encoding="utf-8"))
-    except ValueError:
-        return "metrics.json is unreadable"
-    if m.get("safe_mode"):
-        return "it is a safe-mode film without objects"
-    if not m.get("shots_with_props"):
-        return "no shot shows any object"
-    return None
 
 def _stale_storyboard(project: Path) -> str | None:
     """Why the storyboard must be written again before the long render (None = fine)."""
@@ -59,8 +43,6 @@ def _stale_storyboard(project: Path) -> str | None:
         m = json.loads(f.read_text(encoding="utf-8"))
     except ValueError:
         return "metrics.json is unreadable"
-    if m.get("safe_mode"):
-        return "it is a safe-mode film without objects"
     if not m.get("shots_with_props"):
         return "no shot shows any object"
     return None

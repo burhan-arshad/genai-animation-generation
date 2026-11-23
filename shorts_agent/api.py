@@ -283,7 +283,7 @@ class Clear(BaseModel):
     files: bool = True
 
 
-SCOPES = {"failed": ("dropped", "rejected"), "uploaded": ("uploaded",), "waiting": ("queued",)}
+SCOPES = {"failed": ("dropped", "rejected"), "uploaded": ("uploaded",), "waiting": ("queued", "suggested")}
 
 
 @app.post("/api/jobs/clear")
@@ -324,6 +324,9 @@ class Action(BaseModel):
 def job_action(job_id: int, b: Action):
     if not store.get_job(job_id):
         raise HTTPException(404, "no such job")
+    if b.action == "approve":
+        store.set_job(job_id, status="queued", error=None, tries=0)
+        return {"ok": True}
     if b.action == "reject":
         store.set_job(job_id, status="rejected")
     elif b.action == "retry":
@@ -349,7 +352,7 @@ def suggest(b: Suggest):
         ideas = topics.suggest(max(1, min(b.n, 6)))
     except (Exception, SystemExit) as e:
         raise HTTPException(502, str(e)[:300])
-    ids = [store.add_job(i.topic, styles.default_key()) for i in ideas] if b.queue else []
+    ids = [store.add_job(i.topic, styles.default_key(), "suggested") for i in ideas] if b.queue else []
     return {"ideas": [i.model_dump() for i in ideas], "queued": ids}
 
 

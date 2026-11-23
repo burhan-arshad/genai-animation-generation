@@ -12,7 +12,7 @@ from .pipeline import run as run_jobs
 
 LOCK = REPO / "daily.lock"
 TARGET = int(os.getenv("VIDEOS_PER_DAY", "1"))
-OPEN = "('ready','uploaded','dropped','rejected')"
+OPEN = "('ready','uploaded','dropped','rejected','suggested')"
 
 
 def acquire() -> bool:

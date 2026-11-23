@@ -28,15 +28,14 @@ def db() -> sqlite3.Connection:
     return con
 
 
-def add_job(topic: str, style: str) -> int:
+def add_job(topic: str, style: str, status: str = "queued") -> int:
     con = db()
     now = time.time()
-    cur = con.execute("INSERT INTO jobs(topic, created, updated, style) VALUES(?,?,?,?)", (topic, now, now, style))
+    cur = con.execute("INSERT INTO jobs(topic, created, updated, style, status) VALUES(?,?,?,?,?)", (topic, now, now, style, status))
     slug = f"{cur.lastrowid:03d}-" + re.sub(r"[^a-z0-9]+", "-", topic.lower()).strip("-")[:40]
     con.execute("UPDATE jobs SET slug=? WHERE id=?", (slug, cur.lastrowid))
     con.commit()
     return cur.lastrowid
-
 
 def get_job(job_id: int) -> dict | None:
     row = db().execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()

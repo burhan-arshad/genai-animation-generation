@@ -676,14 +676,4 @@ def build_shots(project: Path) -> None:
             problems = [f"The engine could not draw your story. Output (tail):\n{out[-1200:]}"]
         last = story if not last else last
         prompt = f"{base}\n\nYour previous story object:\n{draft.model_dump_json()}\n\nIt has these problems. Fix them and return the FULL corrected story object:\n- " + "\n- ".join(problems)
-    # nothing passed: a plain film is better than no film
-    print("[storyboard] the director could not deliver a clean story: SAFE MODE (plain scenes with the host narrating)")
-    story, _, _ = build(fallback(tm, script), tm, **opts)
-    (project / "data").mkdir(exist_ok=True)
-    (project / "data" / "story.json").write_text(json.dumps(story, indent=1, ensure_ascii=False), encoding="utf-8")
-    ok, out = run_check(project)
-    if not ok:
-        raise RuntimeError("the film engine could not draw even the plain story:\n" + out[-800:])
-    (project / "story.json").write_text(json.dumps(story, indent=1, ensure_ascii=False), encoding="utf-8")
-    write_props_json(project, story)
-    write_metrics(project, story, max_tries, True)
+        raise RuntimeError("The director could not deliver a clean story after retries:\n- " + "\n- ".join(problems))

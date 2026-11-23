@@ -10,6 +10,9 @@ Any failure (no key, quota, strange audio) raises, and runner.py falls back to t
 from __future__ import annotations
 
 import array
+import base64
+import io
+import httpx
 import json
 import os
 import re
@@ -182,32 +185,55 @@ def prompt_for(persona: str, direction: str, text: str, simple: bool = False) ->
 
 # ───────────── Gemini TTS ─────────────
 def tts_call(model: str, prompt: str, voice: str) -> bytes:
-    """One request to Gemini text-to-speech. Returns 16-bit mono PCM at 24 kHz."""
-    from google import genai
-    from google.genai import types
+    """Gemini TTS via raw REST. Returns 16-bit mono PCM at 24 kHz."""
     key = os.getenv("GEMINI_API_KEY")
     if not key:
         raise llm.Skip("GEMINI_API_KEY is not set")
-    client = genai.Client(api_key=key, http_options=llm._http_options(types))
-    resp = client.models.generate_content(model=model, contents=prompt, config=types.GenerateContentConfig(
-        response_modalities=["AUDIO"], temperature=0.9,
-        speech_config=types.SpeechConfig(voice_config=types.VoiceConfig(prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice)))))
-    part = resp.candidates[0].content.parts[0]
-    data = part.inline_data.data
-    if isinstance(data, str):
-        import base64
-        data = base64.b64decode(data)
-    return bytes(data)
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    body = {
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "responseModalities": ["AUDIO"],
+            "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voice}}},
+        },
+    }
+    r = httpx.post(url, headers={"x-goog-api-key": key, "Content-Type": "application/json"}, json=body,
+                   timeout=float(os.getenv("LLM_TIMEOUT_MS", "180000")) / 1000)
+    if r.status_code != 200:
+        raise llm.ProviderError(r.status_code, r.text[:600])      # real error body, not just the class name
+    j = r.json()
+    try:
+        part = j["candidates"][0]["content"]["parts"][0]
+        inline = part.get("inlineData") or part.get("inline_data")
+        data = base64.b64decode(inline["data"])
+        mime = inline.get("mimeType") or inline.get("mime_type") or ""
+    except (KeyError, IndexError, TypeError, AttributeError):
+        raise RuntimeError("no audio in the response: " + str(j)[:300])
+    if data[:4] == b"RIFF":                                        # already a WAV: take the raw frames
+        with wave.open(io.BytesIO(data)) as w:
+            rate, data = w.getframerate(), w.readframes(w.getnframes())
+    else:
+        m = re.search(r"rate=(\d+)", mime)
+        rate = int(m.group(1)) if m else RATE
+    if rate != RATE:                                               # make everything 24 kHz
+        data = subprocess.run(["ffmpeg", "-v", "error", "-f", "s16le", "-ar", str(rate), "-ac", "1", "-i", "pipe:0",
+                               "-f", "s16le", "-ar", str(RATE), "-ac", "1", "pipe:1"],
+                              input=data, capture_output=True, check=True).stdout
+    return data
 
 
 def synth(prompt_full: str, prompt_simple: str, voice: str, expected: float) -> bytes:
     models = [m.strip() for m in (os.getenv("GEMINI_TTS_MODELS") or os.getenv("GEMINI_TTS_MODEL") or DEFAULT_MODELS).split(",") if m.strip()]
     last: Exception | None = None
+    dead: set[str] = set()
     for attempt in range(3):
         for spec in models:
+            if spec in dead:
+                continue
             used, limit = llm._used_today(spec), llm._daily_limit(spec)
             if used >= limit - llm.SAFETY_MARGIN:
                 last = llm.BudgetExceeded(f"{spec}: {used}/{limit} voice requests used today")
+                dead.add(spec)
                 continue
             try:
                 pcm = tts_call(spec, prompt_full if attempt == 0 else prompt_simple, voice)
@@ -216,10 +242,14 @@ def synth(prompt_full: str, prompt_simple: str, voice: str, expected: float) -> 
             except Exception as e:
                 llm._log(spec, "tts", 0, 0, False)
                 last = e
-                print(f"[voice] {spec}: {type(e).__name__}: {str(e)[:140]}")
-                if llm._classify(e) == "fatal":
-                    continue
-                time.sleep(2)
+                print(f"[voice] {spec}: {type(e).__name__}: {str(e)[:500]}")
+                kind = llm._classify(e)
+                if kind == "fatal" or (kind == "quota" and "PerDay" in str(e)):
+                    dead.add(spec)                    # 400/404/403 = payload or model problem: never retry
+                elif kind == "quota":
+                    time.sleep(60)
+                else:
+                    time.sleep(2)
                 continue
             secs = len(pcm) / 2 / RATE
             llm._log(spec, "tts", len(prompt_full) // 4, int(secs * 25), True)
