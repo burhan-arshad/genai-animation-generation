@@ -1,71 +1,74 @@
 {
   "channel": {
-    "name": "The History Guy",
-    "tagline": "Strange but true history in 40 seconds"
+    "name": "The Open File",
+    "tagline": "Mysteries solved and unsolved in 50 seconds"
   },
   "character": {
-    "name": "History Student",
+    "name": "The Investigator",
     "preset": "a",
     "appear": "first_last",
     "scale": 1.0,
     "presets": {
       "a": {
-        "body": "#3FA7A0",
-        "pattern": "plain",
-        "patCol": "#6B422B",
-        "hat": "none",
+        "body": "#6B5B4A",
+        "pattern": "vest",
+        "patCol": "#2E2A26",
+        "hat": "bowler",
         "neck": "scarf",
-        "neckCol": "#F26B5B",
-        "extra": [
-          "glasses",
-          "blush"
-        ],
-        "hair": "#2B2118",
-        "hairStyle": "messy",
-        "satchel": "#E2A92E",
-        "kid": false,
-        "skin": "#E0A97A",
-        "pants": "#3A4F8F"
-      },
-      "b": {
-        "body": "#7FB7BE",
-        "pattern": "stripes",
-        "patCol": "#5E9AA1",
-        "hat": "none",
-        "neck": "bowtie",
-        "neckCol": "#C8952F",
+        "neckCol": "#B3412F",
         "extra": [
           "glasses"
         ],
-        "hair": "#4A2D1B",
+        "hair": "#2B2118",
         "hairStyle": "side",
-        "satchel": "#6B4F34",
-        "kid": false
+        "satchel": "#5A3E28",
+        "kid": false,
+        "hatCol": "#3A3532"
+      },
+      "b": {
+        "body": "#2F3B52",
+        "pattern": "plain",
+        "patCol": "#2F3B52",
+        "hat": "none",
+        "neck": "tie",
+        "neckCol": "#C9A227",
+        "extra": [
+          "monocle",
+          "mustache"
+        ],
+        "hair": "#8A8A92",
+        "hairStyle": "short",
+        "satchel": "#3B2F2F",
+        "kid": false,
+        "hatCol": "#2F3B52"
       },
       "c": {
-        "body": "#F3E9D2",
-        "pattern": "overalls",
-        "patCol": "#3E5FA8",
-        "hat": "none",
-        "neck": "none",
+        "body": "#3E6B5A",
+        "pattern": "plain",
+        "patCol": "#3E6B5A",
+        "hat": "beret",
+        "neck": "scarf",
         "extra": [
+          "glasses",
           "freckles"
         ],
-        "hair": "#1B1410",
-        "hairStyle": "curly",
-        "satchel": "#A8322D",
-        "kid": false
+        "hair": "#5A2A1A",
+        "hairStyle": "long",
+        "satchel": "#6B4B2E",
+        "kid": false,
+        "hatCol": "#1F1F24",
+        "neckCol": "#E8D27A"
       }
     }
   },
   "voice": {
-    "name": "am_michael",
-    "speed": 1.05,
-    "music": "bounce",
+    "name": "bm_george",
+    "speed": 1.0,
+    "music": "mystery",
     "fx": "",
     "engine": "gemini",
-    "gemini_voice": "Puck",
-    "persona": "",
+    "gemini_voice": "Charon",
+    "persona": "the Investigator: a calm, curious storyteller opening a case file for a friend, hushed and precise, leaning in on the strange details, honest about what is not known, never mocking the people in the story",
     "intensity": "normal",
     "direct": "1"
   },
@@ -74,6 +77,6 @@
       "United States",
       "Europe"
     ],
-    "writing_note": "AUDIENCE: viewers in the United States and Europe. Use American English spelling. Add one short clause of context for anything a non-local viewer may not know (where it is, who they were). Avoid slang and idioms that do not travel. Quote units exactly as the evidence does; never convert. Neutral, factual tone; no jokes at any nation's expense."
+    "writing_note": "AUDIENCE: viewers in the United States and Europe. Use American English spelling. Add one short clause of context for anything a non-local viewer may not know (where it is, who they were). Avoid slang and idioms that do not travel. Quote units exactly as the evidence does; never convert. Calm, factual tone. For anything not proven, say 'investigators believed' or 'one theory says', never state it as fact."
   }
 }

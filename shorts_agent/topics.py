@@ -1,8 +1,9 @@
-"""Topic agent: picks real, documented events (Wikipedia 'On this day') that are surprising, and code checks that they can be researched and fact-checked."""
+"""Topic agent: picks documented cases (a curated list, Wikipedia searches or 'On this day') and code checks that they can be researched and fact-checked."""
 from __future__ import annotations
 
 import argparse
 import datetime as dt
+import html
 import os
 import random
 import re
@@ -83,31 +84,78 @@ def feed_candidates(cfg: dict, days: int = 3) -> list[dict]:
     return out
 
 
+def search_candidates(cfg: dict, k: int = 5) -> list[dict]:
+    """Real Wikipedia articles found by searching for the niche's themes (cfg 'search_queries'). [] when offline."""
+    qs = list(cfg.get("search_queries") or [])
+    random.shuffle(qs)
+    out, seen = [], set()
+    for q in qs[:k]:
+        try:
+            r = _http.get("https://en.wikipedia.org/w/api.php", params={
+                "action": "query", "list": "search", "srsearch": q, "srlimit": 10, "sroffset": random.choice([0, 0, 10, 20]),
+                "srnamespace": 0, "format": "json"})
+            hits = r.json()["query"]["search"] if r.status_code == 200 else []
+        except Exception:
+            continue
+        for h in hits:
+            t = str(h.get("title", ""))
+            if not t or t in seen or t.lower().startswith(("list of", "timeline", "lists of")):
+                continue
+            seen.add(t)
+            out.append({"title": t, "text": html.unescape(re.sub(r"<[^>]+>", "", str(h.get("snippet", ""))))[:140]})
+    return out
+
+
+def seed_candidates(cfg: dict, used_tok: list[set[str]], k: int = 24) -> list[dict]:
+    """The niche's curated cases ('Name|year|region') that were not made yet."""
+    out = []
+    for s in cfg.get("seeds") or []:
+        parts = [p.strip() for p in str(s).split("|")]
+        if not parts or not parts[0]:
+            continue
+        year = int(parts[1]) if len(parts) > 1 and re.fullmatch(r"-?\d{1,4}", parts[1]) else 0
+        topic = parts[0] if (not year or str(year) in parts[0]) else f"{parts[0]} ({year})"
+        a = _tokens(topic)
+        if any(a and len(a & b) / len(a | b) >= 0.6 for b in used_tok):
+            continue
+        out.append({"topic": topic, "year": year, "region": parts[2] if len(parts) > 2 else ""})
+    random.shuffle(out)
+    return out[:k]
+
+
 def suggest(n: int = 3, key: str | None = None) -> list[Idea]:
     key = key or styles.default_key()
     cfg = niche.load(key)["topics"]
     block = re.compile(cfg["block_regex"], re.I)
     used = [r[0] for r in store.db().execute("SELECT topic FROM jobs")]
+    used_tok = [_tokens(t) for t in used]
     formats = cfg.get("formats") or ["a surprising true story"]
     prompt = ("Topics already used (do not repeat):\n" + ("\n".join(f"- {t}" for t in used[-60:]) or "(none yet)")
               + f"\n\nPreferred kind of story this time: {formats[len(used) % len(formats)]}.\nPropose 12 topics.")
-    cands = feed_candidates(cfg)
+    seeds = seed_candidates(cfg, used_tok)
+    if seeds:
+        prompt += ("\n\nCURATED CASES (well documented, safe, each has a Wikipedia article). Prefer these. For a curated case use its exact topic text, year and region:\n"
+                   + "\n".join(f"- {s['topic']} [{s['year']}, {s['region']}]" for s in seeds))
+    by_search = bool(cfg.get("search_queries"))
+    cands = search_candidates(cfg) if by_search else feed_candidates(cfg)
     random.shuffle(cands)
-    if cands:
+    if cands and by_search:
+        prompt += ("\n\nMORE REAL WIKIPEDIA ARTICLES (search results). Use one only when it is clearly a documented, non-violent mystery with a twist; skip generic pages, "
+                   "people's deaths, crimes against people, politics and anything graphic. Name the case and the year it began in `topic`.\n"
+                   + "\n".join(f"- {c['title']}: {c['text']}" for c in cands[:30]))
+    elif cands:
         prompt += ("\n\nREAL EVENTS from Wikipedia's 'On this day' pages (around today's date). Choose ONLY from these, so every topic is a real, well documented event. "
                    "Pick the most surprising, specific and visual ones: a twist, a strange cause, a number a viewer remembers. Skip famous wars, politics and anything generic. "
                    "Write each pick as a plain `topic` that names the event AND the year, give its `year` and `region`.\n"
                    + "\n".join(f"- {c['year']}: {c['text']}" for c in cands[:50]))
-        print(f"[topics] {len(cands)} real events found for this week, the AI chooses from {min(50, len(cands))}")
-    else:
-        print("[topics] no real-event feed (offline?): the AI proposes topics on its own")
+    print(f"[topics] {len(seeds)} curated case(s) left, {len(cands)} real candidate(s) found")
     try:
         from . import analytics
         prompt += "\n\n" + analytics.lessons()
     except Exception:
         pass
     ideas = generate_structured(prompt, IdeaList, system=cfg["system"], temperature=0.9, task="topics").ideas
-    used_tok, ok = [_tokens(t) for t in used], []
+    ok = []
     for i in ideas:
         why = reject_reason(i, cfg, block, used_tok)
         print(f"[topics] {'skip' if why else 'ok  '} {i.topic} ({i.year}, {i.region})" + (f" - {why}" if why else ""))

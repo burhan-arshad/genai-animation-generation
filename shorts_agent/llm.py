@@ -2,8 +2,9 @@
 usage log, daily and per-minute budget guards.
 
 A model is written as `gemini-3.5-flash-lite` (Gemini) or `provider:model` (any OpenAI-compatible API, e.g.
-`groq:llama-3.3-70b-versatile`; configure PROVIDER_<NAME>_URL and PROVIDER_<NAME>_KEY in .env).
+`groq:openai/gpt-oss-120b`; configure PROVIDER_<NAME>_URL and PROVIDER_<NAME>_KEY in .env).
 A chain is a comma-separated list tried in order, e.g. GEMINI_MODEL_SCRIPT=a,b,groq:c .
+Optional per provider: PROVIDER_<NAME>_MAX_TOKENS, _MAX_INPUT_TOKENS (a bigger request goes to the next model), _JSON_MODE=0, _EXTRA='{"json":"fields"}'.
 """
 from __future__ import annotations
 
@@ -27,6 +28,7 @@ LAST: dict = {}                      # model spec and finish reason of the lates
 _client = None
 _cool: dict[str, float] = {}         # spec -> skip until (after a 429)
 _bad: dict[str, float] = {}          # spec -> skip until (not configured, or a fatal error such as a bad key or unknown model)
+_warned: set[str] = set()            # models already reported as out of daily budget
 
 
 class BudgetExceeded(RuntimeError):
@@ -43,8 +45,10 @@ class ProviderError(RuntimeError):
 class Skip(Exception):
     """This model cannot serve the request (not configured / unsupported): move on."""
 
+
 class TooBig(Exception):
-    """Request is larger than this provider's free limit: use another model for this call (the model itself is fine)."""
+    """The request is larger than this provider's free limit: use another model for this call (the model itself is fine)."""
+
 
 # ───────────── usage log ─────────────
 def _con() -> sqlite3.Connection:
@@ -113,7 +117,8 @@ def _rpm_limit(spec: str) -> int:
 
 def _unhealthy_until(spec: str) -> float:
     """Circuit breaker derived from the log: the last two calls failed -> skip the model for BREAKER seconds after the last failure.
-    After that one probe call decides: success closes the breaker, another failure opens it again."""
+    Rate limits (429) do not count: they only mean 'wait a little', not 'the model is broken'.
+    After the pause one probe call decides: success closes the breaker, another failure opens it again."""
     with _con() as con:
         rows = con.execute("SELECT ts, ok FROM llm_calls WHERE model=? AND task NOT LIKE '%:429' ORDER BY id DESC LIMIT 2", (spec,)).fetchall()
     if len(rows) == 2 and not rows[0][1] and not rows[1][1]:
@@ -190,8 +195,9 @@ def _openai(provider: str, name: str, req: dict):
         system += ("\n\nReturn ONLY one JSON object (no prose, no markdown fences) that matches this JSON schema:\n"
                    + json.dumps(req["schema"].model_json_schema()))
     max_in = int(os.getenv(f"PROVIDER_{P}_MAX_INPUT_TOKENS", "0") or 0)       # free-tier size guard
-    if max_in and (len(system) + len(req["prompt"])) / 3.2 > max_in:
-        raise TooBig(f"request is about {int((len(system) + len(req['prompt'])) / 3.2)} tokens, over PROVIDER_{P}_MAX_INPUT_TOKENS={max_in}")
+    est = (len(system) + len(req["prompt"])) / 3.2
+    if max_in and est > max_in:
+        raise TooBig(f"request is about {int(est)} tokens, over PROVIDER_{P}_MAX_INPUT_TOKENS={max_in}")
     msgs = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": req["prompt"]}]
     body = {"model": name, "messages": msgs, "temperature": req["temperature"],
             "max_tokens": min(req["max_tokens"] or 8000, int(os.getenv(f"PROVIDER_{P}_MAX_TOKENS", "8000")))}
@@ -199,7 +205,10 @@ def _openai(provider: str, name: str, req: dict):
         body["response_format"] = {"type": "json_object"}
     extra = (os.getenv(f"PROVIDER_{P}_EXTRA") or "").strip()                    # e.g. {"reasoning_effort":"low"}
     if extra:
-        body.update(json.loads(extra))
+        try:
+            body.update(json.loads(extra))
+        except ValueError:
+            raise Skip(f"PROVIDER_{P}_EXTRA is not valid JSON")
     r = httpx.post(url.rstrip("/") + "/chat/completions", headers={"Authorization": f"Bearer {key}"}, json=body,
                    timeout=float(os.getenv("LLM_TIMEOUT_MS", "180000")) / 1000)
     if r.status_code != 200:
@@ -214,6 +223,7 @@ def _openai(provider: str, name: str, req: dict):
     return ((ch.get("message") or {}).get("content") or "",
             (u.get("prompt_tokens", 0), u.get("completion_tokens", 0)), str(ch.get("finish_reason", "?")))
 
+
 def _dispatch(spec: str, req: dict):
     provider, name = _split(spec)
     return _gemini(name, req) if provider == "gemini" else _openai(provider, name, req)
@@ -221,7 +231,7 @@ def _dispatch(spec: str, req: dict):
 
 # ───────────── failover ─────────────
 def _try_model(spec: str, req: dict, task: str):
-    """One model, at most two quick tries. Returns (text, None) or (None, error). Never sleeps long: failing over is cheaper."""
+    """One model, a few quick tries. Returns (text, None) or (None, error). Never sleeps long: failing over is cheaper."""
     last: Exception | None = None
     tries = max(1, int(os.getenv("LLM_TRIES", "2")))
     for attempt in range(tries):
@@ -238,7 +248,7 @@ def _try_model(spec: str, req: dict, task: str):
             print(f"[llm] {spec}: {e}: using another model for this call")
             return None, e
         except Exception as e:
-            if getattr(e, "code", None) == 413:          # too large for this model: not the model's fault
+            if getattr(e, "code", None) == 413:           # too large for this model: not the model's fault
                 print(f"[llm] {spec}: 413 request too large, trying the next model")
                 return None, e
             kind = _classify(e)
@@ -272,6 +282,9 @@ def _call(req: dict, task: str, validate=None):
                 continue
             used, limit = _used_today(spec), _daily_limit(spec)
             if used >= limit - SAFETY_MARGIN:
+                if spec not in _warned:
+                    _warned.add(spec)
+                    print(f"[llm] {spec}: daily budget used ({used}/{limit}); raise it in DAILY_LIMITS if the provider allows more")
                 last = BudgetExceeded(f"{spec}: {used}/{limit} used today")
                 continue
             recent, rpm = _recent(spec), _rpm_limit(spec)

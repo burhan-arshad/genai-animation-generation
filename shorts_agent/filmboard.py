@@ -45,6 +45,12 @@ STYLES_C = ["label", "pop", "stamp"]
 SHAPES = ["rect", "circle", "ellipse", "poly", "line", "text"]
 MAX_SHOT = 6.2
 HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
+SPIN_OK = {"coin", "coins"}
+
+
+def safe_move(name: str, move: str) -> str:
+    """Only a coin may spin: a spinning globe, book or sign looks like a bug."""
+    return "grow" if move == "spin" and name not in SPIN_OK else move
 
 ALT_CAM = {"push_in": "pull_out", "pull_out": "push_in", "pan_left": "pan_right", "pan_right": "pan_left", "static": "drift", "drift": "push_in",
            "crane_down": "push_in", "crane_up": "pull_out", "punch_in": "drift", "handheld": "drift"}
@@ -377,7 +383,7 @@ def build(d: StoryDraft, tm: Timing, hero_ok: bool = True, hook: dict | None = N
                 continue
             t0 = tm.find(p.word, t, end) if p.word else None
             sh["props"].append({"name": nm, "x": round(_num(p.x, 0, 100, 50), 1), "d": int(_num(p.d, 0, 2, 1)), "s": round(_num(p.s, 0.2, 4, 1), 2), "t0": round(t0 if t0 is not None else t, 3),
-                                "move": _pick(p.move, MOVES, "pop"), "c": _hex(p.c, "") or "", "text": re.sub(r"[^A-Za-z0-9 !?.,'$%:/&-]", "", p.text)[:20]})
+                                "move": safe_move(nm, _pick(p.move, MOVES, "pop")), "c": _hex(p.c, "") or "", "text": re.sub(r"[^A-Za-z0-9 !?.,'$%:/&-]", "", p.text)[:20]})
         for c in sd.callouts[:2]:
             txt = re.sub(r"\s+", " ", re.sub(r"[<>]", "", c.text)).strip()[:26]
             if txt:
@@ -551,6 +557,12 @@ intro_prop = the ONE object that best shows the story (a built-in or custom obje
 title = the short title, place = "Cardiff, New York", date = "1869" (short, for the host's title card).
 Facts: show only what the narration says. Nothing graphic."""
 
+def system_text() -> str:
+    """The director's brief with the channel's own host name and the niche's storyboard rules."""
+    st = styles.active()
+    host = (brand.load()["character"].get("name") or "the host").strip()
+    return (SYSTEM.replace("history short", "short").replace("'the History Student'", f"'{host}'")
+            + "\nNICHE DIRECTION (follow it, it matters more than the examples above):\n" + st.board_rules)
 
 def build_prompt(script: dict, tm: Timing, topic: str, year, plan: dict | None = None, appear: str = "first_last") -> str:
     lines = "\n".join(f"{i}: [{l['start']:.1f}-{l['end']:.1f}s] {l['text']}" for i, l in enumerate(tm.lines))
@@ -563,7 +575,7 @@ def build_prompt(script: dict, tm: Timing, topic: str, year, plan: dict | None =
         emo = ("\nNARRATOR'S EMOTION PER LINE (the voice actor performs it: make the people on screen feel the same, so a viewer SEES what he hears. "
                "shocked -> a shock beat and a jump; amused -> laugh or smug; tense -> worried; curious -> think; excited, awe -> happy with arms up; triumphant -> proud; "
                "deadpan -> neutral or tired):\n" + "\n".join(f"{i}: {d['emotion']}, energy {d['energy']}, {d['note']}" for i, d in sorted(plan.items())))
-    return (f"{SYSTEM}\n\n{host}\nThe video opens with a 2-second cold open (the `intro_prop` picture huge on screen with the hook as a question) and ends with a 1-second loop back to it: "
+    return (f"{system_text()}\n\n{host}\nThe video opens with a 2-second cold open (the `intro_prop` picture huge on screen with the hook as a question) and ends with a 1-second loop back to it: "
             "choose the single most striking object or picture of the story as `intro_prop`.\n\n"
             f"EXAMPLE of a good story object (another topic, copy the way of working, never the content):\n{ex}\n\nTOPIC: {topic}\nTITLE: {script['title']}\nYEAR: {year or 'unknown'}\n"
             f"SCRIPT (index: [start-end] text):\n{lines}\n{emo}\n\nWrite the story object for THIS script.")
@@ -664,7 +676,7 @@ def draft_in_parts(script: dict, tm: Timing, topic: str, year, plan: dict, appea
     note = ("\nPROBLEMS IN YOUR PREVIOUS TRY (fix them):\n- " + "\n- ".join(str(p)[:300] for p in fixes[:8])) if fixes else ""
     head = f"TOPIC: {topic}\nTITLE: {script['title']}\nYEAR: {year or 'unknown'}\n"
     bible = generate_structured(
-        f"{SYSTEM}\n\n{HOST_RULE.get(appear, '')}\nTASK 1 OF 2: write ONLY title, place, date, intro_lines, outro_lines, intro_prop, outro_stamp, cast, sets and "
+        f"{system_text()}\n\n{HOST_RULE.get(appear, '')}\nTASK 1 OF 2: write ONLY title, place, date, intro_lines, outro_lines, intro_prop, outro_stamp, cast, sets and "
         f"custom_props (at most 4 custom objects, 6-10 parts each). Do not write shots yet.\n\n{head}SCRIPT:\n{all_lines}{note}",
         Bible, system="You output only the JSON object.", temperature=0.6, task=task)
     intro, outro = host_lines(bible.intro_lines, bible.outro_lines, appear, n)
@@ -681,7 +693,7 @@ def draft_in_parts(script: dict, tm: Timing, topic: str, year, plan: dict, appea
         emo = ", ".join(f"{i}: {plan[i]['emotion']}" for i in range(a, b) if i in plan)
         emo_txt = f"Narrator emotion per line: {emo}\n" if emo else ""
         part = generate_structured(
-            f"{SYSTEM}\n\nTASK 2 OF 2: write the shots for script lines {a} to {b - 1} ONLY (every shot's `line` must be in {a}..{b - 1}; at least one shot per line, "
+            f"{system_text()}\n\nTASK 2 OF 2: write the shots for script lines {a} to {b - 1} ONLY (every shot's `line` must be in {a}..{b - 1}; at least one shot per line, "
             f"two for a line longer than 3 s).\nUse ONLY these character ids: {cast}\nSet ids: {sets}\nCustom objects (use these exact names): {customs}\n"
             f"{head}{prev}{around}{emo_txt}LINES TO DIRECT:\n{mine}{note}",
             ShotsPart, system="You output only the JSON object.", temperature=0.6, task=task)

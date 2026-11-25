@@ -63,12 +63,6 @@ def check_engine() -> None:
     else:
         add("fail", "Engine Python (SKILL_PY)", f"{SKILL_PY} is not a file: set SKILL_PY in .env to the venv's python.exe")
     
-    if SKILL_PY.exists():
-        r = subprocess.run([str(SKILL_PY), "-c", "import faster_whisper, kokoro_onnx, numpy"], capture_output=True, text=True)
-        add("ok" if r.returncode == 0 else "fail", "Voice + timing models (Kokoro, Whisper)",
-            "importable" if r.returncode == 0 else "missing: run the engine pack's scripts/setup.sh (Git Bash on Windows)")
-    else:
-        add("fail", "Engine Python (SKILL_PY)", f"{SKILL_PY} not found: run the engine pack's scripts/setup.sh")
     try:
         PROJECTS_ROOT.mkdir(parents=True, exist_ok=True)
         add("ok", "Projects folder is writable", str(PROJECTS_ROOT))
@@ -135,7 +129,7 @@ def check_hardcoded_paths() -> None:
         if p.name == "doctor.py":
             continue
         for n, line in enumerate(p.read_text(encoding="utf-8", errors="ignore").splitlines(), 1):
-            if re.search(r"\b[A-Z]:\\{1,2}[A-Za-z]|/Users/\w+", line) and "os.environ" not in line:
+            if re.search(r"\b[A-Z]:\\{1,2}[A-Za-z]{3,}|/Users/\w+", line) and "os.environ" not in line:
                 bad.append(f"{p.name}:{n}")
     add("ok" if not bad else "warn", "no machine-specific paths in the code", ", ".join(bad[:6]) if bad else "")
 

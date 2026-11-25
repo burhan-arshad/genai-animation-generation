@@ -76,15 +76,16 @@ def _from_niche(key: str) -> Style:
     n = niche.load(key)
     base = STYLES.get(n.get("engine", ""), TALL_TALE)        # every engine name falls back to tall-tale
     w = n["writing"]
+    sb = n.get("storyboard", {})
     pr = n.get("props") or {}
     return replace(base, key=key, use_brand=True, hero=True, niche=key,
                    music_options=tuple(w.get("music_options", base.music_options)),
                    min_words=int(w.get("min_words", base.min_words)), max_words=int(w.get("max_words", base.max_words)),
-                   write_rules=base.write_rules + "\n" + w["rules"],
-                   board_rules=base.board_rules + n.get("storyboard", {}).get("rules", ""),
+                   min_lines=int(w.get("min_lines", base.min_lines)), max_lines=int(w.get("max_lines", base.max_lines)),
+                   write_rules=w["rules"] if w.get("replace_base") else base.write_rules + "\n" + w["rules"],
+                   board_rules=sb.get("rules", "") if sb.get("replace_base") else base.board_rules + sb.get("rules", ""),
                    props_mode=pr.get("mode", "library"), props_theme=pr.get("theme", ""),
                    props_required=tuple(pr.get("required", [])), props_note=pr.get("style_note", ""))
-
 
 for _name in niche.available():
     try:

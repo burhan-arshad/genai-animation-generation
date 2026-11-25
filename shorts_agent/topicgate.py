@@ -4,7 +4,8 @@ from __future__ import annotations
 import re
 
 STOP = set("the a an of in on at to for and or with from by is was were that this its their how why what when who first last year years "
-           "day days new old great famous story strange true event events thing things time people history".split())
+           "day days new old great famous story strange true event events thing things time people history opening opened launch release "
+           "publication founding construction creation mystery mysteries unsolved solved case disappearance incident affair".split())
 
 
 def key_tokens(topic: str) -> list[str]:

@@ -170,3 +170,11 @@ def test_a_long_line_is_split_not_rejected():
     assert not any("has no shot" in p for p in problems)
     body = [s for s in story["shots"] if s["set"] != "study"]
     assert body and all(s["end"] - s["at"] <= F.MAX_SHOT + 0.01 for s in body)
+
+def test_only_a_coin_may_spin():
+    d = good_draft()
+    d.shots[0].props[0].name, d.shots[0].props[0].move = "globe", "spin"
+    d.shots[1].props[0].name, d.shots[1].props[0].move = "coin", "spin"
+    story, _, _ = F.build(d, timing())
+    moves = {p["name"]: p["move"] for s in story["shots"] for p in s["props"] if p["name"] in ("globe", "coin")}
+    assert moves["globe"] == "grow" and moves["coin"] == "spin"

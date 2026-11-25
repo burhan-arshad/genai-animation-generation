@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+import os
 
 from pydantic import BaseModel
 
@@ -36,8 +37,9 @@ def check_script(d: ScriptDraft, st: Style | None = None) -> list[str]:
     words = sum(len(l.text.split()) for l in d.lines)
     if not st.min_words <= words <= st.max_words:
         problems.append(f"Narration has {words} words; target is {st.min_words}-{st.max_words}.")
-    if len(d.sources) < 2:
-        problems.append("Need at least 2 sources.")
+    need = int(os.getenv("MIN_SOURCES", "2"))
+    if len(d.sources) < need:
+        problems.append(f"Need at least {need} sources.")
     for i, l in enumerate(d.lines):
         if re.search(r"\d", l.text):
             problems.append(f"Line {i}: write numbers as spoken words in 'text' (no digits).")

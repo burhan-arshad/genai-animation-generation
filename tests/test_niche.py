@@ -86,3 +86,9 @@ def test_doctor_path_scan_ignores_escaped_newlines_but_finds_real_paths(tmp_path
     doctor.check_hardcoded_paths()
     level, _, detail = doctor.RESULTS[-1]
     assert level == "warn" and "b.py" in detail and "a.py" not in detail
+
+def test_mysteries_niche_has_its_own_host_and_rules():
+    st = styles.STYLES["mysteries"]
+    assert st.engine == "film" and st.niche == "mysteries"
+    assert "History Student" not in st.write_rules and "History Student" not in st.board_rules
+    assert "SOLVED" in st.write_rules and "Only a coin may spin" in st.board_rules

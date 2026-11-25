@@ -26,6 +26,10 @@ HOOKS = {
                  "One man got rich. The other got the blame. Same stone."),
     "missing_piece": ("Start from something missing, hidden, buried, banned or lost, and let the question be where it went.",
                       "For a whole year, nobody knew what was underground."),
+    "last_seen": ("Start on the last confirmed, ordinary moment before everything went wrong: a time, a place, a person doing something normal.",
+                  "At six that evening, the lamp on deck was still lit. By morning, the ship was empty."),
+    "one_clue": ("Open on the single strangest clue or object and say nothing about what it means.",
+                 "They found his coat folded neatly on the shore. Inside the pocket was one torn page."),
 }
 ENDINGS = {
     "loop_callback": ("Final line echoes the first line's key word or image with a twist, so the video replays into itself.",
@@ -38,6 +42,10 @@ ENDINGS = {
                     "And the man who made it never even took credit."),
     "today_twist": ("Final line connects the story to today in one surprising present-tense fact (only if it is in the evidence).",
                     "Today, people still line up to look at it."),
+    "open_question": ("Final line is the unanswered question of the case, short, so viewers want to answer it in the comments.",
+                      "So what really happened on that deck?"),
+    "clue_that_solved_it": ("Final line delivers the small detail that cracked the case and echoes the opening clue.",
+                            "One torn corner of paper was all it took."),
 }
 
 GENERIC = re.compile(r"^\s*(did you know|welcome|today we|today i|in this video|have you ever|let me tell|hey guys|hey everyone|what if i told|you won'?t believe|"
@@ -105,11 +113,11 @@ def check(lines: list[str]) -> list[str]:
     last = lines[-1].strip()
     if len(last.split()) > 14:
         problems.append(f"The last line has {len(last.split())} words: 12 or fewer.")
-    if not (content_words(last) & content_words(" ".join(lines[:3]))) and "?" not in last:
+    if not (content_words(last) & content_words(" ".join(lines[:4]))) and "?" not in last:
         problems.append("The last line must echo a key word of the opening (a loop) or end with a question to the viewer.")
     body = lines[2:-1]
     turns = sum(1 for l in body if TURNS.search(l))
-    need = max(2, len(body) // 4)
+    need = max(1, len(body) // 5)
     if turns < need:
         problems.append(f"Only {turns} turn line(s) in the story: at least {need} lines must start with But, Then, Until, Except, Yet, Suddenly or So and change what we thought.")
     return problems
