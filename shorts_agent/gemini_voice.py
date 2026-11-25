@@ -127,7 +127,7 @@ def make_plan(script: dict, direct: bool, intensity: str) -> tuple[VoicePlan, bo
     body = "\n".join(f"{i}: {t}" for i, t in enumerate(lines))
     try:
         p = llm.generate_structured(f"TITLE: {script.get('title', '')}\nSCRIPT:\n{body}\n\nDirect every line.", VoicePlan,
-                                    system=DIRECTOR.format(emo=", ".join(EMOTIONS), intensity=INTENSITY[intensity]), temperature=0.7, task="storyboard")
+                                    system=DIRECTOR.format(emo=", ".join(EMOTIONS), intensity=INTENSITY[intensity]), temperature=0.7, task="voice")
         return clean_plan(p, lines), True
     except Exception as e:                           # quota or a bad answer: rules are better than no direction
         print(f"[voice] the voice director failed ({type(e).__name__}): using rule-based direction")
@@ -244,7 +244,7 @@ def synth(prompt_full: str, prompt_simple: str, voice: str, expected: float) -> 
                 last = e
                 print(f"[voice] {spec}: {type(e).__name__}: {str(e)[:500]}")
                 kind = llm._classify(e)
-                if kind == "fatal" or (kind == "quota" and "PerDay" in str(e)):
+                if kind == "fatal" or (kind == "quota" and ("PerDay" in str(e) or "limit: 0" in str(e))):
                     dead.add(spec)                    # 400/404/403 = payload or model problem: never retry
                 elif kind == "quota":
                     time.sleep(60)

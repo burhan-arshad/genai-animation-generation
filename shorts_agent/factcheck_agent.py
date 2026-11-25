@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 from dataclasses import replace
 from pathlib import Path
@@ -11,12 +12,12 @@ from pydantic import BaseModel
 
 from . import styles
 from .llm import generate_structured
-from .retrieval import collect_evidence
+from .retrieval import collect_evidence, web_evidence
 from .schemas import Line, ScriptDraft, check_script, repair_caps, repair_numbers
 from .script_agent import system_prompt
 
 VALID = {"SUPPORTED", "PARTIAL", "CONTRADICTED", "NO_EVIDENCE"}
-MAX_WEAK = 1   # unverified claims tolerated after the auto-trim rounds
+MAX_WEAK = int(os.getenv("FACT_MAX_WEAK", "1"))   # unverified claims tolerated after the auto-trim rounds
 
 
 class Claim(BaseModel):
@@ -48,7 +49,8 @@ class FactCheckFailed(RuntimeError):
 
 EXTRACT_SYSTEM = """Extract 4-8 distinct, checkable factual claims from the narration (numbers, durations, causes, 'myth' statements, comparisons).
 Keep EVERY specific detail exactly as the narration states it: numbers, durations ('three days'), qualifiers ('significantly', 'always', 'only'), named examples. Never generalize, soften or merge claims.
-`narration_quote` = the exact words from the narration. `claim` = that statement made self-contained (no pronouns). `queries` = 1-2 short encyclopedic search queries (2-5 words). `line` = narration line index."""
+`narration_quote` = the exact words from the narration. `claim` = that statement made self-contained (no pronouns) with EVERY number, year and date written as DIGITS, because the evidence uses digits ('twenty-five feet' -> '25 feet', 'nineteen nineteen' -> '1919', 'two point three million' -> '2.3 million'). `queries` = 1-2 short encyclopedic search queries (2-5 words). `line` = narration line index."""
+
 
 JUDGE_SYSTEM = """You judge claims ONLY against the evidence provided for each claim. Never use your own knowledge.
 SUPPORTED = the evidence states the claim INCLUDING every specific detail in it (numbers, durations such as 'three days', words like 'significantly' or 'always', named examples).
@@ -56,6 +58,7 @@ PARTIAL = the evidence supports only the general idea, but at least one specific
 CONTRADICTED = the evidence states otherwise, or shows the claim is wrong or misleading.
 NO_EVIDENCE = the evidence is irrelevant or silent on the claim.
 When unsure between SUPPORTED and PARTIAL, choose PARTIAL.
+Numbers and dates match in any form (21 = twenty-one, 2.3 million = two point three million, 1919 = nineteen nineteen): that is not a missing detail. Different wording of the same fact is the same fact.
 For SUPPORTED, PARTIAL and CONTRADICTED you MUST give `quote`: a verbatim passage (max 25 words) copied exactly from the evidence text that decides the verdict, and `source_url`: the url of the evidence item containing it. For NO_EVIDENCE leave both empty.
 `reason` = one short sentence (never empty), naming the missing or wrong detail."""
 
@@ -64,14 +67,60 @@ def _squash(s: str) -> str:
     return re.sub(r"[^a-z0-9]", "", s.lower())
 
 
+def _words(s: str) -> list[str]:
+    return re.findall(r"[a-z0-9]+", s.lower())
+
+
 def quote_ok(quote: str, url: str, evidence: list[dict]) -> bool:
-    """Deterministic proof check: every piece of the quote must appear in the cited evidence."""
+    """Deterministic proof check. Word for word first; else at least 80% of the quote's 3-word groups must appear in the cited evidence."""
     segs = [_squash(s) for s in re.split(r"\.{3}|…", quote)]
     segs = [s for s in segs if len(s) >= 12]
-    if not segs or sum(len(s) for s in segs) < 20:
-        return False
     texts = [_squash(e["text"]) for e in evidence if e["url"] == url]
-    return any(all(s in t for s in segs) for t in texts)
+    if segs and sum(len(s) for s in segs) >= 20 and any(all(s in t for s in segs) for t in texts):
+        return True
+    qw = _words(quote)
+    if len(qw) < 6:
+        return False
+    grams = {tuple(qw[i:i + 3]) for i in range(len(qw) - 2)}
+    for e in evidence:
+        if e["url"] == url:
+            ew = _words(e["text"])
+            if len(grams & {tuple(ew[i:i + 3]) for i in range(len(ew) - 2)}) / len(grams) >= 0.8:
+                return True
+    return False
+
+
+def grade(v, ev: list[dict]) -> tuple[str, str]:
+    verdict = v.verdict.strip().upper() if v else "NO_EVIDENCE"
+    reason = (v.reason if v else "") or "no reason given"
+    if verdict not in VALID or not ev:
+        verdict = "NO_EVIDENCE"
+    if verdict != "NO_EVIDENCE" and not quote_ok(v.quote, v.source_url, ev):
+        reason = f"downgraded: quote not found in cited evidence ({reason})"
+        verdict = "NO_EVIDENCE"
+    return verdict, reason
+
+
+def judge_batches(items: list[dict]) -> dict:
+    """Judge in small batches (a free Groq model takes about 8K tokens a minute)."""
+    out, batch, size = {}, [], 0
+    limit = int(os.getenv("JUDGE_BATCH_CHARS", "9000"))
+
+    def flush():
+        nonlocal batch, size
+        if batch:
+            r = generate_structured(json.dumps(batch, ensure_ascii=False), VerdictList, system=JUDGE_SYSTEM, temperature=0.0, task="judge")
+            out.update({v.id: v for v in r.verdicts})
+        batch, size = [], 0
+
+    for p in items:
+        n = len(json.dumps(p, ensure_ascii=False))
+        if batch and size + n > limit:
+            flush()
+        batch.append(p)
+        size += n
+    flush()
+    return out
 
 
 def check_once(draft: ScriptDraft) -> list[dict]:
@@ -83,25 +132,33 @@ def check_once(draft: ScriptDraft) -> list[dict]:
         ev = collect_evidence(c.claim, c.queries)
         print(f"[factcheck] claim {i}: {len(ev)} evidence item(s) for: {c.claim[:70]}")
         packed.append({"id": i, "claim": c.claim, "evidence": ev})
-    judged = {}
-    if any(p["evidence"] for p in packed):
-        judged = {v.id: v for v in generate_structured(json.dumps(packed, ensure_ascii=False), VerdictList,
-                                                      system=JUDGE_SYSTEM, temperature=0.0, task="factcheck").verdicts}
+    judged = judge_batches([p for p in packed if p["evidence"]])
+    grades = {p["id"]: grade(judged.get(p["id"]), p["evidence"]) for p in packed}
+    # a second, independent source for the claims Wikipedia could not settle
+    weak = [i for i, (vd, _) in grades.items() if vd in ("NO_EVIDENCE", "PARTIAL")][:int(os.getenv("FACT_WEB_MAX", "4"))]
+    extra = []
+    for i in weak:
+        more = web_evidence(claims[i].claim)
+        if more:
+            packed[i]["evidence"] = packed[i]["evidence"] + more
+            extra.append(packed[i])
+    if extra:
+        print(f"[factcheck] second source (reliable sites) for {len(extra)} claim(s)")
+        judged2 = judge_batches(extra)
+        for p in extra:
+            if judged2.get(p["id"]) is not None:
+                judged[p["id"]] = judged2[p["id"]]
+                grades[p["id"]] = grade(judged2[p["id"]], p["evidence"])
     report = []
     for i, c in enumerate(claims):
+        verdict, reason = grades[i]
         v, ev = judged.get(i), packed[i]["evidence"]
-        verdict = v.verdict.strip().upper() if v else "NO_EVIDENCE"
-        reason = (v.reason if v else "") or "no reason given"
-        if verdict not in VALID or not ev:
-            verdict = "NO_EVIDENCE"
-        if verdict != "NO_EVIDENCE" and not quote_ok(v.quote, v.source_url, ev):
-            reason = f"downgraded: quote not found in cited evidence ({reason})"
-            verdict = "NO_EVIDENCE"
+        if verdict != "SUPPORTED":
+            print(f"[factcheck]   {verdict:<12} {c.claim[:80]} -> {reason[:170]}")
         report.append({"id": i, "line": c.line, "narration_quote": c.narration_quote, "claim": c.claim,
                        "verdict": verdict, "reason": reason,
                        "quote": v.quote if v else "", "source_url": v.source_url if v else "", "evidence": ev})
     return report
-
 
 def rewrite(draft: ScriptDraft, bad: list[dict], weak: list[dict]) -> ScriptDraft:
     asks = []

@@ -286,7 +286,10 @@ $('#suggest').onclick=async e=>{
 };
 
 /* ---------- worker ---------- */
+let polling=false;
 async function pollWorker(){
+  if(polling)return;
+  polling=true;
   try{
     const w=await api('/api/worker'),el=$('#wk');
     el.textContent=w.running?('working: '+w.cmd):(w.stopped?'stopped':(w.returncode==null?'idle':'last run '+(w.returncode?'failed':'ok')));
@@ -300,6 +303,7 @@ async function pollWorker(){
     if(l.text){const pre=$('#log'),end=pre.scrollTop+pre.clientHeight>=pre.scrollHeight-20;pre.textContent+=l.text;if(end)pre.scrollTop=pre.scrollHeight}
     logOff=l.offset;
   }catch(e){}
+  polling=false;
 }
 
 /* ---------- niches ---------- */

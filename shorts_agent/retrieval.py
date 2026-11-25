@@ -22,10 +22,10 @@ STOP = set("the a an of to in is it and or for on that this with as are be by at
 BLOCK = re.compile(r"suicide|self[- ]harm|euthanasia|autoerotic|choking game", re.I)
 
 def _tokens(s: str) -> set[str]:
-    return {w for w in re.findall(r"[a-z]{3,}", s.lower()) if w not in STOP}
+    return {w for w in re.findall(r"[a-z]{3,}|\d{2,}", s.lower()) if w not in STOP}
 
 
-def _best_paragraphs(text: str, claim: str, n: int = 2, max_chars: int = 700) -> list[str]:
+def _best_paragraphs(text: str, claim: str, n: int = 3, max_chars: int = 700) -> list[str]:
     q = _tokens(claim)
     paras = [p.strip() for p in text.split("\n") if len(p.strip()) > 80]
     scored = sorted(paras, key=lambda p: len(q & _tokens(p)), reverse=True)
@@ -77,12 +77,13 @@ def pubmed_evidence(query: str, n: int = 2, max_chars: int = 900) -> list[dict]:
 
 def collect_evidence(claim: str, queries: list[str], cap: int = 6) -> list[dict]:
     seen, out = set(), []
-    for q in queries[:2]:
-        for ev in wikipedia_evidence(q, claim) + pubmed_evidence(q):
-            key = (ev["url"], ev["text"][:60])
-            if key not in seen:
-                seen.add(key)
-                out.append(ev)
+    wiki = [ev for q in queries[:2] for ev in wikipedia_evidence(q, claim)]
+    med = [ev for q in queries[:1] for ev in pubmed_evidence(q)] if os.getenv("PUBMED", "1") != "0" else []
+    for ev in wiki + med:                                   # Wikipedia first: PubMed must not push it out of the 6 slots
+        key = (ev["url"], ev["text"][:60])
+        if key not in seen:
+            seen.add(key)
+            out.append(ev)
     return out[:cap]
 
 def wikipedia_facts(query: str, pages: int = 2, max_chars: int = 900) -> list[dict]:
@@ -105,4 +106,35 @@ def wikipedia_facts(query: str, pages: int = 2, max_chars: int = 900) -> list[di
                             "url": "https://en.wikipedia.org/wiki/" + t.replace(" ", "_"), "text": p[:max_chars]})
     except Exception as e:
         print(f"[retrieval] wikipedia failed for '{query}': {e}")
+    return out
+
+RELIABLE = ("britannica.com,history.com,loc.gov,archives.gov,smithsonianmag.com,si.edu,nationalgeographic.com,"
+            "worldhistory.org,bbc.com,theguardian.com,nytimes.com,nps.gov,historic-uk.com")
+_WEB_CACHE: dict[str, list[dict]] = {}
+
+
+def web_evidence(claim: str, n: int = 4, max_chars: int = 700) -> list[dict]:
+    """A second, independent source: Tavily search limited to reliable sites (needs TAVILY_API_KEY, else [])."""
+    key = os.getenv("TAVILY_API_KEY")
+    if not key:
+        return []
+    ck = f"{n}|{claim}"
+    if ck in _WEB_CACHE:
+        return _WEB_CACHE[ck]
+    domains = [d.strip() for d in (os.getenv("FACT_DOMAINS") or RELIABLE).split(",") if d.strip()]
+    out: list[dict] = []
+    try:
+        r = _http.post("https://api.tavily.com/search", headers={"Authorization": f"Bearer {key}"},
+                       json={"query": claim[:380], "search_depth": "basic", "max_results": n, "include_domains": domains, "include_answer": False})
+        if r.status_code != 200:
+            print(f"[retrieval] tavily HTTP {r.status_code}: {r.text[:120]}")
+        else:
+            for it in r.json().get("results", []):
+                text = (it.get("content") or "").strip()
+                if len(text) > 60 and it.get("url"):
+                    host = re.sub(r"^https?://(www\.)?([^/]+).*", r"\2", it["url"])
+                    out.append({"source": host, "title": str(it.get("title", ""))[:120], "url": it["url"], "text": text[:max_chars]})
+    except Exception as e:
+        print(f"[retrieval] tavily failed: {type(e).__name__}")
+    _WEB_CACHE[ck] = out
     return out

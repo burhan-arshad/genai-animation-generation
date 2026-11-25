@@ -9,7 +9,7 @@ from . import niche
 from .config import REPO
 
 ENV = REPO / ".env"
-CHAINS = ["RESEARCH", "SCRIPT", "FACTCHECK", "TOPICS", "STORYBOARD", "STORYBOARD_HARD", "PROPS", "PROPS_HARD", "VISION"]
+CHAINS = ["RESEARCH", "SCRIPT", "FACTCHECK", "JUDGE", "VOICE", "TOPICS", "STORYBOARD", "STORYBOARD_HARD", "PROPS", "PROPS_HARD", "VISION"]
 
 # (key, label, kind, hint, group).  kind: text | number | secret | select:a,b,c | hidden
 FIELDS = [

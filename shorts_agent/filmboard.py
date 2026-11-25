@@ -46,6 +46,37 @@ SHAPES = ["rect", "circle", "ellipse", "poly", "line", "text"]
 MAX_SHOT = 6.2
 HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 
+ALT_CAM = {"push_in": "pull_out", "pull_out": "push_in", "pan_left": "pan_right", "pan_right": "pan_left", "static": "drift", "drift": "push_in",
+           "crane_down": "push_in", "crane_up": "pull_out", "punch_in": "drift", "handheld": "drift"}
+ALT_FRAME = {"establishing": "wide", "wide": "medium", "full": "medium", "medium": "full", "close": "medium", "extreme_close": "medium"}
+# quality notes (not structure): on the last try a story with only these is accepted instead of thrown away
+SOFT = ("must show objects", "People must be in", "Characters must act", "different camera moves", "different framings", "close-ups",
+        "repeat set", "a motion", "Add callouts")
+
+
+def fill_gaps(items: list, tm: Timing, lo: int, hi: int, warns: list[str]) -> list:
+    """items = [(start, ShotDraft)]. A line the director forgot gets a copy of the shot before it, seen from another camera
+    (a small model skips a line now and then; asking it again costs minutes)."""
+    out = sorted(items, key=lambda x: x[0])
+    for ln in range(lo, hi):
+        s0, e0 = tm.start(ln), tm.end(ln)
+        if any(s0 - 0.3 <= t <= e0 - 0.8 for t, _ in out):
+            continue
+        prev = [(t, sd) for t, sd in out if t <= s0 + 0.05]
+        nxt = [t for t, _ in out if t > s0 + 0.05]
+        if not prev or s0 - prev[-1][0] < 0.8 or (nxt and nxt[0] - s0 < 0.8):
+            continue
+        c = prev[-1][1].model_copy(deep=True)
+        c.line, c.word = ln, ""
+        c.camera, c.framing = ALT_CAM.get(c.camera, "drift"), ALT_FRAME.get(c.framing, "medium")
+        c.transition, c.effect, c.callouts = "cut", "none", []
+        for a in c.actors:
+            a.beats = []
+        out.append((round(s0, 3), c))
+        out.sort(key=lambda x: x[0])
+        warns.append(f"line {ln} had no shot: copied the shot before it (new camera)")
+    return out
+
 
 # ───────────── the story object the LLM writes ─────────────
 class Look(BaseModel):
@@ -299,15 +330,9 @@ def build(d: StoryDraft, tm: Timing, hero_ok: bool = True, hook: dict | None = N
         clean_d.append((t, sd))
     if clean_d:
         clean_d[0] = (t_lo, clean_d[0][1])
+        clean_d = fill_gaps(clean_d, tm, lo_line, hi_line, warns)
     else:
         problems.append("No usable story shots.")
-    starts = [t for t, _ in clean_d]
-    for ln in range(lo_line, hi_line):
-        s0, e0 = tm.start(ln), tm.end(ln)
-        last = max([t for t in starts if t <= s0 + 0.05] or [t_lo])
-        if e0 - last > 5.5:
-            problems.append(f"Line {ln} has no shot of its own: add a shot for it (every line needs one; a line longer than 3 s gets two).")
-            break
 
     for k, (t, sd) in enumerate(clean_d):
         end = clean_d[k + 1][0] if k + 1 < len(clean_d) else t_hi
@@ -367,7 +392,7 @@ def build(d: StoryDraft, tm: Timing, hero_ok: bool = True, hook: dict | None = N
         if dur <= MAX_SHOT:
             out.append(sh)
             continue
-        parts = int(dur // 4.2) or 1
+        parts = max(2, int(-(-dur // 4.5)))
         cuts = [sh["at"] + dur * i / parts for i in range(parts)] + [sh["end"]]
         alt = {"push_in": "pull_out", "pull_out": "push_in", "pan_left": "pan_right", "pan_right": "pan_left", "static": "drift", "drift": "push_in", "crane_down": "push_in", "crane_up": "pull_out", "punch_in": "drift", "handheld": "drift"}
         for i in range(parts):
@@ -598,6 +623,79 @@ def fallback(tm: Timing, script: dict) -> StoryDraft:
     return StoryDraft.model_validate({"title": script["title"], "place": "", "date": "", "intro_lines": 1, "outro_lines": 1, "intro_prop": "scroll", "outro_stamp": "", "cast": cast, "sets": sets,
                                       "custom_props": [], "shots": shots})
 
+# ───────────── small-model mode: the story is written in small calls (a free Groq model takes ~8K tokens a minute) ─────────────
+class Bible(BaseModel):
+    title: str
+    place: str
+    date: str
+    intro_lines: int
+    outro_lines: int
+    intro_prop: str
+    outro_stamp: str
+    cast: list[Look]
+    sets: list[SetDef]
+    custom_props: list[CustomProp]
+
+
+class ShotsPart(BaseModel):
+    shots: list[ShotDraft]
+
+
+HOST_RULE = {"first_last": "The host says the first `intro_lines` lines (the hook) and the last `outro_lines` lines (the punchline) on camera.",
+             "first": "The host appears only at the start (`intro_lines` = 1-3). Set `outro_lines` to 0.",
+             "none": "There is no host: set `intro_lines` and `outro_lines` to 0."}
+
+
+def host_lines(d_intro, d_outro, appear: str, n: int) -> tuple[int, int]:
+    intro, outro = int(_num(d_intro, 1, 3, 2)), int(_num(d_outro, 1, 2, 1))
+    if appear == "none":
+        intro = outro = 0
+    elif appear == "first":
+        outro = 0
+    if intro + outro >= n:
+        intro, outro = (1, 1) if appear == "first_last" else (1 if appear == "first" else 0, 0)
+    return intro, outro
+
+
+def draft_in_parts(script: dict, tm: Timing, topic: str, year, plan: dict, appear: str, step: int, fixes: list[str], task: str) -> StoryDraft:
+    """Call 1: cast, places, special objects. Then the shots `step` lines at a time. Same result as one big call, but every call is small."""
+    n = len(tm.lines)
+    all_lines = "\n".join(f"{i}: [{l['start']:.1f}-{l['end']:.1f}s] {l['text']}" for i, l in enumerate(tm.lines))
+    note = ("\nPROBLEMS IN YOUR PREVIOUS TRY (fix them):\n- " + "\n- ".join(str(p)[:300] for p in fixes[:8])) if fixes else ""
+    head = f"TOPIC: {topic}\nTITLE: {script['title']}\nYEAR: {year or 'unknown'}\n"
+    bible = generate_structured(
+        f"{SYSTEM}\n\n{HOST_RULE.get(appear, '')}\nTASK 1 OF 2: write ONLY title, place, date, intro_lines, outro_lines, intro_prop, outro_stamp, cast, sets and "
+        f"custom_props (at most 4 custom objects, 6-10 parts each). Do not write shots yet.\n\n{head}SCRIPT:\n{all_lines}{note}",
+        Bible, system="You output only the JSON object.", temperature=0.6, task=task)
+    intro, outro = host_lines(bible.intro_lines, bible.outro_lines, appear, n)
+    lo, hi = intro, n - outro
+    cast = ", ".join(i for i in (_id(c.id) for c in bible.cast[:8]) if i and i not in ("hero", "host")) or "(none)"
+    sets = ", ".join(f"{_id(s.id)} ({s.kind}, {s.time})" for s in bible.sets[:8] if _id(s.id)) or "(none)"
+    customs = ", ".join(_id(c.name) for c in bible.custom_props[:8] if _id(c.name)) or "(none)"
+    shots: list[ShotDraft] = []
+    prev = ""
+    for a in range(lo, hi, step):
+        b = min(a + step, hi)
+        mine = "\n".join(f"{i}: [{tm.lines[i]['start']:.1f}-{tm.lines[i]['end']:.1f}s] {tm.lines[i]['text']}" for i in range(a, b))
+        around = (f"Line before: {tm.lines[a - 1]['text']}\n" if a > 0 else "") + (f"Line after: {tm.lines[b]['text']}\n" if b < n else "")
+        emo = ", ".join(f"{i}: {plan[i]['emotion']}" for i in range(a, b) if i in plan)
+        emo_txt = f"Narrator emotion per line: {emo}\n" if emo else ""
+        part = generate_structured(
+            f"{SYSTEM}\n\nTASK 2 OF 2: write the shots for script lines {a} to {b - 1} ONLY (every shot's `line` must be in {a}..{b - 1}; at least one shot per line, "
+            f"two for a line longer than 3 s).\nUse ONLY these character ids: {cast}\nSet ids: {sets}\nCustom objects (use these exact names): {customs}\n"
+            f"{head}{prev}{around}{emo_txt}LINES TO DIRECT:\n{mine}{note}",
+            ShotsPart, system="You output only the JSON object.", temperature=0.6, task=task)
+        raw = part.shots
+        if raw and not any(a <= s.line < b for s in raw) and all(0 <= s.line < b - a for s in raw):
+            for s in raw:
+                s.line += a
+        got = [s for s in raw if a <= s.line < b]
+        shots += got
+        if got:
+            prev = f"Previous shot (do not repeat its set + framing + camera): {got[-1].set}, {got[-1].framing}, {got[-1].camera}\n"
+        print(f"[storyboard] lines {a}-{b - 1}: {len(got)} shot(s)")
+    return StoryDraft(**bible.model_dump(), shots=shots)
+
 
 def engine_dir(st: styles.Style) -> Path:
     return SKILL_DIR / "styles" / (st.engine or "film") / "example"
@@ -653,16 +751,25 @@ def build_shots(project: Path) -> None:
     logs = project / "logs"
     logs.mkdir(exist_ok=True)
     base = build_prompt(script, tm, topic, year, plan, appear)
+    chunk = int(os.getenv("STORYBOARD_CHUNK_LINES", "0") or 0)       # 0 = one big call (needs a big model), 3 = small calls
     prompt, problems, last = base, [], None
     for attempt in range(1, max_tries + 1):
         task = "storyboard" if attempt <= 2 else "storyboard_hard"
-        draft = generate_structured(prompt, StoryDraft, system="You output only the JSON story object.", temperature=0.6, task=task)
+        if chunk:
+            draft = draft_in_parts(script, tm, topic, year, plan, appear, chunk, problems, task)
+        else:
+            draft = generate_structured(prompt, StoryDraft, system="You output only the JSON story object.", temperature=0.6, task=task)
         (logs / f"story_attempt{attempt}.json").write_text(draft.model_dump_json(indent=1), encoding="utf-8")
         story, problems, warns = build(draft, tm, **opts)
         for w in warns:
             print("   warning:", w)
         print(f"[storyboard] attempt {attempt} ({task}): {len(problems)} problem(s), {len(warns)} warning(s)")
-        if not problems:
+        for p in problems:
+            print("   -", p[:200])
+        hard = [p for p in problems if not any(m in p for m in SOFT)]
+        if not problems or (attempt == max_tries and not hard and os.getenv("STORYBOARD_ACCEPT_SOFT", "1") != "0"):
+            if problems:
+                print("[storyboard] last try: using the story, the notes above are only about quality")
             (project / "data").mkdir(exist_ok=True)
             (project / "data" / "story.json").write_text(json.dumps(story, indent=1, ensure_ascii=False), encoding="utf-8")
             ok, out = run_check(project)

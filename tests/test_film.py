@@ -92,11 +92,12 @@ def test_bad_direction_is_reported_to_the_llm():
     assert "objects" in text and "People" in text and "callouts" in text.lower()
 
 
-def test_missing_lines_are_reported():
+def test_missing_lines_are_filled_in_code():
     d = good_draft()
     d.shots = d.shots[:3]
-    _, problems, _ = F.build(d, timing())
-    assert any("has no shot" in p for p in problems)
+    story, problems, warns = F.build(d, timing())
+    assert not any("has no shot" in p for p in problems) and any("had no shot" in w for w in warns)
+    assert len([s for s in story["shots"] if s["set"] != "study"]) >= 8
 
 
 def test_long_shots_are_split():
@@ -162,3 +163,10 @@ def test_the_hosts_mood_follows_the_narrators_emotion():
 def test_default_build_has_no_cold_open_or_loop():
     story, _, _ = F.build(good_draft(), timing())
     assert all(s["framing"] != "panel" for s in story["shots"])
+
+def test_a_long_line_is_split_not_rejected():
+    tm = timing(n=12, each=8.0)                  # every line is about 8 s long
+    story, problems, _ = F.build(good_draft(lines=range(2, 10)), tm)
+    assert not any("has no shot" in p for p in problems)
+    body = [s for s in story["shots"] if s["set"] != "study"]
+    assert body and all(s["end"] - s["at"] <= F.MAX_SHOT + 0.01 for s in body)

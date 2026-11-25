@@ -18,6 +18,8 @@ def fresh(tmp_path, monkeypatch):
     monkeypatch.setenv("DEFAULT_DAILY_LIMIT", "100")
     monkeypatch.setenv("GEMINI_MODEL_TESTTASK", "A,B")
     monkeypatch.delenv("DAILY_LIMITS", raising=False)
+    monkeypatch.setenv("LLM_TRIES", "2")
+    monkeypatch.setenv("LLM_BREAKER_SECONDS", "180")
 
 
 def script(monkeypatch, behaviour):

@@ -368,6 +368,10 @@ def worker_start(b: Start):
         raise HTTPException(400, "unknown command")
     if _running():
         raise HTTPException(409, "a worker is already running")
+    if b.job and b.cmd in ("run", "preview"):
+        j = store.get_job(b.job)
+        if j and j["status"] == "suggested":      # pressing "Make this video" = approve it
+            store.set_job(b.job, status="queued", error=None, tries=0)
     args = list(COMMANDS[b.cmd])
     if b.cmd in ("run", "upload", "preview") and b.job:
         args += ["--job", str(b.job)]

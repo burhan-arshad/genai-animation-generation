@@ -109,6 +109,7 @@ def advance(job: dict) -> str:
 def run(limit: int, job_id: int | None = None, until: str | None = None) -> str | None:
     """Advance jobs until they are ready or dropped (or until the stage `until` is reached). Returns 'budget' / 'overload' when stopped early."""
     con = store.db()
+    failed = False
     marks = ",".join("?" * len(TERMINAL))
     if job_id:
         rows = con.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchall()
@@ -133,6 +134,7 @@ def run(limit: int, job_id: int | None = None, until: str | None = None) -> str 
                 store.set_job(job["id"], status="dropped", error=str(e)[:2000])
                 job["status"] = "dropped"
                 print(f"[job {job['id']}] DROPPED at '{name}': {str(e)[:300]}")
+                failed = True
                 break
             except (Exception, SystemExit) as e:
                 store.log_event(job["id"], stage, t0, False, str(e))
@@ -146,6 +148,7 @@ def run(limit: int, job_id: int | None = None, until: str | None = None) -> str 
                     store.set_job(job["id"], status="dropped", error=str(e)[:2000], tries=tries)
                     job["status"] = "dropped"
                     print(f"[job {job['id']}] DROPPED after {tries} failed tries at '{name}': {str(e)[:300]}")
+                    failed = True
                     break
                 if isinstance(e, FactCheckFailed):   # facts did not hold up: write a fresh script
                     store.set_job(job["id"], status="queued", error=None, tries=tries)
@@ -154,6 +157,7 @@ def run(limit: int, job_id: int | None = None, until: str | None = None) -> str 
                     continue
                 store.set_job(job["id"], error=str(e)[:2000], tries=tries)
                 print(f"[job {job['id']}] FAILED at '{name}' (try {tries}/{MAX_TRIES}): {str(e)[:300]}")
+                failed = True
                 break
             store.log_event(job["id"], stage, t0, True)
             store.set_job(job["id"], status=new, error=None)
@@ -161,7 +165,7 @@ def run(limit: int, job_id: int | None = None, until: str | None = None) -> str 
             print(f"[job {job['id']}] {name} done in {time.time() - t0:.0f}s -> {new}")
         if job["status"] == "ready":
             print(f"[job {job['id']}] READY: {ROOT / job['slug'] / 'renders' / 'final_norm.mp4'}")
-    return None
+    return "failed" if failed else None
 
 
 def list_jobs() -> None:
@@ -206,7 +210,8 @@ if __name__ == "__main__":
         for t in args.topics:
             print(f"queued job {store.add_job(t, key)} [{key}]: {t}")
     elif args.cmd == "run":
-        run(args.limit, args.job, args.until)
+        if run(args.limit, args.job, args.until) == "failed":
+            raise SystemExit(1)
     elif args.cmd == "list":
         list_jobs()
     elif args.cmd == "events":

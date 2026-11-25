@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import os
 import shutil
 from pathlib import Path
 
@@ -92,7 +93,7 @@ def gather(topic: str) -> list[dict]:
                 if key not in seen:
                     seen.add(key)
                     items.append(ev)
-        items = items[:16]
+        items = items[:int(os.getenv("EVIDENCE_ITEMS", "16"))]
         for i, ev in enumerate(items, 1):
             ev["id"] = f"E{i}"
         ok, score = topicgate.evidence_ok(topic, items)
@@ -103,8 +104,8 @@ def gather(topic: str) -> list[dict]:
     raise RuntimeError(f"The research does not match the topic '{topic}' (match {score:.0%}): the topic is too vague or not well documented.")
 
 def evidence_block(items: list[dict]) -> str:
-    return "\n".join(f"{e['id']} [{e['title']} | {e['source']}]\n{e['text']}\n" for e in items)
-
+    n = int(os.getenv("EVIDENCE_CHARS", "900"))
+    return "\n".join(f"{e['id']} [{e['title']} | {e['source']}]\n{e['text'][:n]}\n" for e in items)
 
 def sources_for(r: RScript, ev: dict[str, dict]) -> list[str]:
     seen, out = set(), []
@@ -153,9 +154,11 @@ def write_from_evidence(topic: str, items: list[dict], plan: tuple[str, str] | N
         if miss:
             problems.append(f"The script must be about '{topic}': it never mentions {', '.join(miss)}.")
         print(f"[script] attempt {attempt} ({task}): {len(problems)} problem(s)")
+        for p in problems:
+            print("   -", p[:220])
         if not problems:
             return r, draft
-        prompt = (f"{base}\n\nYour previous attempt:\n{r.model_dump_json(indent=1)}\n\n"
+        prompt = (f"{base}\n\nYour previous attempt:\n{r.model_dump_json()}\n\n"
                   "Fix ALL of these problems and return the full corrected script:\n- " + "\n- ".join(problems))
     raise RuntimeError("Could not write a valid script:\n- " + "\n- ".join(problems))
 

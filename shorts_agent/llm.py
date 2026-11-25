@@ -34,14 +34,17 @@ class BudgetExceeded(RuntimeError):
 
 
 class ProviderError(RuntimeError):
-    def __init__(self, code: int, msg: str):
+    def __init__(self, code: int, msg: str, retry_after: float = 0):
         super().__init__(f"HTTP {code}: {msg}")
         self.code = code
+        self.retry_after = retry_after
 
 
 class Skip(Exception):
     """This model cannot serve the request (not configured / unsupported): move on."""
 
+class TooBig(Exception):
+    """Request is larger than this provider's free limit: use another model for this call (the model itself is fine)."""
 
 # ───────────── usage log ─────────────
 def _con() -> sqlite3.Connection:
@@ -112,7 +115,7 @@ def _unhealthy_until(spec: str) -> float:
     """Circuit breaker derived from the log: the last two calls failed -> skip the model for BREAKER seconds after the last failure.
     After that one probe call decides: success closes the breaker, another failure opens it again."""
     with _con() as con:
-        rows = con.execute("SELECT ts, ok FROM llm_calls WHERE model=? ORDER BY id DESC LIMIT 2", (spec,)).fetchall()
+        rows = con.execute("SELECT ts, ok FROM llm_calls WHERE model=? AND task NOT LIKE '%:429' ORDER BY id DESC LIMIT 2", (spec,)).fetchall()
     if len(rows) == 2 and not rows[0][1] and not rows[1][1]:
         until = rows[0][0] + float(os.getenv("LLM_BREAKER_SECONDS", "180"))
         return until if until > time.time() else 0.0
@@ -186,21 +189,30 @@ def _openai(provider: str, name: str, req: dict):
     if req["schema"] is not None:
         system += ("\n\nReturn ONLY one JSON object (no prose, no markdown fences) that matches this JSON schema:\n"
                    + json.dumps(req["schema"].model_json_schema()))
+    max_in = int(os.getenv(f"PROVIDER_{P}_MAX_INPUT_TOKENS", "0") or 0)       # free-tier size guard
+    if max_in and (len(system) + len(req["prompt"])) / 3.2 > max_in:
+        raise TooBig(f"request is about {int((len(system) + len(req['prompt'])) / 3.2)} tokens, over PROVIDER_{P}_MAX_INPUT_TOKENS={max_in}")
     msgs = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": req["prompt"]}]
     body = {"model": name, "messages": msgs, "temperature": req["temperature"],
             "max_tokens": min(req["max_tokens"] or 8000, int(os.getenv(f"PROVIDER_{P}_MAX_TOKENS", "8000")))}
-    if req["schema"] is not None:
+    if req["schema"] is not None and os.getenv(f"PROVIDER_{P}_JSON_MODE", "1") != "0":
         body["response_format"] = {"type": "json_object"}
+    extra = (os.getenv(f"PROVIDER_{P}_EXTRA") or "").strip()                    # e.g. {"reasoning_effort":"low"}
+    if extra:
+        body.update(json.loads(extra))
     r = httpx.post(url.rstrip("/") + "/chat/completions", headers={"Authorization": f"Bearer {key}"}, json=body,
                    timeout=float(os.getenv("LLM_TIMEOUT_MS", "180000")) / 1000)
     if r.status_code != 200:
-        raise ProviderError(r.status_code, r.text[:300])
+        try:
+            wait = float(r.headers.get("retry-after", 0))
+        except ValueError:
+            wait = 0.0
+        raise ProviderError(r.status_code, r.text[:300], wait)
     j = r.json()
     ch = (j.get("choices") or [{}])[0]
     u = j.get("usage") or {}
     return ((ch.get("message") or {}).get("content") or "",
             (u.get("prompt_tokens", 0), u.get("completion_tokens", 0)), str(ch.get("finish_reason", "?")))
-
 
 def _dispatch(spec: str, req: dict):
     provider, name = _split(spec)
@@ -211,7 +223,8 @@ def _dispatch(spec: str, req: dict):
 def _try_model(spec: str, req: dict, task: str):
     """One model, at most two quick tries. Returns (text, None) or (None, error). Never sleeps long: failing over is cheaper."""
     last: Exception | None = None
-    for attempt in range(2):
+    tries = max(1, int(os.getenv("LLM_TRIES", "2")))
+    for attempt in range(tries):
         try:
             text, (tin, tout), finish = _dispatch(spec, req)
             _log(spec, task, tin, tout, True)
@@ -221,20 +234,28 @@ def _try_model(spec: str, req: dict, task: str):
             _bad[spec] = time.time() + 3600
             print(f"[llm] {spec}: skipped ({e})")
             return None, e
+        except TooBig as e:
+            print(f"[llm] {spec}: {e}: using another model for this call")
+            return None, e
         except Exception as e:
-            _log(spec, task, 0, 0, False)
+            if getattr(e, "code", None) == 413:          # too large for this model: not the model's fault
+                print(f"[llm] {spec}: 413 request too large, trying the next model")
+                return None, e
             kind = _classify(e)
+            _log(spec, task + (":429" if kind == "quota" else ""), 0, 0, False)
             if kind == "quota":
-                _cool[spec] = time.time() + 60
-                print(f"[llm] {spec}: 429, trying the next model")
+                ra = float(getattr(e, "retry_after", 0) or 0)
+                wait = min(ra + 1, 86400.0) if ra > 0 else 60.0
+                _cool[spec] = time.time() + wait
+                print(f"[llm] {spec}: 429, cooling down {wait:.0f}s, trying the next model")
                 return None, BudgetExceeded(f"{spec}: provider returned 429")
             if kind == "fatal":
                 _bad[spec] = time.time() + 600
                 print(f"[llm] {spec}: {str(e)[:140]} (skipping this model for 10 min)")
                 return None, e
             last = e
-            if attempt == 0:
-                time.sleep(3)
+            if attempt < tries - 1:
+                time.sleep(4 * (attempt + 1))
     print(f"[llm] {spec}: {type(last).__name__}, switching model")
     return None, last
 
@@ -242,7 +263,7 @@ def _try_model(spec: str, req: dict, task: str):
 def _call(req: dict, task: str, validate=None):
     chain = _models_for(task)
     last: Exception | None = None
-    for _ in range(4):
+    for _ in range(max(1, int(os.getenv("LLM_ROUNDS", "4")))):
         soonest = float("inf")
         for spec in chain:
             blocked = max(_cool.get(spec, 0), _bad.get(spec, 0), _unhealthy_until(spec))

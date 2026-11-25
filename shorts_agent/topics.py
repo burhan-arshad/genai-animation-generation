@@ -1,15 +1,18 @@
-"""Topic agent: proposes safe, well-documented topics for the active niche. Code filters duplicates, risky themes and thin evidence."""
+"""Topic agent: picks real, documented events (Wikipedia 'On this day') that are surprising, and code checks that they can be researched and fact-checked."""
 from __future__ import annotations
 
 import argparse
+import datetime as dt
+import os
+import random
 import re
-from .topicgate import evidence_ok
 
 from pydantic import BaseModel
 
 from . import niche, store, styles
 from .llm import generate_structured
-from .retrieval import wikipedia_facts
+from .retrieval import _http, web_evidence, wikipedia_facts
+from .topicgate import evidence_ok
 
 # Baseline that no niche file can weaken
 GLOBAL_BLOCK = re.compile(r"genocide|massacre|holocaust|terror|suicide|\brape|torture|child abuse|sexual", re.I)
@@ -49,7 +52,35 @@ def reject_reason(i: Idea, cfg: dict, block: re.Pattern, used_tok: list[set[str]
         return "thin evidence"
     if not evidence_ok(i.topic, items)[0]:
         return "wikipedia does not match"
+    dense = sum(1 for e in items if len(re.findall(r"\d", e["text"])) >= 4)      # paragraphs with numbers or dates: what the fact-check can verify
+    if dense < int(os.getenv("TOPIC_MIN_FACTS", "3")):
+        return "too few checkable facts"
+    if os.getenv("TAVILY_API_KEY") and os.getenv("TOPIC_WEB_PROBE", "1") != "0" and not web_evidence(i.topic, n=2):
+        return "no second reliable source"
     return None
+
+
+def feed_candidates(cfg: dict, days: int = 3) -> list[dict]:
+    """Real events from Wikipedia's 'On this day' pages for today +- `days` (no key needed). [] when the feed is unreachable."""
+    out, seen = [], set()
+    lo, hi = cfg.get("year_min"), cfg.get("year_max")
+    today = dt.date.today()
+    for k in range(-days, days + 1):
+        d = today + dt.timedelta(days=k)
+        try:
+            r = _http.get(f"https://en.wikipedia.org/api/rest_v1/feed/onthisday/events/{d.month:02d}/{d.day:02d}")
+            events = r.json().get("events", []) if r.status_code == 200 else []
+        except Exception:
+            continue
+        for ev in events:
+            year, text = ev.get("year"), re.sub(r"\s+", " ", str(ev.get("text", ""))).strip()
+            if not isinstance(year, int) or len(text) < 30 or text in seen:
+                continue
+            if lo is not None and hi is not None and not lo <= year <= hi:
+                continue
+            seen.add(text)
+            out.append({"year": year, "text": text[:170]})
+    return out
 
 
 def suggest(n: int = 3, key: str | None = None) -> list[Idea]:
@@ -60,6 +91,16 @@ def suggest(n: int = 3, key: str | None = None) -> list[Idea]:
     formats = cfg.get("formats") or ["a surprising true story"]
     prompt = ("Topics already used (do not repeat):\n" + ("\n".join(f"- {t}" for t in used[-60:]) or "(none yet)")
               + f"\n\nPreferred kind of story this time: {formats[len(used) % len(formats)]}.\nPropose 12 topics.")
+    cands = feed_candidates(cfg)
+    random.shuffle(cands)
+    if cands:
+        prompt += ("\n\nREAL EVENTS from Wikipedia's 'On this day' pages (around today's date). Choose ONLY from these, so every topic is a real, well documented event. "
+                   "Pick the most surprising, specific and visual ones: a twist, a strange cause, a number a viewer remembers. Skip famous wars, politics and anything generic. "
+                   "Write each pick as a plain `topic` that names the event AND the year, give its `year` and `region`.\n"
+                   + "\n".join(f"- {c['year']}: {c['text']}" for c in cands[:50]))
+        print(f"[topics] {len(cands)} real events found for this week, the AI chooses from {min(50, len(cands))}")
+    else:
+        print("[topics] no real-event feed (offline?): the AI proposes topics on its own")
     try:
         from . import analytics
         prompt += "\n\n" + analytics.lessons()

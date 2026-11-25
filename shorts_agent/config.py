@@ -53,6 +53,9 @@ def render_env(profile: str | None = None, project=None) -> dict[str, str]:
     if project is not None and p != "preview" and is_film(project):
         p = "film"
     env = dict(PROFILES.get(p, PROFILES["balanced"]))
+    fps = (os.getenv("RENDER_FPS") or "").strip()
+    if p == "film" and fps in ("10", "15"):          # draw fewer frames, the video is still saved at 30 fps (exact frame doubling)
+        env["FPS"], env["OUT_FPS"] = fps, "30"
     if os.getenv("RENDER_SOFTWARE", "1") != "0":    # capture.mjs only checks that SOFTWARE_GL is set
         env["SOFTWARE_GL"] = "1"
     env["BOOT_SECONDS"] = os.getenv("BOOT_SECONDS", "600")

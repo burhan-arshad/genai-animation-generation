@@ -54,7 +54,9 @@ def test_topic_filters(tmp_path, monkeypatch):
         ("The Brooklyn Bridge opens in 1883", 1883, "United States"),             # ok
         ("The Golden Spike of 1869", 1869, "United States")]]                     # ok
     monkeypatch.setattr(topics, "generate_structured", lambda *a, **k: topics.IdeaList(ideas=ideas))
-    monkeypatch.setattr(topics, "wikipedia_facts", lambda q: [{"url": "u", "text": "t"}] * 5)
+    monkeypatch.setattr(topics, "feed_candidates", lambda cfg: [])
+    monkeypatch.setattr(topics, "web_evidence", lambda *a, **k: [{"url": "w", "text": "x"}])
+    monkeypatch.setattr(topics, "wikipedia_facts", lambda q: [{"url": "u", "text": "In 1919 the tank held 2300000 gallons"}] * 5)
     got = [i.topic for i in topics.suggest(2, "history")]
     assert got == ["The Brooklyn Bridge opens in 1883", "The Golden Spike of 1869"]
 
