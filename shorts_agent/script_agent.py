@@ -14,7 +14,7 @@ from . import brand, hooks, niche, store, styles
 from .config import REPO, SKILL_DIR
 from .llm import generate_structured
 from .retrieval import wikipedia_facts
-from .schemas import Line, ScriptDraft, check_script, repair_caps, repair_numbers, to_script_json
+from .schemas import Line, ScriptDraft, check_script, repair_caps, repair_numbers, speak_numbers, to_script_json
 
 
 class Plan(BaseModel):

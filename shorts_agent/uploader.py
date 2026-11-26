@@ -84,12 +84,6 @@ def build_metadata(project: Path, key: str | None = None) -> dict:
         total += len(t) + 1
     return {"title": title, "description": desc[:4900], "tags": tags}
 
-def next_publish_time(hour_utc: int) -> str:
-    now = dt.datetime.now(dt.timezone.utc)
-    t = now.replace(hour=hour_utc, minute=0, second=0, microsecond=0)
-    if t <= now + dt.timedelta(minutes=30):
-        t += dt.timedelta(days=1)
-    return t.strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
 
 def _insert(svc, body: dict, video: Path) -> dict:
@@ -138,7 +132,9 @@ def upload(svc, video: Path, meta: dict, privacy: str, publish_at: str | None, s
         raise UploadError(text[:400]) from e
 
 
-def upload_ready(limit: int = 1, job_id: int | None = None) -> list[str]:
+def upload_ready(limit: int = 1, job_id: int | None = None, mode: str | None = None, publish_at: str | None = None) -> list[str]:
+    """mode None or 'private' = private; 'now' = public at once; 'private' = private;
+    'schedule' = private + publishAt (the given time, or the next free slot of the schedule)."""
     if job_id:
         rows = store.db().execute("SELECT * FROM jobs WHERE id=? AND status='ready'", (job_id,)).fetchall()
     else:
@@ -147,9 +143,6 @@ def upload_ready(limit: int = 1, job_id: int | None = None) -> list[str]:
         print("no ready videos to upload")
         return []
     svc = get_service()
-    review = os.getenv("REQUIRE_APPROVAL", "1") == "1"       # review period: everything is uploaded private, you publish it by hand
-    privacy = "private" if review else os.getenv("UPLOAD_PRIVACY", "private")
-    hour = os.getenv("PUBLISH_AT_UTC_HOUR", "").strip()
     synthetic = os.getenv("SYNTHETIC_DISCLOSURE", "false").lower() == "true"
     urls = []
     for r in rows:
@@ -160,9 +153,24 @@ def upload_ready(limit: int = 1, job_id: int | None = None) -> list[str]:
             continue
         meta = build_metadata(project, r["style"])
         category = os.getenv("CATEGORY_ID") or upload_defaults(r["style"]).get("category_id", "27")
-        publish_at = next_publish_time(int(hour)) if (hour and privacy == "public") else None
-        print(f"[job {r['id']}] uploading '{meta['title']}' as {'private + publishAt ' + publish_at if publish_at else privacy}")
-        resp = upload(svc, video, meta, privacy, publish_at, synthetic, category)
+        if mode == "now":
+            privacy, pub = "public", None
+        elif mode == "private":
+            privacy, pub = "private", None
+        elif mode == "schedule":
+            from . import schedule
+            if publish_at:
+                pub = publish_at
+            else:
+                slots = schedule.next_slots(1)
+                if not slots:
+                    raise UploadError("no free slot: check the days and times in the Assistant tab")
+                pub = schedule.iso(slots[0])
+            privacy = "private"
+        else:
+            privacy, pub = "private", None
+        print(f"[job {r['id']}] uploading '{meta['title']}' as {'private + publishAt ' + pub if pub else privacy}")
+        resp = upload(svc, video, meta, privacy, pub, synthetic, category)
         real = resp.get("status", {}).get("privacyStatus", "?")
         url = f"https://www.youtube.com/watch?v={resp['id']}"
         thumb = project / "thumb.jpg"
@@ -172,8 +180,10 @@ def upload_ready(limit: int = 1, job_id: int | None = None) -> list[str]:
                 svc.thumbnails().set(videoId=resp["id"], media_body=MediaFileUpload(str(thumb), mimetype="image/jpeg")).execute()
             except Exception as e:
                 print(f"  (thumbnail not set: {str(e)[:120]})")
-        store.set_job(r["id"], status="uploaded", youtube_id=resp["id"], note=f"privacy={real}", error=None)
-        print(f"[job {r['id']}] UPLOADED ({real}): {url}")
+        stamp = pub or (dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z") if real == "public" else None)
+        note = f"privacy=scheduled {pub}" if mode == "schedule" else f"privacy={real}"
+        store.set_job(r["id"], status="uploaded", youtube_id=resp["id"], note=note, publish_at=stamp, error=None)
+        print(f"[job {r['id']}] UPLOADED ({real}{', goes live ' + pub if pub else ''}): {url}")
         urls.append(url)
     return urls
 
@@ -184,6 +194,8 @@ if __name__ == "__main__":
     r = sub.add_parser("run")
     r.add_argument("--limit", type=int, default=1)
     r.add_argument("--job", type=int)
+    r.add_argument("--mode", choices=["now", "private", "schedule"], default="private")
+    r.add_argument("--at", default=None)
     args = ap.parse_args()
     try:
         if args.cmd == "login":
@@ -191,6 +203,6 @@ if __name__ == "__main__":
             get_service(interactive=True)
             print("Logged in. Token saved to", TOKEN)
         else:
-            upload_ready(args.limit, args.job)
+            upload_ready(args.limit, args.job, args.mode, args.at)
     except UploadError as e:
         sys.exit(f"UPLOAD FAILED: {e}")

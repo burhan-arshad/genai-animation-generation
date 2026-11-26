@@ -18,7 +18,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from pydantic import BaseModel
 
-from . import analytics, automation, brand, cleanup, launch, niche, settings, store, styles
+from . import analytics,autopilot, automation, brand, cleanup, launch, niche, settings, store, styles
 from .config import HOME, REPO, _path
 from .pipeline import FLOW, STAGE_NAME
 from .uploader import CLIENT, TOKEN
@@ -29,10 +29,10 @@ app = FastAPI(title="shorts-agent")
 WORKER: dict = {"proc": None, "cmd": None, "started": None, "stopped": False}
 COMMANDS = {
     "run": ["-m", "shorts_agent.pipeline", "run", "--limit", "1"],
-    "daily": ["-m", "shorts_agent.daily"],
     "upload": ["-m", "shorts_agent.uploader", "run"],
     "login": ["-m", "shorts_agent.uploader", "login"],
     "preview": ["-m", "shorts_agent.preview"],
+    "assistant": ["-m", "shorts_agent.autopilot", "--once", "--force"],
 }
 VOICES = ["am_adam", "am_michael", "bf_emma", "bm_daniel", "bm_fable", "bm_george", "bm_lewis"]
 PROTECTED = {"history"}
@@ -360,6 +360,7 @@ def suggest(b: Suggest):
 class Start(BaseModel):
     cmd: str
     job: int | None = None
+    mode: str | None = None
 
 
 @app.post("/api/worker/start")
@@ -375,11 +376,13 @@ def worker_start(b: Start):
     args = list(COMMANDS[b.cmd])
     if b.cmd in ("run", "upload", "preview") and b.job:
         args += ["--job", str(b.job)]
+    if b.cmd == "upload" and b.mode in ("now", "private", "schedule"):
+        args += ["--mode", b.mode]
     LOG.parent.mkdir(exist_ok=True)
     f = open(LOG, "wb")
     f.write(f"$ python {' '.join(args)}\n".encode())
     f.flush()
-    env = {**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8"}
+    env = {**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8", **autopilot.env_overrides()}
     kw = {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0)} if os.name == "nt" else {"start_new_session": True}
     proc = subprocess.Popen([sys.executable, *args], cwd=REPO, stdout=f, stderr=subprocess.STDOUT, env=env, **kw)
     f.close()
@@ -419,47 +422,6 @@ def worker_log(offset: int = 0):
     return {"text": data.decode("utf-8", "replace"), "offset": offset + len(data)}
 
 
-# ───────────── automation (daily schedule) ─────────────
-class Auto(BaseModel):
-    mode: str                    # off | private | public
-    run_time: str = "12:00"      # this computer's time, when the video is made
-    publish_hour: int = 18       # UTC hour when YouTube makes it public
-    videos: int = 1
-
-
-@app.get("/api/automation")
-def automation_get():
-    st = automation.status()
-    privacy = os.getenv("UPLOAD_PRIVACY", "private")
-    return {**st, "supported": automation.supported(), "youtube_ready": TOKEN.exists(),
-            "mode": ("public" if privacy == "public" else "private") if st["installed"] else "off",
-            "publish_hour": os.getenv("PUBLISH_AT_UTC_HOUR", "") or "18",
-            "videos": os.getenv("VIDEOS_PER_DAY", "1")}
-
-
-@app.post("/api/automation")
-def automation_set(b: Auto):
-    if b.mode == "off":
-        automation.remove()
-        return {"ok": True}
-    if b.mode not in ("private", "public"):
-        raise HTTPException(400, "unknown mode")
-    if not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", b.run_time):
-        raise HTTPException(400, "time must look like 12:30")
-    if not 0 <= b.publish_hour <= 23 or not 1 <= b.videos <= 10:
-        raise HTTPException(400, "bad hour or number of videos")
-    if not TOKEN.exists():
-        raise HTTPException(400, "Log in to YouTube first (step 1 above)")
-    errs = settings.update({"UPLOAD_PRIVACY": b.mode, "VIDEOS_PER_DAY": str(b.videos),
-                            "PUBLISH_AT_UTC_HOUR": str(b.publish_hour) if b.mode == "public" else ""})
-    if errs:
-        raise HTTPException(400, "; ".join(errs))
-    try:
-        automation.install(b.run_time)
-    except RuntimeError as e:
-        raise HTTPException(500, str(e))
-    return {"ok": True}
-
 # ───────────── test lab: look at the film before the long render ─────────────
 @app.post("/api/lab/preview")
 def lab_preview(b: NewJob):
@@ -497,10 +459,47 @@ def job_plan(job_id: int):
              for s in story.get("shots", [])]
     return {"shots": shots, "props": [{"name": x["name"], "desc": x["desc"], "span": x["span"]} for x in props], "metrics": _read_json(p / "metrics.json")}
 
+# ───────────── assistant ─────────────
+@app.get("/api/assistant")
+def assistant_get():
+    return {"fields": autopilot.fields(), "status": autopilot.status(), "task": automation.status(),
+            "supported": automation.supported(), "youtube_ready": TOKEN.exists()}
+
+
+@app.put("/api/assistant")
+def assistant_put(b: Values):
+    errs = autopilot.save(b.values)
+    if errs:
+        raise HTTPException(400, "; ".join(errs))
+    return {"saved": True}
+
+
+class Sched(BaseModel):
+    enabled: bool
+    run_time: str = "12:00"
+
+
+@app.post("/api/assistant/schedule")
+def assistant_schedule(b: Sched):
+    if not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", b.run_time):
+        raise HTTPException(400, "time must look like 12:30")
+    if b.enabled:
+        if not TOKEN.exists():
+            raise HTTPException(400, "Log in to YouTube first (YouTube tab)")
+        try:
+            automation.install(b.run_time)
+        except RuntimeError as e:
+            raise HTTPException(500, str(e))
+        autopilot.save({"enabled": "1", "run_time": b.run_time})
+    else:
+        automation.remove()
+        autopilot.save({"enabled": "0"})
+    return {"ok": True}
+
 # ───────────── channel: launch plan, approvals, results, disk ─────────────
 @app.get("/api/launch")
 def launch_get():
-    return {**launch.status(), "pending": launch.pending()}
+    return {"pending": launch.pending()}
 
 
 class Pub(BaseModel):

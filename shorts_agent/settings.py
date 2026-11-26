@@ -18,24 +18,14 @@ FIELDS = [
     ("GEMINI_MODEL", "AI model", "text", "Example: gemini-3.5-flash-lite", "ai"),
     ("GEMINI_TTS_MODELS", "Gemini voice models", "text", "Comma separated, tried in order. Empty = gemini-2.5-flash-preview-tts, gemini-2.5-pro-preview-tts", "ai"),
     ("PROJECTS_ROOT", "Folder where videos are saved", "text", "Empty = your home folder / faceless-shorts", "paths"),
-    ("RENDER_WORKERS", "Parallel render workers", "number", "1-4. More = faster only if your CPU has free cores. Try 2", "paths"),
-    ("VOICE_SEGMENTS", "Voice scenes per video", "number", "1-8. The narrator changes emotion between scenes: more scenes = more feeling, more voice requests. Default 5", "adv"),
     ("FILM_COLD_OPEN", "Cold open (seconds)", "number", "0-4. A flash of the story's key picture with a question before the host appears. 0 = off. Default 2", "adv"),
     ("FILM_LOOP", "Loop ending", "select:1,0", "1 = the last second repeats the opening picture so the video replays into itself (default)", "adv"),
-    ("STORYBOARD_ROUNDS", "Storyboard tries", "number", "1-3. Fewer = faster. 2 is a good balance", "adv"),
     ("RELEVANCE_CHECK", "A reviewer checks the film shows the topic", "select:1,0", "1 = better films, a few minutes more", "adv"),
     ("PROPS_CRITIC", "A reviewer checks the 3D objects", "select:1,0", "1 = better objects, a few minutes more", "adv"),
-    ("REQUIRE_APPROVAL", "Approve every video by hand before it goes public", "select:1,0", "1 = uploaded private, you publish it (Channel tab)", "youtube"),
-    ("LAUNCH_DATE", "Channel start date", "text", "YYYY-MM-DD: day 1 of the review period (Channel tab)", "youtube"),
-    ("LAUNCH_REVIEW_DAYS", "Review period (days)", "number", "Default 60", "youtube"),
     ("SOURCES_IN_DESCRIPTION", "Put source links in the description", "select:0,1", "0 = no links (recommended for now)", "youtube"),
-    ("RENDER_PROFILE", "Video quality (speed)", "select:draft,balanced,quality", "balanced = about 30-45 min per video without a graphics card", "paths"),
     ("RENDER_SOFTWARE", "No graphics card (software rendering)", "select:1,0", "1 = no graphics card (default)", "paths"),
     ("SKILL_DIR", "Engine folder (faceless-shorts)", "text", "The folder that contains SKILL.md. Empty = next to this project", "paths"),
     ("SKILL_PY", "Engine Python (python.exe of its venv)", "text", "Empty = ~/.faceless-shorts/venv", "paths"),
-    ("UPLOAD_PRIVACY", "Upload as", "select:private,unlisted,public", "Keep private until you trust the videos", "youtube"),
-    ("VIDEOS_PER_DAY", "Videos per day (daily routine)", "number", "1 to 10", "youtube"),
-    ("PUBLISH_AT_UTC_HOUR", "Publish hour, UTC (public only)", "number", "0 to 23, empty = publish immediately", "youtube"),
     ("CATEGORY_ID", "YouTube category id", "text", "27 = Education, 17 = Sports. Empty = niche default", "youtube"),
     ("SYNTHETIC_DISCLOSURE", "Mark as AI/synthetic content", "select:false,true", "Read YouTube's policy before turning on", "youtube"),
     ("SMTP_USER", "Gmail address (for alerts)", "text", "Optional", "email"),
@@ -71,12 +61,6 @@ def _check(key: str, kind: str, v: str) -> str | None:
     if kind == "number":
         if not v.isdigit():
             return "must be a number"
-        if key == "PUBLISH_AT_UTC_HOUR" and not 0 <= int(v) <= 23:
-            return "must be 0-23"
-        if key == "VIDEOS_PER_DAY" and not 1 <= int(v) <= 10:
-            return "must be 1-10"
-        if key == "VOICE_SEGMENTS" and not 1 <= int(v) <= 8:
-            return "must be 1-8"
         if key == "FILM_COLD_OPEN" and not 0 <= int(v) <= 4:
             return "must be 0-4"
     if kind.startswith("select:") and v not in kind[7:].split(","):

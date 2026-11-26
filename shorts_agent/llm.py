@@ -79,6 +79,12 @@ def _recent(spec: str) -> list[float]:
         return [r[0] for r in con.execute("SELECT ts FROM llm_calls WHERE model=? AND ts>? ORDER BY ts",
                                           (spec, time.time() - 60))]
 
+def tokens_between(t0: float, t1: float) -> int:
+    """Tokens (in + out, every call) logged between two moments: used to cap what one video may cost."""
+    with _con() as con:
+        r = con.execute("SELECT COALESCE(SUM(in_tokens + out_tokens), 0) FROM llm_calls WHERE ts BETWEEN ? AND ?", (t0, t1)).fetchone()
+    return int(r[0] or 0)
+
 
 # ───────────── chains and limits ─────────────
 def _split(spec: str) -> tuple[str, str]:

@@ -38,10 +38,22 @@ HAS = [
     ("styles.py", "min_lines=int(w.get", "niche can set its own line limits"),
     ("brandkit.py", "SAFE_W", "channel kit with the banner safe area"),
     ("hooks.py", "len(body) // 5", "turn lines rule is lighter"),
+    ("autopilot.py", "def run_once", "the assistant"),
+    ("schedule.py", "def next_slots", "next free slot"),
+    ("quality.py", "def score", "quality score"),
+    ("linecheck.py", "def verify_project", "line-by-line fact-check"),
+    ("factcheck_agent.py", "linecheck", "fact-check mode switch"),
+    ("uploader.py", 'mode == "schedule"', "upload now / schedule"),
+    ("store.py", "publish_at", "job columns for the assistant"),
+    ("llm.py", "def tokens_between", "token counting"),
 ]
 GONE = [
     ("filmboard.py", "has no shot of its own", "the old line check (must be deleted)"),
     ("filmboard.py", "SAFE MODE (plain scenes", "the safe-mode fallback (must be deleted)"),
+    ("daily.py", "run_once", "daily.py (must be deleted)"),
+    ("api.py", "class Auto", "the old automation endpoint (must be deleted)"),
+    ("launch.py", "CHECKLIST", "the old launch checklist (must be deleted)"),
+    ("uploader.py", "REQUIRE_APPROVAL", "the old approval switch (must be deleted)"),
 ]
 
 

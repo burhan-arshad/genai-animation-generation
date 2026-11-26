@@ -4,7 +4,7 @@ import json
 from shorts_agent.factcheck_agent import quote_ok
 from shorts_agent.schemas import Line, ScriptDraft, check_script, repair_caps
 from shorts_agent.styles import STYLES
-from shorts_agent.uploader import build_metadata, next_publish_time
+from shorts_agent.uploader import build_metadata
 
 TT = STYLES["tall-tale"]
 EVID = [{"url": "u", "text": "Some of the gases dissolved in the synovial fluid leave the solution, making a bubble, or cavity."}]
@@ -62,7 +62,3 @@ def test_metadata_falls_back_for_an_unknown_niche(tmp_path):
         {"title": "The Post-it note", "sources": ["x: http://e"], "lines": [{"text": "Hook line.", "caps": "*Hook"}]}))
     assert "#shorts" in build_metadata(tmp_path, "no-such-niche")["description"]
 
-
-def test_publish_time_is_in_the_future():
-    t = dt.datetime.strptime(next_publish_time(17), "%Y-%m-%dT%H:%M:%S.000Z").replace(tzinfo=dt.timezone.utc)
-    assert t > dt.datetime.now(dt.timezone.utc)

@@ -45,7 +45,7 @@ details{margin-top:12px}summary{cursor:pointer;color:var(--mut)}
   <button id="stopb" class="hide danger">Stop</button>
   <label class="mut">Niche: <select id="nichesel"></select></label>
   <span class="tabs" style="margin-left:auto">
-    <button data-t="jobs" class="on">Videos</button><button data-t="niches">Niches</button><button data-t="brand">Brand</button>
+    <button data-t="jobs" class="on">Videos</button><button data-t="assistant">Assistant</button><button data-t="niches">Niches</button><button data-t="brand">Brand</button>
     <button data-t="youtube">YouTube</button><button data-t="settings">Settings</button><button data-t="usage">AI usage</button><button data-t="ops">Channel</button>
     <button data-t="lab">Test lab</button>
   </span>
@@ -56,10 +56,9 @@ details{margin-top:12px}summary{cursor:pointer;color:var(--mut)}
   <section class="card hide" id="banner"></section>
   <section class="card" style="grid-column:1/-1">
     <div class="row">
-      <input id="topic" class="wide" style="flex:1;min-width:260px" placeholder="Type a topic, e.g. The Great Stink of London in 1858">
+      <input id="topic" class="wide" style="flex:1;min-width:260px" placeholder="Type a topic, e.g. The Mary Celeste Abandonment of 1872">
       <button class="pri" id="add">Add topic</button>
       <button id="suggest">Suggest 3 topics</button>
-      <button id="runb">Make next video</button>
     </div>
     <div class="hint" id="nichehint" style="margin-top:6px"></div>
     <div class="row" style="margin-top:8px">
@@ -70,12 +69,25 @@ details{margin-top:12px}summary{cursor:pointer;color:var(--mut)}
     </div>
   </section>
   <section class="card"><table id="jobs"><thead><tr><th>#</th><th>status</th><th>facts</th><th>qa</th><th>topic</th></tr></thead><tbody></tbody></table></section>
-  <section class="card" id="detail"><span class="mut">Select a video on the left. Steps: add a topic, press "Make next video", wait until it says ready, then upload from the YouTube tab.</span></section>
+  <section class="card" id="detail"><span class="mut">Select a video on the left. The Assistant tab makes and uploads videos by itself; here you can add your own topics and make or upload a video by hand.</span></section>
+</main>
+
+<!-- ASSISTANT -->
+<main id="p-assistant" class="hide one">
+  <section class="card"><h2>Assistant</h2>
+    <div class="hint">One run does everything: picks a topic, writes and fact-checks the script, makes the video, checks its quality and schedules it in the next free slot. Each step has its own settings below.</div>
+    <div id="as-status" style="margin-top:8px"></div>
+    <div class="row" style="margin-top:10px"><button class="pri" id="as-run">Run the assistant now</button>
+      <span class="mut">Daily at</span><input type="time" id="as-time" value="12:00" style="width:auto">
+      <button id="as-on">Turn the daily run on</button><button id="as-off" class="danger">Turn it off</button><span id="as-tmsg" class="mut"></span></div>
+  </section>
+  <section class="card"><div id="as-fields"></div>
+    <div class="row" style="margin-top:10px"><button class="pri" id="as-save">Save settings</button><span id="as-msg" class="mut"></span></div></section>
 </main>
 
 <!-- NICHES -->
 <main id="p-niches" class="hide one">
-  <section class="card"><h2>Your niches</h2><div class="hint">A niche = a topic area (cricket, galaxies, psychology...). "Use" makes it the active one for new videos.</div><div id="nlist"></div>
+  <section class="card"><h2>Your niches</h2><div class="hint">A niche = a topic area (mysteries, cricket, galaxies...). "Use" makes it the active one for new videos.</div><div id="nlist"></div>
     <details id="nedwrap" class="hide" open><summary>Edit niche file (advanced)</summary>
       <textarea id="nedit" rows="18" class="wide" style="font-family:ui-monospace,Consolas,monospace;font-size:12px"></textarea>
       <div class="row" style="margin-top:8px"><button class="pri" id="nsave">Save changes</button><span id="nmsg2" class="mut"></span></div>
@@ -102,7 +114,7 @@ details{margin-top:12px}summary{cursor:pointer;color:var(--mut)}
     <div class="field"><label>Voice engine</label><select id="bveng"><option value="gemini">Gemini: an actor that acts the story (best)</option><option value="kokoro">Kokoro: local voice (free, flat)</option></select></div>
     <div id="bgbox">
       <div class="field"><label>Actor (Gemini voice)</label><div class="row"><select id="bgv" style="flex:1"></select><button id="bgplay">Listen</button></div><span class="hint">Pick the actor. "Listen" makes a short sample with the character below (one voice request, the first time; Shift+click makes a new one).</span></div>
-      <div class="field"><label>Actor's character</label><textarea id="bgpersona" rows="3" placeholder="the History Student: a quick-witted, warm young historian who tells true stories to a friend"></textarea><span class="hint">Who is speaking and how he feels about the stories. Empty = the History Student.</span></div>
+      <div class="field"><label>Actor's character</label><textarea id="bgpersona" rows="3" placeholder="the Investigator: a calm, curious storyteller opening a case file for a friend"></textarea><span class="hint">Who is speaking and how he feels about the stories.</span></div>
       <div class="field"><label>Emotion</label><select id="bgint"><option value="subtle">Subtle</option><option value="normal">Normal</option><option value="dramatic">Dramatic</option></select></div>
       <div class="field"><label>Direction</label><select id="bgdir"><option value="1">AI director: the emotion changes scene by scene (best)</option><option value="0">One reading (fewer requests)</option></select></div>
     </div>
@@ -123,24 +135,10 @@ details{margin-top:12px}summary{cursor:pointer;color:var(--mut)}
     <div class="item"><span class="grow"><b>Step A:</b> upload your <code>client_secret.json</code> (from Google Cloud, OAuth "Desktop app").</span><input type="file" id="ytfile" accept=".json"></div>
     <div class="item"><span class="grow"><b>Step B:</b> log in. A Google window opens on the computer that runs this dashboard.</span><button id="ytlogin">Log in to YouTube</button><button id="ytlogout">Log out</button></div>
   </section>
-  <section class="card"><h2>Automatic daily video</h2>
-    <div id="autostat" class="hint"></div>
-    <div class="field"><label>Mode</label><select id="a-mode">
-      <option value="off">Off (I do everything by hand)</option>
-      <option value="private">Make a video every day, upload as private (I review and publish)</option>
-      <option value="public">Fully automatic: make a video and publish it on YouTube</option></select></div>
-    <div class="field"><label>Make the video at (this computer's time)</label><input type="time" id="a-run" value="12:00">
-      <span class="hint">The laptop must be on at this time, or later: if it was off, the video is made as soon as you switch it on.</span></div>
-    <div class="field"><label>Go live on YouTube at</label><select id="a-hour"></select>
-      <span class="hint">YouTube publishes it at this time, even if your laptop is off by then. Suggested: 18:00 UTC for viewers in the US and Europe. After 2-3 weeks check YouTube Studio, Analytics, Audience.</span></div>
-    <div class="field"><label>Videos per day</label><input id="a-n" type="number" min="1" max="10" value="1"><span class="hint">Keep 1: several videos would go live at the same minute.</span></div>
-    <div class="row"><button class="pri" id="a-save">Save automation</button><span id="a-msg" class="mut"></span></div>
-  </section>
-  <section class="card"><h2>2. Upload rules</h2><div id="s-youtube"></div>
+  <section class="card"><h2>2. Upload details</h2><div class="hint">Privacy, schedule and approval are set in the Assistant tab.</div><div id="s-youtube"></div>
     <div class="row"><button class="pri" data-save>Save</button><span class="mut save-msg"></span></div></section>
   <section class="card"><h2>3. Videos</h2><h3 style="margin-top:0">Ready to upload</h3><div id="ytready"></div>
-    <h3>Uploaded</h3><div id="ytdone"></div>
-    <div class="row" style="margin-top:12px"><button id="daily">Run full daily routine (make + upload)</button></div></section>
+    <h3>Uploaded</h3><div id="ytdone"></div></section>
 </main>
 
 <!-- SETTINGS -->
@@ -162,10 +160,6 @@ details{margin-top:12px}summary{cursor:pointer;color:var(--mut)}
 
 <!-- CHANNEL -->
 <main id="p-ops" class="hide one">
-  <section class="card"><h2>Launch plan</h2><div id="launch"></div>
-    <div class="field"><label>Channel start date (day 1)</label><input type="date" id="l-date"></div>
-    <div class="row"><button class="pri" id="l-save">Save</button>
-      <label class="hint"><input type="checkbox" id="l-appr"> I approve every video by hand before it goes public (recommended)</label><span id="l-msg" class="mut"></span></div></section>
   <section class="card"><h2>Waiting for your approval</h2><div class="hint">Uploaded as private. Watch it on YouTube, then publish.</div><div id="appr"></div><span id="pub-msg" class="mut"></span></section>
   <section class="card"><h2>Results</h2><div class="row"><button id="i-refresh">Refresh stats from YouTube</button><span id="i-msg" class="mut"></span></div><div id="insights"></div></section>
   <section class="card"><h2>Disk and cleanup</h2><div id="disk"></div></section>
@@ -189,7 +183,7 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const mem={get(){try{return JSON.parse(localStorage.getItem('sa')||'{}')}catch{return{}}},set(o){localStorage.setItem('sa',JSON.stringify({...mem.get(),...o}))}};
 const FLOW=['queued','scripted','verified','timed','storyboarded','rendered','finalized','ready'];
-const TABS=['jobs','niches','brand','youtube','settings','usage','lab','ops'];
+const TABS=['jobs','assistant','niches','brand','youtube','settings','usage','lab','ops'];
 const cls=s=>['ready','uploaded'].includes(s)?'ok':['dropped','rejected'].includes(s)?'bad':'warn';
 const vcls=v=>v==='SUPPORTED'?'ok':v==='CONTRADICTED'?'bad':'warn';
 let cur=mem.get().job||0,curUpd=0,logOff=0,wkStart=null,wasRunning=false,JOBS=[],NICHES=[],ACTIVE='';
@@ -204,9 +198,10 @@ const say=(sel,t,bad)=>{const e=typeof sel==='string'?$(sel):sel;e.textContent=t
 
 /* ---------- tabs ---------- */
 function openTab(t){
+  if(!TABS.includes(t))t='jobs';
   TABS.forEach(x=>{$('#p-'+x).classList.toggle('hide',x!==t);document.querySelector(`.tabs [data-t="${x}"]`).classList.toggle('on',x===t)});
   mem.set({tab:t});
-  ({niches:loadNiches,brand:loadBrand,youtube:loadYT,settings:loadSettings,usage:loadUsage,lab:loadLab,ops:loadOps})[t]?.();
+  ({niches:loadNiches,brand:loadBrand,youtube:loadYT,settings:loadSettings,usage:loadUsage,lab:loadLab,ops:loadOps,assistant:loadAssistant})[t]?.();
 }
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>openTab(b.dataset.t));
 
@@ -228,7 +223,9 @@ async function loadDetail(){
   if(j.youtube_id)h+=` · <a href="https://www.youtube.com/watch?v=${esc(j.youtube_id)}" target="_blank">YouTube</a> (${esc(j.note||'')})`;
   h+='</div>';
   if(j.error)h+=`<div class="err" style="margin-top:6px">${esc(j.error)}</div>`;
-  h+=`<div class="row" style="margin:10px 0"><button data-a="run">Make this video</button>${j.status==='ready'?'<button class="pri" data-a="upload">Upload to YouTube</button>':''}<button data-a="reject">Reject</button><button data-a="delete" class="danger">Delete</button><button data-a="retry">Clear error</button><details style="margin:0"><summary>More</summary><select id="rs">${FLOW.map(s=>`<option>${s}</option>`).join('')}</select> <button data-a="reset">Go back to this step</button></details></div>`;
+  if(j.status==='ready'&&j.note)h+=`<div class="err" style="margin-top:6px">${esc(j.note)}</div>`;
+  if(j.score!=null)h+=`<div class="mut">Quality score: <b>${j.score}</b>/100</div>`;
+  h+=`<div class="row" style="margin:10px 0"><button data-a="run">Make this video</button>${j.status==='ready'?'<button class="pri" data-a="up_now">Upload now (public)</button><button data-a="up_sched">Schedule (next free slot)</button><button data-a="up_priv">Upload private</button>':''}<button data-a="reject">Reject</button><button data-a="delete" class="danger">Delete</button><button data-a="retry">Clear error</button><details style="margin:0"><summary>More</summary><select id="rs">${FLOW.map(s=>`<option>${s}</option>`).join('')}</select> <button data-a="reset">Go back to this step</button></details></div>`;
   if(d.has_video)h+=`<video controls preload="metadata" src="/api/jobs/${j.id}/video?v=${j.updated}" style="max-height:520px;max-width:100%;border-radius:8px"></video>`;
   if(d.script){
     h+='<h3>Script</h3><ol>'+d.script.lines.map(l=>`<li>${esc(l.text)}</li>`).join('')+'</ol>';
@@ -244,7 +241,9 @@ $('#detail').onclick=async e=>{
   const a=e.target.dataset.a;if(!a)return;
   try{
     if(a==='run')await start('run',cur);
-    else if(a==='upload')await start('upload',cur);
+    else if(a==='up_now'){if(!confirm('Publish this video on YouTube right now?'))return;await start('upload',cur,'now')}
+    else if(a==='up_sched')await start('upload',cur,'schedule');
+    else if(a==='up_priv')await start('upload',cur,'private');
     else if(a==='delete'){
       if(!confirm('Delete this video and its files? This cannot be undone.'))return;
       await api('/api/jobs/'+cur+'?files=1',{},'DELETE');
@@ -254,11 +253,9 @@ $('#detail').onclick=async e=>{
     curUpd=0;loadJobs();
   }catch(x){alert(x.message)}
 };
-async function start(cmd,job){
-  try{await api('/api/worker/start',{cmd,job:job||null});logOff=0;$('#logbox').open=true;pollWorker()}catch(e){alert(e.message)}
+async function start(cmd,job,mode){
+  try{await api('/api/worker/start',{cmd,job:job||null,mode:mode||null});logOff=0;$('#logbox').open=true;pollWorker()}catch(e){alert(e.message)}
 }
-$('#runb').onclick=()=>start('run');
-$('#daily').onclick=()=>start('daily');
 $('#stopb').onclick=async()=>{
   if(!confirm('Stop the current work? Finished steps are kept; the current step starts again next time.'))return;
   try{await api('/api/worker/stop',{});pollWorker();loadJobs()}catch(e){alert(e.message)}
@@ -295,7 +292,7 @@ async function pollWorker(){
     el.textContent=w.running?('working: '+w.cmd):(w.stopped?'stopped':(w.returncode==null?'idle':'last run '+(w.returncode?'failed':'ok')));
     el.className='b '+(w.running?'warn':(w.stopped||w.returncode?'bad':'ok'));
     $('#stopb').classList.toggle('hide',!w.running);
-    ['runb','daily'].forEach(i=>$('#'+i).disabled=w.running);
+    $('#as-run').disabled=w.running;
     if(wasRunning&&!w.running){loadJobs();loadYT();}
     wasRunning=w.running;
     if(w.started!==wkStart){wkStart=w.started;logOff=0;$('#log').textContent=''}
@@ -409,34 +406,17 @@ async function loadHealth(){
 $('#hbtn').onclick=async e=>{e.target.disabled=true;$('#hres').textContent='Checking...';await loadHealth();e.target.disabled=false};
 
 /* ---------- youtube ---------- */
-$('#a-hour').innerHTML=Array.from({length:24},(_,h)=>`<option value="${h}">${String(h).padStart(2,'0')}:00 UTC = ${new Date(Date.UTC(2026,0,15,h)).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} your time</option>`).join('');
-async function loadAuto(){
-  const a=await api('/api/automation');
-  if(!a.supported){$('#autostat').textContent='Automatic scheduling is built in for Windows only.';return}
-  $('#a-mode').value=a.mode;$('#a-hour').value=String(+a.publish_hour);$('#a-n').value=a.videos;
-  if(a.run_time)$('#a-run').value=a.run_time;
-  $('#autostat').innerHTML=a.installed
-    ?`<span class="b ok">active</span> Next run: ${esc(a.next_run||'-')} · last run: ${esc(a.last_run||'never')}`
-    :`<span class="b warn">off</span> ${a.youtube_ready?'':'Log in to YouTube first. '}`;
-}
-$('#a-save').onclick=async()=>{
-  try{
-    await api('/api/automation',{mode:$('#a-mode').value,run_time:$('#a-run').value,publish_hour:+$('#a-hour').value,videos:+$('#a-n').value||1});
-    say('#a-msg','Saved ✓');loadAuto();
-  }catch(e){say('#a-msg','Error: '+e.message,1)}
-};
 async function loadYT(){
   const [y]=await Promise.all([api('/api/youtube'),loadSettings()]);
   $('#ytstatus').innerHTML=`<div><span class="b ${y.client?'ok':'bad'}">${y.client?'found':'missing'}</span> client_secret.json</div><div style="margin-top:4px"><span class="b ${y.token?'ok':'warn'}">${y.token?'logged in':'not logged in'}</span> YouTube account</div>`;
-  loadAuto().catch(()=>{});
   renderYTJobs();
 }
 function renderYTJobs(){
   const row=j=>`<div class="item"><span class="grow">#${j.id} ${esc(j.topic)}</span>`;
-  $('#ytready').innerHTML=JOBS.filter(j=>j.status==='ready').map(j=>row(j)+`<button class="pri" data-up="${j.id}">Upload</button></div>`).join('')||'<span class="mut">Nothing waiting.</span>';
+  $('#ytready').innerHTML=JOBS.filter(j=>j.status==='ready').map(j=>row(j)+`<button class="pri" data-up="${j.id}" data-mode="now">Upload now</button><button data-up="${j.id}" data-mode="schedule">Schedule</button><button data-up="${j.id}" data-mode="private">Private</button></div>`).join('')||'<span class="mut">Nothing waiting.</span>';
   $('#ytdone').innerHTML=JOBS.filter(j=>j.status==='uploaded').map(j=>row(j)+`<span class="mut">${esc(j.note||'')}</span><a href="https://www.youtube.com/watch?v=${esc(j.youtube_id)}" target="_blank">Open</a></div>`).join('')||'<span class="mut">No uploads yet.</span>';
 }
-$('#ytready').onclick=e=>{const id=e.target.dataset.up;if(id)start('upload',+id)};
+$('#ytready').onclick=e=>{const id=e.target.dataset.up;if(!id)return;if(e.target.dataset.mode==='now'&&!confirm('Publish right now?'))return;start('upload',+id,e.target.dataset.mode)};
 $('#ytlogin').onclick=()=>start('login');
 $('#ytlogout').onclick=async()=>{if(confirm('Log out of YouTube?')){await api('/api/youtube/logout',{});loadYT()}};
 $('#ytfile').onchange=async e=>{
@@ -481,18 +461,39 @@ setInterval(()=>{if(!$('#p-lab').classList.contains('hide'))loadLab()},4000);
 const MB=b=>(b/1048576).toFixed(0)+' MB';
 async function loadOps(){
   const [l,ins,dk]=await Promise.all([api('/api/launch'),api('/api/insights'),api('/api/disk')]);
-  $('#launch').innerHTML=(l.set?`<div><span class="b ${l.phase==='review'?'warn':'ok'}">${l.phase==='review'?'review period':'after the review period'}</span> Day <b>${l.day}</b> of ${l.review_days}${l.left?' · '+l.left+' days left':''}</div>`:'<div class="hint">Set your channel start date below.</div>')
-    +'<ul>'+l.checklist.map(x=>`<li>${esc(x)}</li>`).join('')+'</ul>';
-  if(l.start)$('#l-date').value=l.start;$('#l-appr').checked=l.require_approval;
   $('#appr').innerHTML=l.pending.map(x=>`<div class="item"><img src="/api/jobs/${x.id}/thumb?v=${Date.now()}" style="height:90px;border-radius:6px" onerror="this.style.display='none'"><span class="grow">#${x.id} ${esc(x.topic)}<div class="hint">${esc(x.note)}</div><a href="https://www.youtube.com/watch?v=${esc(x.youtube_id)}" target="_blank">Watch on YouTube</a></span><button class="pri" data-pub="${x.id}" data-when="now">Publish now</button><button data-pub="${x.id}" data-when="schedule">Schedule</button></div>`).join('')||'<span class="mut">Nothing waiting.</span>';
   $('#insights').innerHTML=ins.rows.length?'<table><thead><tr><th>#</th><th>topic</th><th>views</th><th>likes</th><th>watched</th></tr></thead><tbody>'+ins.rows.map(r=>`<tr><td>${r.id}</td><td>${esc(r.topic)}</td><td>${r.views}</td><td>${r.likes}</td><td>${r.avg_pct==null?'-':r.avg_pct.toFixed(0)+'%'}</td></tr>`).join('')+'</tbody></table>':'<span class="mut">No stats yet: publish a video, wait a day, then press Refresh.</span>';
   const L={temp:'Test leftovers (demo and preview folders)',dead:'Dropped and rejected videos',slim:'Big temporary files of finished videos',old:'Whole folders of videos uploaded long ago'};
   $('#disk').innerHTML=`<div class="hint">All videos use ${MB(dk.total_bytes)}</div>`+Object.keys(L).map(m=>`<div class="item"><span class="grow">${L[m]}<div class="hint">${dk[m].count} item(s), ${MB(dk[m].bytes)}${dk[m].days?' · older than '+dk[m].days+' days':''}</div></span><button class="danger" data-clean="${m}">Delete</button></div>`).join('');
 }
-$('#l-save').onclick=async()=>{try{await api('/api/settings',{values:{LAUNCH_DATE:$('#l-date').value,REQUIRE_APPROVAL:$('#l-appr').checked?'1':'0'}},'PUT');say('#l-msg','Saved ✓');loadOps()}catch(e){say('#l-msg','Error: '+e.message,1)}};
 $('#appr').onclick=async e=>{const id=e.target.dataset.pub;if(!id)return;say('#pub-msg','Working...');try{const r=await api('/api/approvals/'+id+'/publish',{when:e.target.dataset.when});say('#pub-msg','Done: '+r.note);loadOps();loadJobs()}catch(x){say('#pub-msg','Error: '+x.message,1)}};
 $('#i-refresh').onclick=async()=>{say('#i-msg','Asking YouTube...');try{const r=await api('/api/insights/refresh',{});say('#i-msg',`Updated ${r.updated} video(s)${r.analytics?'':' (retention needs the Analytics API and a new login)'}`);loadOps()}catch(e){say('#i-msg',e.message,1)}};
 $('#disk').onclick=async e=>{const m=e.target.dataset.clean;if(!m||!confirm('Delete these files? This cannot be undone.'))return;try{const r=await api('/api/cleanup',{mode:m});alert('Removed '+r.removed+' item(s), '+MB(r.bytes));loadOps();loadJobs()}catch(x){alert(x.message)}};
+
+/* ---------- assistant ---------- */
+const AGROUPS=[['main','Assistant'],['topic','1. Topic'],['script','2. Script'],['fact','3. Fact-check'],['voice','4. Voice and film'],['render','5. Video render'],['quality','6. Quality check'],['publish','7. Schedule and upload'],['safety','Safety limits (they save time and tokens)']];
+function afield(f){
+  const i=f.kind.startsWith('select:')?`<select data-ak="${f.key}">${f.kind.slice(7).split(',').map(x=>`<option ${x===f.value?'selected':''}>${x}</option>`).join('')}</select>`
+    :`<input data-ak="${f.key}" ${f.kind==='time'?'type="time" ':''}value="${esc(f.value)}">`;
+  return `<div class="field"><label>${esc(f.label)}</label>${i}<span class="hint">${esc(f.hint)}</span></div>`;
+}
+async function loadAssistant(){
+  const a=await api('/api/assistant'),s=a.status,t=a.task||{};
+  $('#as-status').innerHTML=`<div><span class="b ${t.installed?'ok':'warn'}">${t.installed?'daily run on':'daily run off'}</span> ${t.installed?'next run '+esc(t.next_run||'-')+' · last '+esc(t.last_run||'never'):''}</div>`
+   +`<div style="margin-top:4px">Mode: <b>${esc(s.mode)}</b> · ready: ${s.ready.length} · scheduled: ${s.scheduled.length} · keeps ${s.target} ahead</div>`
+   +(s.working_on?`<div>Working on: #${s.working_on.id} ${esc(s.working_on.topic)} <span class="b warn">${esc(s.working_on.status)}</span></div>`:'')
+   +`<div class="hint">Next free slots: ${s.next_slots.map(x=>esc(x.local)).join(' · ')||'none'}</div>`
+   +s.ready.map(r=>`<div class="item"><span class="grow">Ready: #${r.id} ${esc(r.topic)}${r.score!=null?' · score '+r.score:''}${r.note?`<div class="err">${esc(r.note)}</div>`:''}</span></div>`).join('')
+   +s.scheduled.map(r=>`<div class="item"><span class="grow">Scheduled: #${r.id} ${esc(r.topic)} <span class="mut">${esc(r.publish_at)}</span></span></div>`).join('')
+   +(s.last_run?`<h3>Last run (${esc(s.last_run.at)})</h3><pre>${esc((s.last_run.notes||[]).join('\n')||'nothing to do')}</pre>`:'');
+  const run=a.fields.find(f=>f.key==='run_time');if(run)$('#as-time').value=run.value;
+  $('#as-fields').innerHTML=AGROUPS.map(([g,ti])=>{const fs=a.fields.filter(f=>f.group===g);return fs.length?`<details ${['main','publish'].includes(g)?'open':''}><summary><b>${ti}</b></summary>${fs.map(afield).join('')}</details>`:''}).join('');
+}
+$('#as-save').onclick=async()=>{const values={};document.querySelectorAll('[data-ak]').forEach(i=>values[i.dataset.ak]=i.value);
+  try{await api('/api/assistant',{values},'PUT');say('#as-msg','Saved ✓');loadAssistant()}catch(e){say('#as-msg','Error: '+e.message,1)}};
+$('#as-run').onclick=()=>start('assistant');
+$('#as-on').onclick=async()=>{try{await api('/api/assistant/schedule',{enabled:true,run_time:$('#as-time').value});say('#as-tmsg','Daily run is on ✓');loadAssistant()}catch(e){say('#as-tmsg','Error: '+e.message,1)}};
+$('#as-off').onclick=async()=>{try{await api('/api/assistant/schedule',{enabled:false});say('#as-tmsg','Turned off');loadAssistant()}catch(e){say('#as-tmsg','Error: '+e.message,1)}};
 
 /* ---------- start ---------- */
 api('/api/brand').then(r=>{try{$('#title').textContent=JSON.parse(r.text).channel.name+' · dashboard'}catch{}});

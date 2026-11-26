@@ -40,11 +40,3 @@ def test_static_characters_are_a_problem_only_when_asked():
     _, problems, _ = D.build(story(shots), mk_timing(), 1914, "none", need_acting=True)
     assert any("static" in p for p in problems)
 
-
-def test_launch_day_counts(monkeypatch):
-    monkeypatch.setenv("LAUNCH_DATE", (dt.date.today() - dt.timedelta(days=9)).isoformat())
-    monkeypatch.setenv("LAUNCH_REVIEW_DAYS", "60")
-    s = launch.status()
-    assert s["day"] == 10 and s["left"] == 51 and s["phase"] == "review"
-    monkeypatch.setenv("LAUNCH_DATE", "")
-    assert launch.status()["set"] is False

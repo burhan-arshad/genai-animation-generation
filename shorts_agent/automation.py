@@ -39,7 +39,7 @@ def _script(run_time: str, logon: bool) -> str:
     triggers = "@($t1, $t2)" if logon else "@($t1)"
     return f"""
 $ErrorActionPreference = 'Stop'
-$a = New-ScheduledTaskAction -Execute '{_q(_pythonw())}' -Argument '-m shorts_agent.daily' -WorkingDirectory '{_q(REPO)}'
+$a = New-ScheduledTaskAction -Execute '{_q(_pythonw())}' -Argument '-m shorts_agent.autopilot --once' -WorkingDirectory '{_q(REPO)}'
 $t1 = New-ScheduledTaskTrigger -Daily -At '{_q(run_time)}'
 {t2}$s = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Hours 4)
 Register-ScheduledTask -TaskName '{TASK}' -Action $a -Trigger {triggers} -Settings $s -Force | Out-Null

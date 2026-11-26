@@ -212,6 +212,10 @@ def load_draft(project: Path) -> tuple[dict, ScriptDraft]:
 
 
 def verify_project(project: Path) -> str:
+    if os.getenv("FACT_MODE", "line") != "claims":
+        from . import linecheck
+        if linecheck.usable(project):
+            return linecheck.verify_project(project)
     data, draft = load_draft(project)
     draft, history, status = verify_script(draft)
     (project / "factcheck.json").write_text(

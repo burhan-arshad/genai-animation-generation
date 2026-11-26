@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import random
 import re
+import os
 from pathlib import Path
 
 HOOKS = {
@@ -61,23 +62,32 @@ def job_id_of(project: Path) -> int | None:
     return int(m.group(1)) if m else None
 
 
-def pick(recent_hooks: list[str], recent_ends: list[str], seed: int = 0) -> tuple[str, str]:
-    """A hook formula and an ending formula that were not used in the last videos (the least recently used first, ties by seed)."""
+def pick(recent_hooks: list[str], recent_ends: list[str], seed: int = 0, weights: dict | None = None) -> tuple[str, str]:
+    """A hook formula and an ending formula that were not used in the last videos. With `weights` (from the channel's stats) the better one is preferred,
+    except for LEARN_EXPLORE percent of the picks, which stay random so the channel keeps trying new things."""
     rnd = random.Random(seed * 7919 + 13)
-    def choose(pool: dict, recent: list[str], keep: int) -> str:
+    explore = float(os.getenv("LEARN_EXPLORE", "25") or 25) / 100
+
+    def choose(pool: dict, recent: list[str], keep: int, w: dict | None = None) -> str:
         fresh = [k for k in pool if k not in recent[:keep]]
         if not fresh:
             fresh = [k for k in pool if k != (recent[0] if recent else None)] or list(pool)
+        if w and rnd.random() >= explore:
+            ranked = sorted((k for k in fresh if k in w), key=lambda k: -w[k])
+            if ranked:
+                return ranked[0]
         age = {k: (recent.index(k) if k in recent else 99) for k in fresh}
         best = max(age.values())
         return rnd.choice([k for k in fresh if age[k] == best])
-    return choose(HOOKS, recent_hooks, 4), choose(ENDINGS, recent_ends, 2)
+
+    w = weights or {}
+    return choose(HOOKS, recent_hooks, 4, w.get("hooks")), choose(ENDINGS, recent_ends, 2, w.get("ends"))
 
 
 def formula_text(hook: str, end: str) -> str:
-    return (f"HOOK FORMULA for this video: {hook}: {HOOKS[hook][0]} Example of the feeling (another story, never copy it): \"{HOOKS[hook][1]}\"\n"
-            f"ENDING FORMULA for this video: {end}: {ENDINGS[end][0]} Example of the feeling (another story, never copy it): \"{ENDINGS[end][1]}\"")
-
+    h = (f"HOOK FORMULA for this video: {hook}: {HOOKS[hook][0]} Example of the feeling (another story, never copy it): \"{HOOKS[hook][1]}\"\n"
+         if hook in HOOKS else "")
+    return h + f"ENDING FORMULA for this video: {end}: {ENDINGS[end][0]} Example of the feeling (another story, never copy it): \"{ENDINGS[end][1]}\""
 
 RULES = """HOOK AND RETENTION RULES (strict, they decide whether people watch to the end):
 - Line 1 is the cold open: 12 words or fewer, a concrete person, thing, number or place, and it must make the viewer ask a question that is NOT answered until the last third.
@@ -121,3 +131,41 @@ def check(lines: list[str]) -> list[str]:
     if turns < need:
         problems.append(f"Only {turns} turn line(s) in the story: at least {need} lines must start with But, Then, Until, Except, Yet, Suddenly or So and change what we thought.")
     return problems
+
+CONTRAST = re.compile(r"\b(but|yet|never|nobody|no one|nothing|none|empty|missing|vanished|gone|still|only|without|impossible|unsolved|unknown|why|how|what|who)\b", re.I)
+YEAR_FIRST = re.compile(r"^\s*(in|on|during|by|back in|around|since)\s+(the\s+year\s+)?(\d{3,4}|(fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\b|"
+                        r"(january|february|march|april|may|june|july|august|september|october|november|december)\b)", re.I)
+
+
+def hook_ok(line0: str, line1: str = "") -> str:
+    """'' when the two opening lines can be used, else the reason."""
+    if not 3 <= len(line0.split()) <= 12:
+        return "line 0 must have 3-12 words"
+    if GENERIC.search(line0):
+        return "generic opener"
+    both = (line0 + " " + line1).lower()
+    if re.search(r"\b(because|the reason|turns out)\b", both) and not re.search(r"\?|\b(why|how)\b", both):
+        return "gives the answer away"
+    return ""
+
+
+def score_hook(line0: str, line1: str = "") -> int:
+    """How likely the two opening lines are to stop a thumb: short, concrete, a contradiction, not an exposition that starts with a year."""
+    w, s = line0.split(), 0
+    if len(w) <= 10:
+        s += 2
+    elif len(w) <= 12:
+        s += 1
+    if re.search(r"\d", line0) or any(t.lower().strip(".,!?") in NUMBER_WORDS for t in w):
+        s += 1
+    if CONTRAST.search(line0):
+        s += 2
+    if any(t[:1].isupper() for t in w[1:]):
+        s += 1
+    if line0.strip().endswith("?"):
+        s += 1
+    if YEAR_FIRST.search(line0):
+        s -= 3
+    if CONTRAST.search(line1) or "?" in line1:
+        s += 1
+    return s
