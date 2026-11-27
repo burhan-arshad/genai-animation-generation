@@ -164,7 +164,7 @@ def budget_left() -> dict | None:
             continue
         n += 1
         resets.append(_llm._next_reset(s))
-        if _llm._blocked_until(s) <= time.time():
+        if _llm._blocked_until(s) <= time.time() and _llm._used_today(s) < _llm._daily_limit(s) - _llm.SAFETY_MARGIN:
             left += max(0, tl - _llm._tokens_today(s))
     return {"left": left, "models": n, "resets": min(resets)} if n else None
 

@@ -109,3 +109,37 @@ def test_the_budget_counts_only_models_with_a_token_limit(monkeypatch):
     assert b["left"] == 600 and b["models"] == 1 and b["resets"] > time.time()
     llm._block("g:a", time.time() + 7200, "day", "x")
     assert autopilot.budget_left()["left"] == 0
+
+
+def test_a_429_after_almost_all_daily_calls_means_the_day_is_over(monkeypatch):
+    monkeypatch.setenv("DAILY_LIMITS", "fake:small:20")
+    for _ in range(19):
+        llm._log("fake:small", "t", 10, 10, True)
+    kind, wait = llm._quota_wait("fake:small", llm.ProviderError(429, "Too Many Requests"))
+    assert kind == "day" and wait >= 60
+
+
+def test_cloudflare_style_daily_message():
+    e = llm.ProviderError(429, "you have used up your daily free allocation of 10,000 neurons")
+    assert llm._quota_wait("cloudflare:@cf/x", e)[0] == "day"
+
+
+def test_sambanova_day_headers_are_preferred(monkeypatch):
+    monkeypatch.setenv("GEMINI_MODEL_TESTTASK", "fake:small")
+    h = {"x-ratelimit-remaining-requests-day": "17", "x-ratelimit-limit-requests-day": "20", "x-ratelimit-remaining-requests": "19"}
+    monkeypatch.setattr(llm.httpx, "post", lambda url, headers, json, timeout: httpx.Response(
+        200, json={"choices": [{"message": {"content": "hi"}, "finish_reason": "stop"}], "usage": {}}, headers=h))
+    assert llm.generate_text("hi", task="testtask") == "hi"
+    row = [r for r in llm.usage_rows() if r["model"] == "fake:small"][0]
+    assert "17/20 requests left today" in row["provider"]
+
+
+def test_a_model_whose_calls_are_used_counts_as_zero_in_the_budget(monkeypatch):
+    for t in ("RESEARCH", "TOPICS", "FACTCHECK", "JUDGE", "HOOK", "SCRIPT", "STORYBOARD"):
+        monkeypatch.delenv(f"GEMINI_MODEL_{t}", raising=False)
+    monkeypatch.setenv("GEMINI_MODEL", "g:a")
+    monkeypatch.setenv("DAILY_TOKENS", "g:a:100000")
+    monkeypatch.setenv("DAILY_LIMITS", "g:a:3")
+    assert autopilot.budget_left()["left"] == 100000
+    llm._log("g:a", "t", 10, 10, True)                 # 1 call used of 3, minus the safety margin of 2: the calls are used up
+    assert autopilot.budget_left()["left"] == 0

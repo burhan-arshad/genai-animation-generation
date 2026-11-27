@@ -149,19 +149,21 @@ def clear_counters() -> None:
 
 
 def _note_limits(spec: str, h) -> None:
-    """Groq tells the truth in its response headers: requests left today (RPD) and tokens left this minute (TPM)."""
+    """Providers tell the truth in their response headers: requests left today (SambaNova: ...-requests-day, Groq: ...-requests) and tokens left this minute."""
     g = h.get
-    if not (g("x-ratelimit-remaining-requests") or g("x-ratelimit-remaining-tokens")):
+    rem_req = g("x-ratelimit-remaining-requests-day") or g("x-ratelimit-remaining-requests")
+    lim_req = g("x-ratelimit-limit-requests-day") or g("x-ratelimit-limit-requests")
+    rst_req = g("x-ratelimit-reset-requests-day") or g("x-ratelimit-reset-requests")
+    if not (rem_req or g("x-ratelimit-remaining-tokens")):
         return
     toi = lambda v: int(float(v)) if v not in (None, "") and re.fullmatch(r"\d+(\.\d+)?", str(v)) else None
     try:
         with _con() as con:
             con.execute("INSERT OR REPLACE INTO llm_limits(spec, rem_req, limit_req, rem_tok, limit_tok, reset_req, reset_tok, ts) VALUES(?,?,?,?,?,?,?,?)",
-                        (spec, toi(g("x-ratelimit-remaining-requests")), toi(g("x-ratelimit-limit-requests")), toi(g("x-ratelimit-remaining-tokens")),
-                         toi(g("x-ratelimit-limit-tokens")), g("x-ratelimit-reset-requests"), g("x-ratelimit-reset-tokens"), time.time()))
+                        (spec, toi(rem_req), toi(lim_req), toi(g("x-ratelimit-remaining-tokens")), toi(g("x-ratelimit-limit-tokens")),
+                         rst_req, g("x-ratelimit-reset-tokens"), time.time()))
     except Exception:
         pass
-
 
 # ───────────── chains and limits ─────────────
 def _split(spec: str) -> tuple[str, str]:
@@ -238,14 +240,15 @@ def _quota_wait(spec: str, e: Exception) -> tuple[str, float]:
     hinted = _seconds(m.group(1)) if m else 0.0
     if re.search(r"limit:\s*0\b", text):
         return "none", 86400.0
-    if re.search(r"PerDay|per[ _]day|\bRPD\b|\bTPD\b", text, re.I):
+    daily = bool(re.search(r"PerDay|per[ _]day|\bRPD\b|\bTPD\b|daily (?:free )?(?:allocation|limit|quota)|neurons", text, re.I)) \
+        or _used_today(spec) >= max(1, int(_daily_limit(spec) * 0.9))
+    if daily:
         if _prov(spec) == "gemini":
             return "day", max(60.0, _next_reset(spec) - time.time())
         wait = ra or hinted
         return "day", (wait + 1) if wait else max(60.0, _next_reset(spec) - time.time())
     wait = ra or hinted
     return "minute", (wait + 1) if wait else 60.0
-
 
 def _extract_json(text: str) -> str:
     t = text.strip()

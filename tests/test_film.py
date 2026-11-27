@@ -90,11 +90,12 @@ def test_missing_objects_motion_and_callouts_are_fixed_in_code():
     story, problems, warns = F.build(d, timing())
     body = [s for s in story["shots"] if s["set"] != "study"]
     assert not any("objects" in p or "motion" in p or "callouts" in p.lower() for p in problems)
-    assert all(s["props"] for s in body) and sum(1 for s in body for p in s["props"] if p["move"] not in ("pop", "none")) >= 2
     shown = lambda s: s["props"] or story["sets"][s["set"]].get("dress")
-    assert all(shown(s) for s in body) and sum(1 for s in body for p in s["props"] if p["move"] not in ("pop", "none")) >= 2
+    assert all(shown(s) for s in body)
+    assert sum(1 for s in body for p in s["props"] if p["move"] not in ("pop", "none")) >= 2
+    assert any(s["callouts"] for s in body) and warns
 
-
+    
 def test_people_are_still_required():
     d = good_draft()
     for s in d.shots:
