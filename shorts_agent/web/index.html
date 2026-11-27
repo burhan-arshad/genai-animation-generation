@@ -45,8 +45,10 @@ details{margin-top:12px}summary{cursor:pointer;color:var(--mut)}
   <button id="stopb" class="hide danger">Stop</button>
   <label class="mut">Niche: <select id="nichesel"></select></label>
   <span class="tabs" style="margin-left:auto">
-    <button data-t="jobs" class="on">Videos</button><button data-t="assistant">Assistant</button><button data-t="niches">Niches</button><button data-t="brand">Brand</button>
-    <button data-t="youtube">YouTube</button><button data-t="settings">Settings</button><button data-t="usage">AI usage</button><button data-t="ops">Channel</button>
+    <button data-t="jobs" class="on">Videos</button><button data-t="assistant">Assistant</button>
+    <button data-t="analytics">Analytics</button>
+    <button data-t="niches">Niches</button><button data-t="brand">Brand</button>
+    <button data-t="youtube">YouTube</button><button data-t="settings">Settings</button><button data-t="usage">AI Limits</button><button data-t="ops">Channel</button>
     <button data-t="lab">Test lab</button>
   </span>
 </header>
@@ -83,6 +85,19 @@ details{margin-top:12px}summary{cursor:pointer;color:var(--mut)}
   </section>
   <section class="card"><div id="as-fields"></div>
     <div class="row" style="margin-top:10px"><button class="pri" id="as-save">Save settings</button><span id="as-msg" class="mut"></span></div></section>
+</main>
+
+<!-- ANALYTICS -->
+<main id="p-analytics" class="hide one">
+  <section class="card"><h2>Analytics and learning</h2>
+    <div class="hint">Your YouTube stats next to what each video was like (kind of mystery, hook, shot length, moving objects...). The assistant uses what worked, gently, and keeps part of its choices random.</div>
+    <div id="an-status" style="margin-top:8px"></div>
+    <div class="row" style="margin-top:10px"><button class="pri" id="an-refresh">Refresh stats from YouTube</button>
+      <button id="an-csv">Export CSV</button><button id="an-json">Export JSON</button><span id="an-msg" class="mut"></span></div></section>
+  <section class="card"><h3 style="margin-top:0">What the assistant uses now</h3><div id="an-hints"></div></section>
+  <section class="card"><h3 style="margin-top:0">What worked and what did not</h3><div id="an-find"></div></section>
+  <section class="card"><h3 style="margin-top:0">Your videos</h3><div id="an-rows"></div></section>
+  <section class="card"><details><summary>All comparisons</summary><div id="an-groups"></div></details></section>
 </main>
 
 <!-- NICHES -->
@@ -154,14 +169,16 @@ details{margin-top:12px}summary{cursor:pointer;color:var(--mut)}
 
 <!-- USAGE -->
 <main id="p-usage" class="hide one">
-  <section class="card"><h3 style="margin-top:0" id="uday">AI usage today</h3>
-    <table id="usage"><thead><tr><th>model</th><th>ok / daily limit</th><th>failed</th><th>tokens in</th><th>tokens out</th></tr></thead><tbody></tbody></table></section>
+  <section class="card"><h3 style="margin-top:0" id="uday">AI limits and usage</h3>
+    <div class="hint">Gemini ends its day at midnight Pacific time; Groq resets its daily limits at midnight UTC; per-minute limits are a rolling window. Times are on this computer. Google AI Studio's "rate limit" page shows the peak use of the last 90 days, so it never looks reset: trust this table.</div>
+    <table id="usage"><thead><tr><th>model</th><th>used today</th><th>failed</th><th>provider says</th><th>status</th></tr></thead><tbody></tbody></table>
+    <div class="row" style="margin-top:10px"><button id="u-blocks">Clear waiting states</button><button id="u-counts" class="danger">Forget today's counts</button><span id="u-msg" class="mut"></span></div>
+    <div class="hint">"Clear waiting states" makes the program try every model again at once (use it after a reset). "Forget today's counts" is for when this table counts more than the provider does.</div></section>
 </main>
 
 <!-- CHANNEL -->
 <main id="p-ops" class="hide one">
   <section class="card"><h2>Waiting for your approval</h2><div class="hint">Uploaded as private. Watch it on YouTube, then publish.</div><div id="appr"></div><span id="pub-msg" class="mut"></span></section>
-  <section class="card"><h2>Results</h2><div class="row"><button id="i-refresh">Refresh stats from YouTube</button><span id="i-msg" class="mut"></span></div><div id="insights"></div></section>
   <section class="card"><h2>Disk and cleanup</h2><div id="disk"></div></section>
 </main>
 
@@ -183,7 +200,7 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const mem={get(){try{return JSON.parse(localStorage.getItem('sa')||'{}')}catch{return{}}},set(o){localStorage.setItem('sa',JSON.stringify({...mem.get(),...o}))}};
 const FLOW=['queued','scripted','verified','timed','storyboarded','rendered','finalized','ready'];
-const TABS=['jobs','assistant','niches','brand','youtube','settings','usage','lab','ops'];
+const TABS=['jobs','assistant','analytics','niches','brand','youtube','settings','usage','lab','ops'];
 const cls=s=>['ready','uploaded'].includes(s)?'ok':['dropped','rejected'].includes(s)?'bad':'warn';
 const vcls=v=>v==='SUPPORTED'?'ok':v==='CONTRADICTED'?'bad':'warn';
 let cur=mem.get().job||0,curUpd=0,logOff=0,wkStart=null,wasRunning=false,JOBS=[],NICHES=[],ACTIVE='';
@@ -201,7 +218,7 @@ function openTab(t){
   if(!TABS.includes(t))t='jobs';
   TABS.forEach(x=>{$('#p-'+x).classList.toggle('hide',x!==t);document.querySelector(`.tabs [data-t="${x}"]`).classList.toggle('on',x===t)});
   mem.set({tab:t});
-  ({niches:loadNiches,brand:loadBrand,youtube:loadYT,settings:loadSettings,usage:loadUsage,lab:loadLab,ops:loadOps,assistant:loadAssistant})[t]?.();
+  ({niches:loadNiches,brand:loadBrand,youtube:loadYT,settings:loadSettings,usage:loadUsage,lab:loadLab,ops:loadOps,assistant:loadAssistant, analytics:loadAnalytics})[t]?.();
 }
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>openTab(b.dataset.t));
 
@@ -426,11 +443,13 @@ $('#ytfile').onchange=async e=>{
 };
 
 /* ---------- usage ---------- */
+const lt=s=>s?new Date(s*1000).toLocaleString([],{weekday:'short',hour:'2-digit',minute:'2-digit'}):'-';
 async function loadUsage(){
   const u=await api('/api/usage');
-  $('#uday').textContent='AI usage today (quota day, Pacific): '+u.day;
-  $('#usage tbody').innerHTML=u.models.map(m=>`<tr><td>${esc(m.model)}</td><td>${m.ok} / ${m.limit}</td><td>${m.failed}</td><td>${m.in}</td><td>${m.out}</td></tr>`).join('')||'<tr><td colspan="5" class="mut">no calls today</td></tr>';
+  $('#usage tbody').innerHTML=u.models.map(m=>`<tr><td>${esc(m.model)}</td><td>${m.ok} / ${m.limit}<div class="hint">${m.tokens_today}${m.tokens_limit?' / '+m.tokens_limit:''} tokens</div></td><td>${m.failed}</td><td class="hint">${esc(m.provider||'-')}</td><td>${m.waiting_until?`<span class="b bad">waiting until ${lt(m.waiting_until)}</span><div class="hint">${esc(m.waiting_kind)}: ${esc(m.waiting_note)}</div>`:'<span class="b ok">ready</span>'}<div class="hint">daily reset: ${lt(m.resets_at)}</div></td></tr>`).join('')||'<tr><td colspan="5" class="mut">no models</td></tr>';
 }
+$('#u-blocks').onclick=async()=>{try{await api('/api/usage/reset',{what:'blocks'});say('#u-msg','Cleared ✓');loadUsage()}catch(e){say('#u-msg',e.message,1)}};
+$('#u-counts').onclick=async()=>{if(!confirm('Forget the calls counted in the last 36 hours?'))return;try{await api('/api/usage/reset',{what:'counters'});say('#u-msg','Forgotten ✓');loadUsage()}catch(e){say('#u-msg',e.message,1)}};
 
 /* ---------- test lab ---------- */
 function loadLab(){
@@ -460,18 +479,16 @@ setInterval(()=>{if(!$('#p-lab').classList.contains('hide'))loadLab()},4000);
 /* ---------- channel ---------- */
 const MB=b=>(b/1048576).toFixed(0)+' MB';
 async function loadOps(){
-  const [l,ins,dk]=await Promise.all([api('/api/launch'),api('/api/insights'),api('/api/disk')]);
+  const [l,dk]=await Promise.all([api('/api/launch'),api('/api/disk')]);
   $('#appr').innerHTML=l.pending.map(x=>`<div class="item"><img src="/api/jobs/${x.id}/thumb?v=${Date.now()}" style="height:90px;border-radius:6px" onerror="this.style.display='none'"><span class="grow">#${x.id} ${esc(x.topic)}<div class="hint">${esc(x.note)}</div><a href="https://www.youtube.com/watch?v=${esc(x.youtube_id)}" target="_blank">Watch on YouTube</a></span><button class="pri" data-pub="${x.id}" data-when="now">Publish now</button><button data-pub="${x.id}" data-when="schedule">Schedule</button></div>`).join('')||'<span class="mut">Nothing waiting.</span>';
-  $('#insights').innerHTML=ins.rows.length?'<table><thead><tr><th>#</th><th>topic</th><th>views</th><th>likes</th><th>watched</th></tr></thead><tbody>'+ins.rows.map(r=>`<tr><td>${r.id}</td><td>${esc(r.topic)}</td><td>${r.views}</td><td>${r.likes}</td><td>${r.avg_pct==null?'-':r.avg_pct.toFixed(0)+'%'}</td></tr>`).join('')+'</tbody></table>':'<span class="mut">No stats yet: publish a video, wait a day, then press Refresh.</span>';
   const L={temp:'Test leftovers (demo and preview folders)',dead:'Dropped and rejected videos',slim:'Big temporary files of finished videos',old:'Whole folders of videos uploaded long ago'};
   $('#disk').innerHTML=`<div class="hint">All videos use ${MB(dk.total_bytes)}</div>`+Object.keys(L).map(m=>`<div class="item"><span class="grow">${L[m]}<div class="hint">${dk[m].count} item(s), ${MB(dk[m].bytes)}${dk[m].days?' · older than '+dk[m].days+' days':''}</div></span><button class="danger" data-clean="${m}">Delete</button></div>`).join('');
 }
 $('#appr').onclick=async e=>{const id=e.target.dataset.pub;if(!id)return;say('#pub-msg','Working...');try{const r=await api('/api/approvals/'+id+'/publish',{when:e.target.dataset.when});say('#pub-msg','Done: '+r.note);loadOps();loadJobs()}catch(x){say('#pub-msg','Error: '+x.message,1)}};
-$('#i-refresh').onclick=async()=>{say('#i-msg','Asking YouTube...');try{const r=await api('/api/insights/refresh',{});say('#i-msg',`Updated ${r.updated} video(s)${r.analytics?'':' (retention needs the Analytics API and a new login)'}`);loadOps()}catch(e){say('#i-msg',e.message,1)}};
 $('#disk').onclick=async e=>{const m=e.target.dataset.clean;if(!m||!confirm('Delete these files? This cannot be undone.'))return;try{const r=await api('/api/cleanup',{mode:m});alert('Removed '+r.removed+' item(s), '+MB(r.bytes));loadOps();loadJobs()}catch(x){alert(x.message)}};
 
 /* ---------- assistant ---------- */
-const AGROUPS=[['main','Assistant'],['topic','1. Topic'],['script','2. Script'],['fact','3. Fact-check'],['voice','4. Voice and film'],['render','5. Video render'],['quality','6. Quality check'],['publish','7. Schedule and upload'],['safety','Safety limits (they save time and tokens)']];
+const AGROUPS=[['main','Assistant'],['topic','1. Topic'],['script','2. Script'],['fact','3. Fact-check'],['voice','4. Voice and film'],['render','5. Video render'],['quality','6. Quality check'],['publish','7. Schedule and upload'],['learn','8. Learning from your stats'],['safety','Safety limits (they save time and tokens)']];
 function afield(f){
   const i=f.kind.startsWith('select:')?`<select data-ak="${f.key}">${f.kind.slice(7).split(',').map(x=>`<option ${x===f.value?'selected':''}>${x}</option>`).join('')}</select>`
     :`<input data-ak="${f.key}" ${f.kind==='time'?'type="time" ':''}value="${esc(f.value)}">`;
@@ -483,6 +500,7 @@ async function loadAssistant(){
    +`<div style="margin-top:4px">Mode: <b>${esc(s.mode)}</b> · ready: ${s.ready.length} · scheduled: ${s.scheduled.length} · keeps ${s.target} ahead</div>`
    +(s.working_on?`<div>Working on: #${s.working_on.id} ${esc(s.working_on.topic)} <span class="b warn">${esc(s.working_on.status)}</span></div>`:'')
    +`<div class="hint">Next free slots: ${s.next_slots.map(x=>esc(x.local)).join(' · ')||'none'}</div>`
+   +(s.budget?`<div class="hint">AI budget left today: about ${s.budget.left} tokens on ${s.budget.models} model(s), resets ${lt(s.budget.resets)}</div>`:'')
    +s.ready.map(r=>`<div class="item"><span class="grow">Ready: #${r.id} ${esc(r.topic)}${r.score!=null?' · score '+r.score:''}${r.note?`<div class="err">${esc(r.note)}</div>`:''}</span></div>`).join('')
    +s.scheduled.map(r=>`<div class="item"><span class="grow">Scheduled: #${r.id} ${esc(r.topic)} <span class="mut">${esc(r.publish_at)}</span></span></div>`).join('')
    +(s.last_run?`<h3>Last run (${esc(s.last_run.at)})</h3><pre>${esc((s.last_run.notes||[]).join('\n')||'nothing to do')}</pre>`:'');
@@ -494,6 +512,22 @@ $('#as-save').onclick=async()=>{const values={};document.querySelectorAll('[data
 $('#as-run').onclick=()=>start('assistant');
 $('#as-on').onclick=async()=>{try{await api('/api/assistant/schedule',{enabled:true,run_time:$('#as-time').value});say('#as-tmsg','Daily run is on ✓');loadAssistant()}catch(e){say('#as-tmsg','Error: '+e.message,1)}};
 $('#as-off').onclick=async()=>{try{await api('/api/assistant/schedule',{enabled:false});say('#as-tmsg','Turned off');loadAssistant()}catch(e){say('#as-tmsg','Error: '+e.message,1)}};
+
+/* ---------- analytics ---------- */
+const pc=v=>v==null?'-':(+v).toFixed(0)+'%';
+async function loadAnalytics(){
+  let a;try{a=await api('/api/analytics')}catch(e){$('#an-status').innerHTML=`<span class="err">${esc(e.message)}</span>`;return}
+  const i=a.insights;
+  $('#an-status').innerHTML=`<div>Videos with stats: <b>${i.videos}</b> · compared: <b>${i.scored}</b> · learning: <span class="b ${i.ready?'ok':'warn'}">${!i.learning?'off':i.ready?'on':'waiting for '+Math.max(0,i.needed-i.scored)+' more video(s)'}</span></div><div class="hint">Score = viewers' retention 50%, views 30%, likes/comments/shares 20%, each as a rank among your own videos. A video counts after 2 days public. With few videos the findings are only hints.</div>`;
+  const H=a.hints;
+  $('#an-hints').innerHTML=['topic','hook','storyboard'].map(k=>`<h3>${k==='storyboard'?'film style':k}</h3>`+(H[k]?`<pre>${esc(H[k])}</pre>`:'<span class="mut">nothing yet</span>')).join('');
+  $('#an-find').innerHTML=i.findings.length?i.findings.map(f=>`<div class="item"><span class="grow"><b>${esc(f.label)}</b>: "${esc(f.best)}" did better than "${esc(f.worst)}" <span class="mut">(score ${f.best_perf} vs ${f.worst_perf}, ${f.best_n} vs ${f.worst_n} videos)</span></span><span class="b ${f.confidence==='medium'?'ok':'warn'}">${f.confidence}</span></div>`).join(''):'<span class="mut">No clear difference yet.</span>';
+  $('#an-rows').innerHTML=a.rows.length?'<table><thead><tr><th>#</th><th>topic</th><th>views</th><th>7 days</th><th>watched</th><th>likes</th><th>shares</th><th>subs</th><th>score</th><th>hook</th></tr></thead><tbody>'+a.rows.map(r=>`<tr><td>${r.id}</td><td>${esc(r.topic)}<div class="hint">${esc(r.kind)} · ${esc(r.privacy||'')}</div></td><td>${r.views??'-'}</td><td>${r.views7??'-'}</td><td>${pc(r.pct7??r.avg_pct)}</td><td>${r.likes??'-'}</td><td>${r.shares??'-'}</td><td>${r.subs??'-'}</td><td>${r.perf??'-'}</td><td class="hint">${esc(r.hook_line)}</td></tr>`).join('')+'</tbody></table>':'<span class="mut">No stats yet: publish a video, wait a day, then press Refresh.</span>';
+  $('#an-groups').innerHTML=i.groups.map(g=>`<h3>${esc(g.label)}</h3><table><tbody>`+g.values.map(v=>`<tr><td>${esc(v.value)}</td><td>${v.n} video(s)</td><td>score ${v.perf}</td><td>${pc(v.retention)} watched</td></tr>`).join('')+'</tbody></table>').join('')||'<span class="mut">Nothing to compare yet.</span>';
+}
+$('#an-refresh').onclick=async()=>{say('#an-msg','Asking YouTube...');try{const r=await api('/api/analytics/refresh',{});say('#an-msg',`Updated ${r.updated} video(s)${r.analytics?'':' (retention needs the Analytics permission: YouTube tab, log out and log in again)'}`);loadAnalytics()}catch(e){say('#an-msg',e.message,1)}};
+$('#an-csv').onclick=()=>{location.href='/api/analytics/export?fmt=csv'};
+$('#an-json').onclick=()=>{location.href='/api/analytics/export?fmt=json'};
 
 /* ---------- start ---------- */
 api('/api/brand').then(r=>{try{$('#title').textContent=JSON.parse(r.text).channel.name+' · dashboard'}catch{}});

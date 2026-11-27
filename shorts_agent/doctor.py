@@ -15,7 +15,7 @@ from . import brand, llm, niche, styles
 from .config import PROJECTS_ROOT, REPO, SKILL_DIR, SKILL_PY
 
 RESULTS: list[tuple[str, str, str]] = []
-TASKS = ["research", "script", "factcheck", "judge", "storyboard", "storyboard_hard", "topics", "voice", "props"]
+TASKS = ["research", "script", "factcheck", "judge", "storyboard", "storyboard_hard", "topics", "voice", "props","hook"]
 
 def add(level: str, label: str, detail: str = "") -> None:
     RESULTS.append((level, label, detail))

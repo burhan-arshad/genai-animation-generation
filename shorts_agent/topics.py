@@ -56,6 +56,14 @@ def reject_reason(i: Idea, cfg: dict, block: re.Pattern, used_tok: list[set[str]
     dense = sum(1 for e in items if len(re.findall(r"\d", e["text"])) >= 4)      # paragraphs with numbers or dates: what the fact-check can verify
     if dense < int(os.getenv("TOPIC_MIN_FACTS", "3")):
         return "too few checkable facts"
+    if len({e["url"] for e in items}) < int(os.getenv("TOPIC_MIN_PAGES", "2")):
+        return "only one page of research"
+    if sum(len(e["text"]) for e in items) < int(os.getenv("TOPIC_MIN_CHARS", "2500")):
+        return "too little research text"
+    rx = cfg.get("evidence_regex")
+    if rx and sum(1 for e in items if re.search(rx, e["text"], re.I)) < int(cfg.get("evidence_matches", 2)):
+        return "no theories or solution in the research"
+
     if os.getenv("TAVILY_API_KEY") and os.getenv("TOPIC_WEB_PROBE", "1") != "0" and not web_evidence(i.topic, n=2):
         return "no second reliable source"
     return None
@@ -130,8 +138,16 @@ def suggest(n: int = 3, key: str | None = None) -> list[Idea]:
     used = [r[0] for r in store.db().execute("SELECT topic FROM jobs")]
     used_tok = [_tokens(t) for t in used]
     formats = cfg.get("formats") or ["a surprising true story"]
+    fmt = formats[len(used) % len(formats)]
+    try:
+        from . import analytics
+        best = analytics.preferred_kind()            # None until the stats say something, and for 25% of the picks (exploration)
+        if best:
+            fmt = next((f for f in formats if analytics.kind_of(f) == best), fmt)
+    except Exception:
+        pass
     prompt = ("Topics already used (do not repeat):\n" + ("\n".join(f"- {t}" for t in used[-60:]) or "(none yet)")
-              + f"\n\nPreferred kind of story this time: {formats[len(used) % len(formats)]}.\nPropose 12 topics.")
+              + f"\n\nPreferred kind of story this time: {fmt}.\nPropose 12 topics.")
     seeds = seed_candidates(cfg, used_tok)
     if seeds:
         prompt += ("\n\nCURATED CASES (well documented, safe, each has a Wikipedia article). Prefer these. For a curated case use its exact topic text, year and region:\n"

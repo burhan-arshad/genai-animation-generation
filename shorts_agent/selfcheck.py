@@ -46,6 +46,15 @@ HAS = [
     ("uploader.py", 'mode == "schedule"', "upload now / schedule"),
     ("store.py", "publish_at", "job columns for the assistant"),
     ("llm.py", "def tokens_between", "token counting"),
+    ("filmboard.py", "def polish", "quality notes fixed in code"),
+    ("script_agent.py", "def pick_hook", "separate hook step"),
+    ("hooks.py", "def score_hook", "hook score"),
+    ("analytics.py", "def hints", "learning from the stats"),
+    ("analytics.py", "def export_csv", "analytics export"),
+    ("topics.py", "TOPIC_MIN_PAGES", "stricter research check for topics"),
+    ("llm.py", "def usage_rows", "limits table with reset times"),
+    ("llm.py", "def _quota_wait", "429 understood and remembered"),
+    ("autopilot.py", "def budget_left", "budget gate for new videos"),
 ]
 GONE = [
     ("filmboard.py", "has no shot of its own", "the old line check (must be deleted)"),

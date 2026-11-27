@@ -45,6 +45,83 @@ STYLES_C = ["label", "pop", "stamp"]
 SHAPES = ["rect", "circle", "ellipse", "poly", "line", "text"]
 MAX_SHOT = 6.2
 HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
+MOTION_CYCLE = ["drop", "rise", "slide_l", "slide_r", "grow", "shake"]
+CAM_CYCLE = ["push_in", "pan_right", "pull_out", "pan_left", "drift", "crane_down"]
+FRAME_CYCLE = ["wide", "medium", "full"]
+ARM_CYCLE = ["present", "point", "chin", "hip"]
+
+
+def polish(shots: list[dict], sets: dict, key_prop: str, label: str) -> list[str]:
+    """The quality notes are repaired in code (an object in every shot, people, acting, camera variety, moving objects, a callout)
+    instead of sending the whole story back to the AI: a retry costs minutes and thousands of tokens."""
+    notes: list[str] = []
+    n = len(shots)
+    if not n:
+        return notes
+    acting = lambda a: bool(a["beats"]) or a["arms"]["r"] != "down" or a["x0"] != a["x1"]
+    added = 0
+    for s in shots:                                                     # the story's key object in a shot that shows nothing
+        if not s["props"] and not sets.get(s["set"], {}).get("dress"):
+            s["props"].append({"name": key_prop, "x": 72, "d": 2, "s": 0.9, "t0": round(s["at"] + 0.2, 3), "move": "pop", "c": "", "text": ""})
+            added += 1
+    if added:
+        notes.append(f"{added} shot(s) showed no object: added '{key_prop}'")
+    have, filled = sum(1 for s in shots if s["actors"]), 0
+    for i, s in enumerate(shots):                                       # people in at least 70% of the shots
+        if have >= 0.7 * n:
+            break
+        if s["actors"]:
+            continue
+        src = next((shots[j] for j in [*range(i - 1, -1, -1), *range(i + 1, n)] if shots[j]["actors"]), None)
+        if src:
+            s["actors"] = [dict(json.loads(json.dumps(a)), x1=a["x0"], beats=[], talk=False) for a in src["actors"][:2]]
+            have += 1
+            filled += 1
+    if filled:
+        notes.append(f"{filled} shot(s) had nobody: brought the people in")
+    lively, k = sum(1 for s in shots if any(acting(a) for a in s["actors"])), 0
+    for s in shots:                                                     # acting in at least 65% of the shots
+        if lively >= 0.65 * n:
+            break
+        if s["actors"] and not any(acting(a) for a in s["actors"]):
+            s["actors"][0]["arms"] = {"l": "down", "r": ARM_CYCLE[k % 4]}
+            k += 1
+            lively += 1
+    if k:
+        notes.append(f"{k} still person/people got a gesture")
+    cams0, fr0 = {s["camera"] for s in shots}, {s["framing"] for s in shots}
+    for i, s in enumerate(shots):
+        if len({x["camera"] for x in shots}) >= 4:
+            break
+        s["camera"] = CAM_CYCLE[i % 6]
+    for i, s in enumerate(shots):
+        if len({x["framing"] for x in shots}) >= 3:
+            break
+        s["framing"] = FRAME_CYCLE[i % 3]
+    close = [s for s in shots if s["framing"] in ("close", "extreme_close")]
+    for s in close[int(0.3 * n):]:
+        s["framing"] = "medium"
+    for a, b in zip(shots, shots[1:]):
+        if (a["set"], a["framing"], a["camera"]) == (b["set"], b["framing"], b["camera"]):
+            b["camera"] = next(c for c in CAM_CYCLE if c != a["camera"])
+    if {s["camera"] for s in shots} != cams0 or {s["framing"] for s in shots} != fr0 or len(close) > int(0.3 * n):
+        notes.append("camera moves and framings were varied")
+    moving = [p for s in shots for p in s["props"] if p["move"] not in ("pop", "none")]
+    need, k = max(2, min(4, n // 4)), 0
+    for s in shots:
+        for p in s["props"]:
+            if len(moving) >= need:
+                break
+            if p["move"] in ("pop", "none"):
+                p["move"] = MOTION_CYCLE[k % 6]
+                k += 1
+                moving.append(p)
+    if k:
+        notes.append(f"{k} object(s) got a motion")
+    if label and not any(s["callouts"] for s in shots):
+        shots[0]["callouts"].append({"text": re.sub(r"\s+", " ", label).strip()[:26], "t": round(shots[0]["at"] + 0.5, 3), "style": "label", "dur": 2.4})
+        notes.append("a callout was added")
+    return notes
 SPIN_OK = {"coin", "coins"}
 
 
@@ -480,7 +557,8 @@ def build(d: StoryDraft, tm: Timing, hero_ok: bool = True, hook: dict | None = N
         allshots[-1]["end"] = round(tm.dur, 3)
         if not any(sh_["at"] < 0 for sh_ in allshots):
             allshots[0]["at"] = 0.0
-
+    for note in polish(shots, sets, prop, (d.date or d.place).strip()):
+        warns.append(note)
     # ---- checks the LLM must pass ----
     body = [s for s in shots]
     if body:
@@ -557,12 +635,20 @@ intro_prop = the ONE object that best shows the story (a built-in or custom obje
 title = the short title, place = "Cardiff, New York", date = "1869" (short, for the host's title card).
 Facts: show only what the narration says. Nothing graphic."""
 
+def _learned_style() -> str:
+    try:
+        from . import analytics
+        h = analytics.hints("storyboard")
+        return ("\n" + h) if h else ""
+    except Exception:
+        return ""
+
 def system_text() -> str:
     """The director's brief with the channel's own host name and the niche's storyboard rules."""
     st = styles.active()
     host = (brand.load()["character"].get("name") or "the host").strip()
     return (SYSTEM.replace("history short", "short").replace("'the History Student'", f"'{host}'")
-            + "\nNICHE DIRECTION (follow it, it matters more than the examples above):\n" + st.board_rules)
+            + "\nNICHE DIRECTION (follow it, it matters more than the examples above):\n" + st.board_rules + _learned_style())
 
 def build_prompt(script: dict, tm: Timing, topic: str, year, plan: dict | None = None, appear: str = "first_last") -> str:
     lines = "\n".join(f"{i}: [{l['start']:.1f}-{l['end']:.1f}s] {l['text']}" for i, l in enumerate(tm.lines))

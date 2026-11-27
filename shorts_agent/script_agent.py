@@ -38,6 +38,69 @@ class RScript(BaseModel):
     hook_candidates: list[str]
     lines: list[RLine]
 
+class HookIdea(BaseModel):
+    line0: str
+    line1: str
+    formula: str
+    evidence: list[str]
+    numbers: list[str]
+
+
+class HookList(BaseModel):
+    hooks: list[HookIdea]
+
+
+HOOK_SYSTEM = """You write the first two spoken lines of a 45-second YouTube Short about a real case. The viewer decides in two seconds whether to keep watching.
+Write 6 different hooks. For each:
+- line0: 3-10 words. Start INSIDE the strangest concrete moment, with something the viewer can picture (an object, a place, a number, a person) and a contradiction or something impossible. Never start with a year or a date ('In 1872, ...'), never with a greeting, never with 'Did you know', never with an explanation.
+- line1: 5-12 words. Raise the stakes or deepen the question. Do NOT give the answer.
+- Use ONLY facts stated in the evidence. `evidence` = the ids that state them. `numbers` = every number or year you use, as digits ('1872'). Inside line0 and line1 write numbers as spoken words.
+- `formula`: a two-word name for the pattern.
+Strong hooks sound like: 'The table was set. The coffee was still warm. The ship was empty.' / 'A man paid for a giant. The giant was made of gypsum.' / 'Nobody saw the painting leave. It was gone by morning.'"""
+
+
+def pick_hook(topic: str, items: list[dict]):
+    """A separate step for the first two lines: 6 candidates, kept only when the evidence states them, the strongest by hooks.score_hook."""
+    if os.getenv("HOOK_AGENT", "1") == "0":
+        return None
+    ev = {e["id"]: e for e in items}
+    listing = "\n".join(f"{e['id']} [{e['title']}]\n{e['text'][:420]}\n" for e in items[:10])
+    learned = ""
+    try:
+        from . import analytics
+        learned = analytics.hints("hook")
+    except Exception:
+        pass
+    try:
+        out = generate_structured(f"Topic: {topic}\n\nEVIDENCE:\n{listing}\nWrite the hooks.", HookList,
+                                  system=HOOK_SYSTEM + (("\n" + learned) if learned else ""), temperature=0.9, task="hook")
+    except Exception as e:
+        print(f"[hook] the hook step failed ({type(e).__name__}): the script writer opens the video itself")
+        return None
+    best, best_s = None, -99
+    for h in out.hooks:
+        h.line0, h.line1 = speak_numbers(h.line0).strip(), speak_numbers(h.line1).strip()
+        h.evidence = [e for e in h.evidence if e in ev]
+        if not h.evidence or hooks.hook_ok(h.line0, h.line1):
+            continue
+        blob = " ".join(ev[e]["text"] for e in h.evidence).replace(",", "")
+        if any(n.replace(",", "").strip() and not re.search(rf"(?<!\d){re.escape(n.replace(',', '').strip())}(?!\d)", blob) for n in h.numbers):
+            continue
+        s = hooks.score_hook(h.line0, h.line1)
+        if s > best_s:
+            best, best_s = h, s
+    print(f"[hook] {len(out.hooks)} candidates" + (f", chosen (score {best_s}): {best.line0} / {best.line1}" if best else ": none usable, the writer opens the video itself"))
+    return best
+
+
+def apply_hook(r: "RScript", hook) -> "RScript":
+    """The chosen hook becomes lines 0 and 1, with the evidence it was written from."""
+    if hook is None or len(r.lines) < 3:
+        return r
+    for l, text in zip(r.lines[:2], (hook.line0, hook.line1)):
+        l.text, l.evidence, l.numbers = text, list(hook.evidence), list(hook.numbers)
+    return r
+
 
 PLAN_SYSTEM = """You plan research for a 40-second educational short. Return 3-5 short search queries (2-6 words) that find
 encyclopedic Wikipedia pages with the key dated, numeric, well-documented facts about the topic. Prefer the specific
@@ -156,14 +219,17 @@ def acceptable(draft: ScriptDraft, problems: list[str]) -> bool:
     words = sum(len(l.text.split()) for l in draft.lines)
     return bool(draft.lines) and all(any(m in p for m in SOFT) for p in problems) and 60 <= words <= 170 and 6 <= len(draft.lines) <= 28
 
-def write_from_evidence(topic: str, items: list[dict], plan: tuple[str, str] | None = None) -> tuple[RScript, ScriptDraft]:
+def write_from_evidence(topic: str, items: list[dict], plan: tuple[str, str] | None = None, hook=None) -> tuple[RScript, ScriptDraft]:
     st, ev = styles.active(), {e["id"]: e for e in items}
-    base = f"Topic: {topic}\n\nEVIDENCE:\n{evidence_block(items)}\nWrite the script."
+    opening = (f"\nOPENING (fixed, already approved): line 0 is \"{hook.line0}\" and line 1 is \"{hook.line1}\". "
+               "Write these two lines exactly as they are, then continue the story from line 2 without repeating them.\n") if hook else ""
+    base = f"Topic: {topic}\n\nEVIDENCE:\n{evidence_block(items)}{opening}\nWrite the script."
     prompt, problems = base, []
     tries = max(2, int(os.getenv("SCRIPT_TRIES", "4")))
     for attempt in range(1, tries + 1):
         task = "script" if attempt <= 2 else "script_hard"
         r = generate_structured(prompt, RScript, system=writer_system(st, plan), task=task)
+        r = apply_hook(r, hook)
         draft = ScriptDraft(title=r.title, sources=sources_for(r, ev),
                             lines=[Line(text=l.text, caps=l.caps if st.caps_mode == "chunks" else "") for l in r.lines])
         draft = repair_numbers(draft)                         # digits in the spoken text become words, in code
@@ -193,9 +259,17 @@ def generate(topic: str, project: Path) -> None:
         raise RuntimeError("Research found too little evidence: try a more specific, well-known topic.")
     job_id = hooks.job_id_of(project)
     recent_h, recent_e = store.recent_hooks()
-    plan = hooks.pick(recent_h, recent_e, seed=job_id or len(topic))
+    try:
+        from . import analytics
+        weights = analytics.weights()
+    except Exception:
+        weights = None
+    plan = hooks.pick(recent_h, recent_e, seed=job_id or len(topic), weights=weights)
+    hook = pick_hook(topic, items)
+    if hook:
+        plan = ("", plan[1])
     print(f"[hook] formula: {plan[0]} / ending: {plan[1]} (recent: {recent_h[:4]})")
-    r, draft = write_from_evidence(topic, items, plan)
+    r, draft = write_from_evidence(topic, items, plan,hook)
     if not project.exists():
         shutil.copytree(SKILL_DIR / "styles" / (st.engine or st.key) / "example", project)
         shutil.rmtree(project / "data", ignore_errors=True)       # the example's timing must never be mistaken for ours
@@ -206,7 +280,7 @@ def generate(topic: str, project: Path) -> None:
     brand.write_js(project)
     music = r.music if r.music in st.music_options else st.music
     sj = to_script_json(draft, st, music)
-    hook_type = r.hook_type if r.hook_type in hooks.HOOKS else plan[0]
+    hook_type = "agent" if hook else (r.hook_type if r.hook_type in hooks.HOOKS else plan[0])
     end_type = r.end_type if r.end_type in hooks.ENDINGS else plan[1]
     sj["hook"] = {"type": hook_type, "text": re.sub(r"\s+", " ", r.hook_text).strip()[:30].upper(), "end_type": end_type,
                   "end_question": re.sub(r"\s+", " ", r.end_question).strip()[:26].upper(), "candidates": [c[:140] for c in r.hook_candidates[:3]]}

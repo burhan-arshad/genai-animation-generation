@@ -228,7 +228,8 @@ def synth(prompt_full: str, prompt_simple: str, voice: str, expected: float) -> 
     dead: set[str] = set()
     for attempt in range(3):
         for spec in models:
-            if spec in dead:
+            if spec in dead or llm._blocked_until(spec) > time.time():
+                dead.add(spec)
                 continue
             used, limit = llm._used_today(spec), llm._daily_limit(spec)
             if used >= limit - llm.SAFETY_MARGIN:
@@ -240,14 +241,19 @@ def synth(prompt_full: str, prompt_simple: str, voice: str, expected: float) -> 
             except llm.Skip:
                 raise
             except Exception as e:
-                llm._log(spec, "tts", 0, 0, False)
                 last = e
-                print(f"[voice] {spec}: {type(e).__name__}: {str(e)[:500]}")
                 kind = llm._classify(e)
-                if kind == "fatal" or (kind == "quota" and ("PerDay" in str(e) or "limit: 0" in str(e))):
-                    dead.add(spec)                    # 400/404/403 = payload or model problem: never retry
-                elif kind == "quota":
-                    time.sleep(60)
+                llm._log(spec, "tts" + (":429" if kind == "quota" else ""), 0, 0, False)
+                print(f"[voice] {spec}: {type(e).__name__}: {str(e)[:300]}")
+                if kind == "quota":
+                    qk, wait = llm._quota_wait(spec, e)
+                    if qk in ("day", "none") or wait >= 300:
+                        llm._block(spec, time.time() + wait, qk, str(e))
+                        dead.add(spec)
+                    else:
+                        time.sleep(min(wait, 65))
+                elif kind == "fatal":
+                    dead.add(spec)
                 else:
                     time.sleep(2)
                 continue
@@ -258,7 +264,6 @@ def synth(prompt_full: str, prompt_simple: str, voice: str, expected: float) -> 
             last = RuntimeError(f"the voice returned {secs:.1f} s of audio for about {expected:.1f} s of text")
             print(f"[voice] {last}")
     raise last or RuntimeError("no voice model available")
-
 
 # ───────────── audio ─────────────
 def trim(pcm: bytes, thr: int = 450, keep: float = 0.05) -> bytes:

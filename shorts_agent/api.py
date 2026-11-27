@@ -523,20 +523,31 @@ def job_thumb(job_id: int):
     return FileResponse(f, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
 
 
-@app.get("/api/insights")
-def insights_get():
+# ───────────── analytics: what the videos did and what the assistant learns from it ─────────────
+@app.get("/api/analytics")
+def analytics_get():
+    os.environ.update(autopilot.env_overrides())          # the settings of the Assistant tab apply here too
     try:
-        return {"rows": analytics.rows()}
-    except Exception:
-        return {"rows": []}
+        rows = analytics.dataset()
+        return {"rows": rows, "insights": analytics.insights(rows),
+                "hints": {k: analytics.hints(k, rows) for k in ("topic", "hook", "storyboard")}}
+    except Exception as e:
+        raise HTTPException(400, f"{type(e).__name__}: {str(e)[:250]}")
 
 
-@app.post("/api/insights/refresh")
-def insights_refresh():
+@app.post("/api/analytics/refresh")
+def analytics_refresh():
     try:
         return analytics.refresh()
     except Exception as e:
         raise HTTPException(400, f"{type(e).__name__}: {str(e)[:250]}")
+
+
+@app.get("/api/analytics/export")
+def analytics_export(fmt: str = "csv"):
+    if fmt == "json":
+        return Response(analytics.export_json(), media_type="application/json", headers={"Content-Disposition": 'attachment; filename="channel_analytics.json"'})
+    return Response(analytics.export_csv(), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": 'attachment; filename="channel_analytics.csv"'})
 
 
 @app.get("/api/disk")
@@ -582,16 +593,26 @@ def youtube_logout():
     return {"ok": True}
 
 
-# ───────────── usage + brand + voices ─────────────
 @app.get("/api/usage")
 def usage():
-    from .llm import _con, _daily_limit, _today
-    with _con() as con:
-        rows = con.execute("SELECT model, SUM(ok), SUM(1-ok), SUM(in_tokens), SUM(out_tokens) "
-                           "FROM llm_calls WHERE day=? GROUP BY model", (_today(),)).fetchall()
-    return {"day": _today(), "models": [{"model": m, "ok": o or 0, "failed": f or 0, "in": i or 0, "out": t or 0,
-                                         "limit": _daily_limit(m)} for m, o, f, i, t in rows]}
+    from . import llm
+    return {"models": llm.usage_rows()}
 
+
+class Reset(BaseModel):
+    what: str                    # blocks | counters
+
+
+@app.post("/api/usage/reset")
+def usage_reset(b: Reset):
+    from . import llm
+    if b.what == "blocks":
+        llm.clear_blocks()
+    elif b.what == "counters":
+        llm.clear_counters()
+    else:
+        raise HTTPException(400, "unknown")
+    return {"ok": True}
 
 @app.get("/api/voices")
 def voices():

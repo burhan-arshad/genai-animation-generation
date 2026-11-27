@@ -20,6 +20,7 @@ from zoneinfo import ZoneInfo
 from . import notify, quality, schedule, store, styles, uploader
 from .config import REPO
 from .llm import tokens_between
+from . import llm as _llm
 from .pipeline import FLOW, TERMINAL, run as run_pipeline
 
 PATH = REPO / "autopilot.json"
@@ -64,6 +65,14 @@ FIELDS = [
     ("tokens_per_video", "Most tokens one video may cost", "number", "150000", "A video above this is dropped and another topic is tried.", "safety", None),
     ("failed_per_day", "Failed videos that stop the day", "number", "3", "", "safety", None),
     ("stage_failures", "Failures of one step before the video is dropped", "number", "2", "", "safety", None),
+    ("hook_agent", "Write the opening lines in a separate step", "select:1,0", "1", "6 hook candidates, the strongest by rules is used. One small extra call.", "script", "HOOK_AGENT"),
+    ("topic_min_pages", "Pages of research a topic needs", "number", "2", "", "topic", "TOPIC_MIN_PAGES"),
+    ("topic_min_chars", "Characters of research text a topic needs", "number", "2500", "", "topic", "TOPIC_MIN_CHARS"),
+    ("learn", "Learn from my YouTube stats", "select:1,0", "1", "Topics, hooks and film style lean towards what worked on your channel. Videos count after 2 days public.", "learn", "LEARN"),
+    ("learn_min_videos", "Videos with data before it learns", "number", "8", "With fewer videos the numbers are noise.", "learn", "LEARN_MIN_VIDEOS"),
+    ("learn_explore", "Choices that stay random (%)", "number", "25", "Keeps trying new things so the channel does not get stuck. 0 = always follow the data.", "learn", "LEARN_EXPLORE"),
+    ("budget_gate", "Do not start a video the AI budget cannot finish", "select:1,0", "1",
+     "Needs DAILY_TOKENS in .env (tokens per day of each Groq model). A video that stops half way wastes the tokens already spent.", "safety", None),
 ]
 KIND = {f[0]: f[2] for f in FIELDS}
 
@@ -140,6 +149,30 @@ def fields() -> list[dict]:
 def _now_s() -> str:
     return dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
 
+def budget_left() -> dict | None:
+    """Tokens left today on the models that have a DAILY_TOKENS limit (a model that is waiting for its reset counts as 0). None = no model has one."""
+    specs: list[str] = []
+    for t in ("research", "topics", "factcheck", "judge", "hook", "script", "storyboard"):
+        try:
+            specs += [s for s in _llm._models_for(t) if s not in specs]
+        except RuntimeError:
+            pass
+    left, n, resets = 0, 0, []
+    for s in specs:
+        tl = _llm._token_limit(s)
+        if not tl:
+            continue
+        n += 1
+        resets.append(_llm._next_reset(s))
+        if _llm._blocked_until(s) <= time.time():
+            left += max(0, tl - _llm._tokens_today(s))
+    return {"left": left, "models": n, "resets": min(resets)} if n else None
+
+
+def video_cost() -> int:
+    """What a video costs in tokens: the median of the last five finished ones (100000 until there are any)."""
+    xs = sorted(r[0] for r in store.db().execute("SELECT tokens FROM jobs WHERE tokens > 0 AND status IN ('ready','uploaded') ORDER BY id DESC LIMIT 5"))
+    return xs[len(xs) // 2] if xs else 100000
 
 def ahead() -> int:
     """Videos made and not yet published: finished ones plus the scheduled ones."""
@@ -173,7 +206,7 @@ def status() -> dict:
     except (OSError, ValueError):
         last = None
     return {"enabled": cfg["enabled"] == "1", "mode": cfg["mode"], "working_on": {k: cur[k] for k in ("id", "topic", "status")} if cur else None,
-            "ready": ready, "scheduled": sched, "target": int(cfg["buffer"]), "next_slots": slots, "last_run": last}
+            "ready": ready,"budget": budget_left(), "scheduled": sched, "target": int(cfg["buffer"]), "next_slots": slots, "last_run": last}
 
 
 # ───────────── the work ─────────────
@@ -271,6 +304,12 @@ def _cycle(cfg: dict, notes: list[str], made: list[int]) -> int:
             if failed_today() >= int(cfg["failed_per_day"]):
                 notes.append(f"{failed_today()} videos failed today: the assistant stops for today.")
                 return 0
+            if cfg["budget_gate"] == "1":
+                b, need = budget_left(), video_cost()
+                if b and b["left"] < need:
+                    notes.append(f"Not starting a new video: about {b['left']} tokens are left today and a video needs about {need}. "
+                                 f"The next run after {time.strftime('%a %H:%M', time.localtime(b['resets']))} continues.")
+                    return 0
             jid = new_topic_job(cfg, notes)
             if jid is None:
                 return 0
@@ -298,6 +337,17 @@ def _keep_awake() -> None:
         except Exception:
             pass
 
+def _refresh_stats(cfg: dict, notes: list[str]) -> None:
+    if cfg["learn"] != "1":
+        return
+    try:
+        from . import analytics
+        if analytics.stale(12):
+            r = analytics.refresh()
+            if r["updated"]:
+                notes.append(f"Channel stats refreshed for {r['updated']} video(s).")
+    except Exception as e:
+        notes.append(f"Stats refresh skipped: {type(e).__name__}: {str(e)[:100]}")
 
 def _acquire() -> bool:
     if LOCK.exists() and time.time() - LOCK.stat().st_mtime < 4 * 3600:
@@ -325,6 +375,7 @@ def run_once(force: bool = False) -> int:
     os.environ.update(env_overrides())
     notes, made, code = [], [], 0
     try:
+        _refresh_stats(cfg, notes)
         code = _cycle(cfg, notes, made)
     except Exception:
         notes.append("CRASH:\n" + traceback.format_exc())

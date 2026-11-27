@@ -20,6 +20,8 @@
     "year_min": -3000,
     "year_max": 2014,
     "min_evidence": 4,
+    "evidence_regex": "theor|investigat|explan|hypothes|suspect|solved|believed|examin|analysis|discover|decipher|expedition|search|inquiry|inquest|claimed",
+    "evidence_matches": 2,
     "block_regex": "genocide|massacre|\\brape|torture|child abuse|suicide|sexual|serial killer|mass shooting|school shooting|cannibal|dismember|mutilat|decapitat|holocaust|terror|murder|killer|stabb|strangl|corpse|autops|slave|slavery|lynch|nazi|hitler|racis|\\bkkk\\b|abortion|vaccine|covid|election|conspiracy|\\bcult\\b|jonestown|hate speech|\\bisis\\b|al-qaeda",
     "formats": [
       "an unsolved mystery: what we know, the best theories and the missing piece",

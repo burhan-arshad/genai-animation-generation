@@ -83,14 +83,24 @@ def test_unknown_names_are_dropped_not_fatal():
     assert story["shots"][4]["framing"] in F.FRAMINGS and story["shots"][4]["camera"] in F.CAMERAS
 
 
-def test_bad_direction_is_reported_to_the_llm():
+def test_missing_objects_motion_and_callouts_are_fixed_in_code():
     d = good_draft()
     for s in d.shots:
-        s.props, s.callouts, s.actors = [], [], []
-    _, problems, _ = F.build(d, timing())
-    text = " ".join(problems)
-    assert "objects" in text and "People" in text and "callouts" in text.lower()
+        s.props, s.callouts = [], []
+    story, problems, warns = F.build(d, timing())
+    body = [s for s in story["shots"] if s["set"] != "study"]
+    assert not any("objects" in p or "motion" in p or "callouts" in p.lower() for p in problems)
+    assert all(s["props"] for s in body) and sum(1 for s in body for p in s["props"] if p["move"] not in ("pop", "none")) >= 2
+    shown = lambda s: s["props"] or story["sets"][s["set"]].get("dress")
+    assert all(shown(s) for s in body) and sum(1 for s in body for p in s["props"] if p["move"] not in ("pop", "none")) >= 2
 
+
+def test_people_are_still_required():
+    d = good_draft()
+    for s in d.shots:
+        s.actors = []
+    _, problems, _ = F.build(d, timing())
+    assert any("People" in p for p in problems)
 
 def test_missing_lines_are_filled_in_code():
     d = good_draft()
