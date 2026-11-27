@@ -7,7 +7,7 @@
     "name": "The Investigator",
     "preset": "a",
     "appear": "first_last",
-    "scale": 1.0,
+    "scale": 1,
     "presets": {
       "a": {
         "body": "#6B5B4A",
@@ -63,13 +63,13 @@
   },
   "voice": {
     "name": "bm_george",
-    "speed": 1.0,
+    "speed": 1,
     "music": "mystery",
     "fx": "",
     "engine": "gemini",
     "gemini_voice": "Charon",
     "persona": "the Investigator: a calm, curious storyteller opening a case file for a friend, hushed and precise, leaning in on the strange details, honest about what is not known, never mocking the people in the story",
-    "intensity": "normal",
+    "intensity": "dramatic",
     "direct": "1"
   },
   "audience": {

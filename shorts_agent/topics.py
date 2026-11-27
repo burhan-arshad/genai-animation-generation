@@ -136,6 +136,7 @@ def suggest(n: int = 3, key: str | None = None) -> list[Idea]:
     cfg = niche.load(key)["topics"]
     block = re.compile(cfg["block_regex"], re.I)
     used = [r[0] for r in store.db().execute("SELECT topic FROM jobs")]
+    used += [r[0] for r in store.db().execute("SELECT topic FROM series")]
     used_tok = [_tokens(t) for t in used]
     formats = cfg.get("formats") or ["a surprising true story"]
     fmt = formats[len(used) % len(formats)]

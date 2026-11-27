@@ -82,6 +82,12 @@ def build_metadata(project: Path, key: str | None = None) -> dict:
             break
         tags.append(t)
         total += len(t) + 1
+    if s.get("series"):
+        ser = s["series"]
+        title = f"{ser['title']} | Episode {ser['ep']}: {ser['ep_title']}"
+        title = title[:95].rsplit(" ", 1)[0] if len(title) > 95 else title
+        nxt = f" Next: {ser['next_title']}." if ser.get("next_title") else ""
+        desc = "\n\n".join([ser.get("logline", ""), f"Episode {ser['ep']} of {ser['eps']}.{nxt}", footer, u.get("hashtags", "#mystery").replace("#shorts", "").strip()])
     return {"title": title, "description": desc[:4900], "tags": tags}
 
 
@@ -183,6 +189,12 @@ def upload_ready(limit: int = 1, job_id: int | None = None, mode: str | None = N
         stamp = pub or (dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z") if real == "public" else None)
         note = f"privacy=scheduled {pub}" if mode == "schedule" else f"privacy={real}"
         store.set_job(r["id"], status="uploaded", youtube_id=resp["id"], note=note, publish_at=stamp, error=None)
+        if r["series_id"]:
+            try:
+                from . import series
+                series.after_upload(svc, r["series_id"], r["ep_no"], resp["id"])
+            except Exception as e:
+                print(f"  (playlist not updated: {str(e)[:120]})")
         print(f"[job {r['id']}] UPLOADED ({real}{', goes live ' + pub if pub else ''}): {url}")
         urls.append(url)
     return urls

@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import os
 import subprocess
 from pathlib import Path
 
@@ -42,10 +43,12 @@ def analyze(video: Path) -> dict:
 def run_qa(video: Path) -> dict:
     meta, a, issues = probe(video), analyze(video), []
     add = lambda lvl, msg: issues.append({"level": lvl, "msg": msg})
-    if not MIN_DUR <= meta["duration"] <= MAX_DUR:
-        add("FAIL", f"duration {meta['duration']:.1f}s outside {MIN_DUR:.0f}-{MAX_DUR:.0f}s")
-    if (meta["width"], meta["height"]) != (1080, 1920):
-        add("FAIL", f"resolution {meta['width']}x{meta['height']}, expected 1080x1920")
+    lo, hi = float(os.getenv("QA_MIN_DUR", MIN_DUR)), float(os.getenv("QA_MAX_DUR", MAX_DUR))
+    want = (1920, 1080) if os.getenv("LONGFORM_WIDE") == "1" else (1080, 1920)
+    if not lo <= meta["duration"] <= hi:
+        add("FAIL", f"duration {meta['duration']:.1f}s outside {lo:.0f}-{hi:.0f}s")
+    if (meta["width"], meta["height"]) != want:
+        add("FAIL", f"resolution {meta['width']}x{meta['height']}, expected {want[0]}x{want[1]}")
     if not meta["has_audio"]:
         add("FAIL", "no audio stream")
     if a["lufs"] is None:

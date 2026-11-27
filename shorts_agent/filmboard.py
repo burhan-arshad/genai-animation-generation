@@ -50,6 +50,73 @@ CAM_CYCLE = ["push_in", "pan_right", "pull_out", "pan_left", "drift", "crane_dow
 FRAME_CYCLE = ["wide", "medium", "full"]
 ARM_CYCLE = ["present", "point", "chin", "hip"]
 
+# ───────────── extra objects for mysteries, drawn from plain shapes: the AI does not have to design them ─────────────
+def _part(shape, x, y, w, h, color, rot=0, text="", pts=()):
+    return {"shape": shape, "x": x, "y": y, "w": w, "h": h, "rot": rot, "color": color, "text": text, "pts": [list(p) for p in pts]}
+
+
+def _rect(x, y, w, h, c):
+    return _part("rect", x, y, w, h, c)
+
+
+def _ell(x, y, w, h, c):
+    return _part("ellipse", x, y, w, h, c)
+
+
+def _disc(x, y, d, c):
+    return _part("circle", x, y, d, d, c)
+
+
+def _poly(pts, c):
+    return _part("poly", 0, 0, 1, 1, c, pts=pts)
+
+
+EXTRA_PROPS = {
+    "lifeboat": {"name": "lifeboat", "span": 320, "parts": [
+        _poly([(-50, 32), (-42, 10), (-28, 0), (28, 0), (42, 10), (50, 32)], "#8C5A3A"), _rect(0, 32, 100, 6, "#C8A06A"), _rect(0, 18, 82, 5, "#F4EAD0"),
+        _rect(-16, 40, 5, 12, "#6B422B"), _rect(16, 40, 5, 12, "#6B422B"), _poly([(20, 36), (24, 36), (44, 78), (40, 78)], "#6B422B")]},
+    "lantern": {"name": "lantern", "span": 120, "parts": [
+        _rect(0, 96, 6, 8, "#3A3F4A"), _poly([(-24, 84), (24, 84), (14, 98), (-14, 98)], "#3A3F4A"), _rect(0, 50, 40, 64, "#3A3F4A"),
+        _rect(0, 50, 30, 54, "#FFD35A"), _rect(0, 16, 46, 8, "#3A3F4A")]},
+    "compass": {"name": "compass", "span": 110, "parts": [
+        _disc(0, 50, 90, "#C8952F"), _disc(0, 50, 76, "#F4EAD0"), _poly([(0, 50), (-6, 50), (0, 86), (6, 50)], "#C8283A"),
+        _poly([(0, 50), (-6, 50), (0, 14), (6, 50)], "#2B2A33"), _disc(0, 50, 8, "#2B2A33"), _part("text", 0, 70, 10, 12, "#2B2A33", text="N")]},
+    "chest": {"name": "chest", "span": 220, "parts": [
+        _rect(0, 24, 90, 48, "#8C5A3A"), _rect(0, 60, 90, 22, "#6B422B"), _rect(-28, 40, 8, 70, "#C8952F"), _rect(28, 40, 8, 70, "#C8952F"),
+        _rect(0, 48, 14, 16, "#E2B33C"), _disc(0, 50, 5, "#2B2A33")]},
+    "door": {"name": "door", "span": 170, "parts": [
+        _rect(0, 50, 50, 100, "#4A3424"), _rect(0, 50, 42, 92, "#8C5A3A"), _rect(0, 72, 28, 28, "#7A4C30"), _rect(0, 28, 28, 28, "#7A4C30"),
+        _disc(14, 48, 7, "#E2B33C")]},
+    "painting": {"name": "painting", "span": 200, "parts": [
+        _rect(0, 50, 90, 66, "#C8952F"), _rect(0, 50, 80, 56, "#2F4A6B"), _poly([(-40, 22), (-12, 42), (10, 28), (28, 40), (40, 30), (40, 22)], "#1B2A3F"),
+        _disc(-22, 66, 14, "#F4EAD0"), _rect(-30, 8, 6, 16, "#6B422B"), _rect(30, 8, 6, 16, "#6B422B")]},
+    "magnifier": {"name": "magnifier", "span": 150, "parts": [
+        _poly([(12, 38), (18, 44), (42, 14), (34, 8)], "#6B422B"), _disc(-8, 62, 56, "#C8952F"), _disc(-8, 62, 46, "#BFE3F2"), _ell(-18, 74, 14, 8, "#FFFFFF")]},
+    "tablet": {"name": "tablet", "span": 150, "parts": [
+        _rect(0, 40, 56, 80, "#B9B4A6"), _ell(0, 80, 56, 36, "#B9B4A6"), _rect(0, 66, 34, 4, "#8A8578"), _rect(0, 54, 34, 4, "#8A8578"),
+        _rect(0, 42, 34, 4, "#8A8578"), _rect(0, 30, 24, 4, "#8A8578"), _disc(0, 78, 12, "#8A8578")]},
+    "candle": {"name": "candle", "span": 90, "parts": [
+        _rect(0, 6, 40, 8, "#C8952F"), _rect(0, 30, 16, 44, "#F4EAD0"), _rect(0, 53, 2, 6, "#2B2A33"), _ell(0, 62, 10, 16, "#FFB02E"), _ell(0, 60, 5, 9, "#FFE680")]},
+    "rope": {"name": "rope", "span": 150, "parts": [
+        _ell(0, 16, 90, 30, "#B5885A"), _ell(0, 18, 64, 20, "#8C5A3A"), _ell(0, 19, 34, 10, "#B5885A"), _poly([(30, 10), (48, 4), (50, 8), (34, 16)], "#B5885A")]},
+    "suitcase": {"name": "suitcase", "span": 170, "parts": [
+        _rect(0, 28, 80, 56, "#6B422B"), _rect(-22, 28, 6, 56, "#3A2A1C"), _rect(22, 28, 6, 56, "#3A2A1C"), _rect(0, 62, 26, 5, "#3A2A1C"),
+        _rect(-14, 48, 8, 6, "#E2B33C"), _rect(14, 48, 8, 6, "#E2B33C")]},
+    "question_mark": {"name": "question_mark", "span": 130, "parts": [
+        _part("text", 0, 8, 10, 92, "#E2B33C", text="?"), _disc(0, 4, 6, "#B8872A"), _rect(0, 2, 20, 3, "#2B2A33")]},
+    "hourglass": {"name": "hourglass", "span": 110, "parts": [
+        _rect(0, 92, 50, 8, "#6B422B"), _rect(0, 8, 50, 8, "#6B422B"), _poly([(-22, 88), (22, 88), (3, 50), (-3, 50)], "#BFE3F2"),
+        _poly([(-3, 50), (3, 50), (22, 12), (-22, 12)], "#BFE3F2"), _poly([(-14, 84), (14, 84), (3, 66), (-3, 66)], "#E2B33C"),
+        _poly([(-18, 12), (18, 12), (8, 26), (-8, 26)], "#E2B33C"), _rect(0, 40, 2, 24, "#E2B33C")]},
+}
+ALIAS = {"boat": "lifeboat", "rowboat": "lifeboat", "dinghy": "lifeboat", "lamp_lit": "lantern", "treasure": "chest", "treasure_chest": "chest",
+         "frame": "painting", "artwork": "painting", "magnifying_glass": "magnifier", "stone_tablet": "tablet", "manuscript": "openbook",
+         "map": "scroll", "document": "letter", "newspaper": "poster", "briefcase": "suitcase", "bag": "suitcase", "question": "question_mark"}
+
+
+def canon(name) -> str:
+    n = re.sub(r"[^a-z0-9_]", "", str(name or "").strip().lower().replace(" ", "_").replace("-", "_"))[:24]
+    return ALIAS.get(n, n)
 
 def polish(shots: list[dict], sets: dict, key_prop: str, label: str) -> list[str]:
     """The quality notes are repaired in code (an object in every shot, people, acting, camera variety, moving objects, a callout)
@@ -368,7 +435,7 @@ def build(d: StoryDraft, tm: Timing, hero_ok: bool = True, hook: dict | None = N
         cc = clean_custom(c, warns)
         if cc and cc["name"] not in PROPS:
             custom[cc["name"]] = cc
-    known = set(PROPS) | set(custom)
+    known = set(PROPS) | set(custom) | set(EXTRA_PROPS)
     cast = {}
     for l in d.cast[:8]:
         i = _id(l.id)
@@ -379,8 +446,8 @@ def build(d: StoryDraft, tm: Timing, hero_ok: bool = True, hook: dict | None = N
         i = _id(s.id)
         if not i:
             continue
-        dress = [{"item": _id(x.item), "x": round(_num(x.x, 0, 100, 50), 1), "d": int(_num(x.d, 0, 2, 1)), "s": round(_num(x.s, 0.3, 3, 1), 2)}
-                 for x in s.dress[:10] if _id(x.item) in known]
+        dress = [{"item": canon(x.item), "x": round(_num(x.x, 0, 100, 50), 1), "d": int(_num(x.d, 0, 2, 1)), "s": round(_num(x.s, 0.3, 3, 1), 2)}
+                 for x in s.dress[:10] if canon(x.item) in known]
         sets[i] = {"kind": _pick(s.kind, SET_KINDS, "field"), "time": _pick(s.time, TIMES, "day"), "sign": re.sub(r"[^A-Za-z0-9 !?.,'&-]", "", s.sign)[:14].upper(),
                    "deck": bool(s.deck), "dress": dress}
     if not sets:
@@ -399,7 +466,7 @@ def build(d: StoryDraft, tm: Timing, hero_ok: bool = True, hook: dict | None = N
         return round(t if t is not None else lo, 3)
 
     drafts = []
-    for sd in d.shots[:60]:
+    for sd in d.shots[:int(os.getenv("FILM_MAX_SHOTS", "60") or 60)]:
         if not lo_line <= sd.line < hi_line:
             warns.append(f"shot on line {sd.line} is outside the story lines {lo_line}-{hi_line - 1}: dropped")
             continue
@@ -452,9 +519,9 @@ def build(d: StoryDraft, tm: Timing, hero_ok: bool = True, hook: dict | None = N
                     beats.append(beat)
             sh["actors"].append({"who": who, "x0": round(_num(a.x0, -20, 120, 40), 1), "x1": round(_num(a.x1, -20, 120, a.x0), 1), "d": int(_num(a.d, 0, 2, 1)),
                                  "face": _pick(a.face, ["l", "r"], ""), "mood": _pick(a.mood, MOODS, "neutral"), "arms": arm, "legs": _pick(a.legs, ["stand", "sit", "walk", "run"], "stand"),
-                                 "talk": bool(a.talk), "held": {"r": _id(a.held)} if _id(a.held) in known else {}, "beats": sorted(beats, key=lambda b: b["t"])})
+                                 "talk": bool(a.talk), "held": {"r": canon(a.held)} if canon(a.held) in known else {}, "beats": sorted(beats, key=lambda b: b["t"])})
         for p in sd.props[:8]:
-            nm = _id(p.name)
+            nm = canon(p.name)
             if nm not in known:
                 warns.append(f"shot {k + 1}: unknown object '{p.name}' dropped")
                 continue
@@ -493,7 +560,7 @@ def build(d: StoryDraft, tm: Timing, hero_ok: bool = True, hook: dict | None = N
 
     # ---- the host: intro and outro ----
     hero_shots = []
-    prop = _id(d.intro_prop)
+    prop = canon(d.intro_prop)
     prop = prop if prop in known else "scroll"
     poses = [("happy", "present", "full", "push_in", 30), ("smug", "point", "medium", "drift", 32), ("think", "chin", "medium", "push_in", 34)]
     first_end = tm.start(1) if n > 1 else tm.dur
@@ -585,7 +652,10 @@ def build(d: StoryDraft, tm: Timing, hero_ok: bool = True, hook: dict | None = N
             problems.append("Add callouts (years, numbers, names, signs) to at least two shots.")
     if len(cast) < 1:
         problems.append("Define at least one character in `cast`.")
-
+    used = {p["name"] for s in allshots for p in s["props"]} | {x["item"] for st in sets.values() for x in st["dress"]} | {prop}
+    used |= {a["held"].get("r") for s in allshots for a in s["actors"] if a.get("held")}
+    for n in used & set(EXTRA_PROPS):                    # a ready-made object is added to the story only when it is used
+        custom.setdefault(n, EXTRA_PROPS[n])
     story = {"title": d.title, "meta": {"place": d.place, "date": d.date}, "duration": round(tm.dur, 3), "cast": cast, "sets": sets, "custom": custom, "shots": allshots}
     return story, problems, warns
 
@@ -610,7 +680,7 @@ hat {', '.join(HATS)}, neck {', '.join(NECKS)}, extra (any of {', '.join(EXTRAS)
 for a woman's dress, kid true for a child. Clothes must fit the era and the people, with clearly different colours. Unused text = "".
 SETS (2-6, one per place or time of the story): kind {', '.join(SET_KINDS)}; time {', '.join(TIMES)} (use sepia for a flashback, night for a mystery, dusk for an ending, storm for a disaster);
 sign = a short shop name for `street`; deck true for a ship deck; dress = scenery items {{item, x, d, s}} from the objects below.
-OBJECTS (built in): {', '.join(PROPS)}.
+OBJECTS (built in): {', '.join(PROPS + sorted(EXTRA_PROPS))}.
 CUSTOM OBJECTS: for the story's own special things that are not in that list (an invention, a machine, a document) design them in `custom_props`:
 name, span (width in px, 150-500) and parts of plain shapes in a 100x100 box (x -50..50 left to right, y 0..100 from the ground up):
 rect/circle/ellipse (x, y = centre, w, h), poly/line (pts = [[x,y],...]), text (text, h = size). 6-14 parts, 2-4 colours, a recognisable silhouette.

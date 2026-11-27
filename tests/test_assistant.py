@@ -64,3 +64,13 @@ def test_a_video_over_its_token_cap_is_dropped(tmp_path, monkeypatch):
     notes = []
     assert autopilot.work_job(jid, {"tokens_per_video": "1000", "stage_failures": "2"}, notes) == "dropped"
     assert store.get_job(jid)["status"] == "dropped" and notes
+
+def test_missing_publish_times_are_spread_over_the_day(tmp_path, monkeypatch):
+    monkeypatch.setattr(store, "DB", tmp_path / "jobs.db")
+    env(monkeypatch, SCHEDULE_PER_DAY="3")
+    monkeypatch.delenv("SCHEDULE_WINDOW", raising=False)
+    assert schedule.settings()["times"] == [(9, 0), (13, 30), (18, 0)]
+    got = schedule.next_slots(3, after=NOW)
+    assert [(d.day, d.hour, d.minute) for d in got] == [(25, 13, 30), (25, 18, 0), (26, 9, 0)]
+    env(monkeypatch, SCHEDULE_PER_DAY="2", SCHEDULE_TIMES="10:00, 20:00")
+    assert schedule.settings()["times"] == [(10, 0), (20, 0)]

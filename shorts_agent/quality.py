@@ -50,9 +50,10 @@ def score(job: dict) -> tuple[int, list[str]]:
     else:
         why.append("no storyboard found")
     dur = float(((_read(project / "qa.json") or {}).get("meta") or {}).get("duration") or 0)
-    if 30 <= dur <= 58:
+    lo, hi = (180, 900) if job.get("kind") == "episode" else (30, 58)
+    if lo <= dur <= hi:
         s += 10
-    elif 20 <= dur < 30 or 58 < dur <= 60:
+    elif lo * 0.67 <= dur < lo or hi < dur <= hi * 1.1:
         s += 5
         why.append(f"duration {dur:.0f}s")
     else:

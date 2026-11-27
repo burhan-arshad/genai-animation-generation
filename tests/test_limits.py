@@ -143,3 +143,8 @@ def test_a_model_whose_calls_are_used_counts_as_zero_in_the_budget(monkeypatch):
     assert autopilot.budget_left()["left"] == 100000
     llm._log("g:a", "t", 10, 10, True)                 # 1 call used of 3, minus the safety margin of 2: the calls are used up
     assert autopilot.budget_left()["left"] == 0
+
+def test_a_payment_error_is_remembered_for_hours(monkeypatch):
+    monkeypatch.setattr(llm.httpx, "post", lambda url, headers, json, timeout: httpx.Response(402, text="PAYMENT_METHOD_REQUIRED"))
+    llm._try_model("fake:small", llm._req("hi", None, 0.0, 100, None, None, False), "t")
+    assert llm._blocked_until("fake:small") - time.time() > 5 * 3600 and llm._block_kind("fake:small") == "account"

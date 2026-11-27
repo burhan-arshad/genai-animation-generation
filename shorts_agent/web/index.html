@@ -46,6 +46,7 @@ details{margin-top:12px}summary{cursor:pointer;color:var(--mut)}
   <label class="mut">Niche: <select id="nichesel"></select></label>
   <span class="tabs" style="margin-left:auto">
     <button data-t="jobs" class="on">Videos</button><button data-t="assistant">Assistant</button>
+    <button data-t="series">Series</button>
     <button data-t="analytics">Analytics</button>
     <button data-t="niches">Niches</button><button data-t="brand">Brand</button>
     <button data-t="youtube">YouTube</button><button data-t="settings">Settings</button><button data-t="usage">AI Limits</button><button data-t="ops">Channel</button>
@@ -98,6 +99,16 @@ details{margin-top:12px}summary{cursor:pointer;color:var(--mut)}
   <section class="card"><h3 style="margin-top:0">What worked and what did not</h3><div id="an-find"></div></section>
   <section class="card"><h3 style="margin-top:0">Your videos</h3><div id="an-rows"></div></section>
   <section class="card"><details><summary>All comparisons</summary><div id="an-groups"></div></details></section>
+</main>
+
+<!-- SERIES -->
+<main id="p-series" class="hide one">
+  <section class="card"><h2>Mystery series</h2>
+    <div class="hint">One real case told as a mini-series of long episodes. The cast and the objects stay the same in every episode, each episode ends on a real open question and the next one starts with "previously". Plan a series, then make its episodes (the Assistant can do both by itself: Assistant tab, "What the assistant makes").</div>
+    <div class="row" style="margin-top:8px"><input id="sr-topic" class="wide" style="flex:1;min-width:240px" placeholder="A real case, e.g. The Mary Celeste Abandonment (1872)">
+      <input id="sr-eps" type="number" min="2" max="6" value="3" style="width:80px" title="episodes"><button class="pri" id="sr-plan">Plan the series</button></div>
+    <span id="sr-msg" class="mut"></span></section>
+  <section class="card"><div id="sr-list"></div></section>
 </main>
 
 <!-- NICHES -->
@@ -200,7 +211,7 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const mem={get(){try{return JSON.parse(localStorage.getItem('sa')||'{}')}catch{return{}}},set(o){localStorage.setItem('sa',JSON.stringify({...mem.get(),...o}))}};
 const FLOW=['queued','scripted','verified','timed','storyboarded','rendered','finalized','ready'];
-const TABS=['jobs','assistant','analytics','niches','brand','youtube','settings','usage','lab','ops'];
+const TABS=['jobs','assistant','analytics','niches','brand','youtube','settings','usage','lab','ops','series'];
 const cls=s=>['ready','uploaded'].includes(s)?'ok':['dropped','rejected'].includes(s)?'bad':'warn';
 const vcls=v=>v==='SUPPORTED'?'ok':v==='CONTRADICTED'?'bad':'warn';
 let cur=mem.get().job||0,curUpd=0,logOff=0,wkStart=null,wasRunning=false,JOBS=[],NICHES=[],ACTIVE='';
@@ -218,7 +229,7 @@ function openTab(t){
   if(!TABS.includes(t))t='jobs';
   TABS.forEach(x=>{$('#p-'+x).classList.toggle('hide',x!==t);document.querySelector(`.tabs [data-t="${x}"]`).classList.toggle('on',x===t)});
   mem.set({tab:t});
-  ({niches:loadNiches,brand:loadBrand,youtube:loadYT,settings:loadSettings,usage:loadUsage,lab:loadLab,ops:loadOps,assistant:loadAssistant, analytics:loadAnalytics})[t]?.();
+  ({niches:loadNiches,brand:loadBrand,youtube:loadYT,settings:loadSettings,usage:loadUsage,lab:loadLab,ops:loadOps,assistant:loadAssistant, analytics:loadAnalytics,series:loadSeries})[t]?.();
 }
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>openTab(b.dataset.t));
 
@@ -270,8 +281,8 @@ $('#detail').onclick=async e=>{
     curUpd=0;loadJobs();
   }catch(x){alert(x.message)}
 };
-async function start(cmd,job,mode){
-  try{await api('/api/worker/start',{cmd,job:job||null,mode:mode||null});logOff=0;$('#logbox').open=true;pollWorker()}catch(e){alert(e.message)}
+async function start(cmd,job,mode,extra){
+  try{await api('/api/worker/start',{cmd,job:job||null,mode:mode||null,...(extra||{})});logOff=0;$('#logbox').open=true;pollWorker()}catch(e){alert(e.message)}
 }
 $('#stopb').onclick=async()=>{
   if(!confirm('Stop the current work? Finished steps are kept; the current step starts again next time.'))return;
@@ -488,7 +499,7 @@ $('#appr').onclick=async e=>{const id=e.target.dataset.pub;if(!id)return;say('#p
 $('#disk').onclick=async e=>{const m=e.target.dataset.clean;if(!m||!confirm('Delete these files? This cannot be undone.'))return;try{const r=await api('/api/cleanup',{mode:m});alert('Removed '+r.removed+' item(s), '+MB(r.bytes));loadOps();loadJobs()}catch(x){alert(x.message)}};
 
 /* ---------- assistant ---------- */
-const AGROUPS=[['main','Assistant'],['topic','1. Topic'],['script','2. Script'],['fact','3. Fact-check'],['voice','4. Voice and film'],['render','5. Video render'],['quality','6. Quality check'],['publish','7. Schedule and upload'],['learn','8. Learning from your stats'],['safety','Safety limits (they save time and tokens)']];
+const AGROUPS=[['main','Assistant'],['topic','1. Topic'],['script','2. Script'],['fact','3. Fact-check'],['voice','4. Voice and film'],['render','5. Video render'],['quality','6. Quality check'],['publish','7. Schedule and upload'],['learn','8. Learning from your stats'],['series','Series (long episodes)'],['safety','Safety limits (they save time and tokens)']];
 function afield(f){
   const i=f.kind.startsWith('select:')?`<select data-ak="${f.key}">${f.kind.slice(7).split(',').map(x=>`<option ${x===f.value?'selected':''}>${x}</option>`).join('')}</select>`
     :`<input data-ak="${f.key}" ${f.kind==='time'?'type="time" ':''}value="${esc(f.value)}">`;
@@ -528,6 +539,23 @@ async function loadAnalytics(){
 $('#an-refresh').onclick=async()=>{say('#an-msg','Asking YouTube...');try{const r=await api('/api/analytics/refresh',{});say('#an-msg',`Updated ${r.updated} video(s)${r.analytics?'':' (retention needs the Analytics permission: YouTube tab, log out and log in again)'}`);loadAnalytics()}catch(e){say('#an-msg',e.message,1)}};
 $('#an-csv').onclick=()=>{location.href='/api/analytics/export?fmt=csv'};
 $('#an-json').onclick=()=>{location.href='/api/analytics/export?fmt=json'};
+
+/* ---------- series ---------- */
+async function loadSeries(){
+  const L=await api('/api/series');
+  $('#sr-list').innerHTML=L.map(s=>`<div style="margin-bottom:18px"><h2>${esc(s.title)} <span class="hint">${esc(s.place)} · ${esc(s.date)}</span></h2><div class="mut">${esc(s.logline)}</div>
+   <div class="hint" style="margin:4px 0">Cast: ${s.cast.map(c=>esc(c.id)+' ('+esc(c.role)+')').join(' · ')} · key object: ${esc(s.key_object)}${s.playlist_id?' · <a target="_blank" href="https://www.youtube.com/playlist?list='+esc(s.playlist_id)+'">playlist</a>':''}</div>
+   ${s.episodes.map(e=>{const j=e.job;return `<div class="item"><span class="grow"><b>Episode ${e.no}: ${esc(e.title)}</b>${j?` <span class="b ${cls(j.status)}">${esc(j.status)}</span>${j.score!=null?' · score '+j.score:''}`:''}<div class="hint">ends on: ${esc(e.cliffhanger)}</div>${j&&j.error?`<div class="err">${esc(String(j.error).slice(0,140))}</div>`:''}</span>${j&&!['uploaded','ready','dropped','rejected'].includes(j.status)?`<button data-sr-make="${j.id}">Make this episode</button>`:''}${j?`<button data-sr-open="${j.id}">Open</button>`:''}</div>`}).join('')}
+   <div class="row" style="margin-top:6px"><button class="danger" data-sr-del="${s.id}">Remove the series (unfinished episodes are deleted)</button></div></div>`).join('')||'<span class="mut">No series yet.</span>';
+}
+$('#sr-plan').onclick=async()=>{const t=$('#sr-topic').value.trim();if(!t)return;say('#sr-msg','Planning started: watch the Activity log (about a minute).');await start('series',null,null,{topic:t,eps:+$('#sr-eps').value||3});setTimeout(loadSeries,15000)};
+$('#sr-list').onclick=async e=>{
+  const mk=e.target.dataset.srMake,op=e.target.dataset.srOpen,dl=e.target.dataset.srDel;
+  if(mk)start('run',+mk);
+  if(op){cur=+op;curUpd=0;mem.set({job:cur});openTab('jobs');loadJobs()}
+  if(dl&&confirm('Remove this series?')){await api('/api/series/remove',{id:+dl});loadSeries();loadJobs()}
+};
+setInterval(()=>{if(!$('#p-series').classList.contains('hide'))loadSeries()},6000);
 
 /* ---------- start ---------- */
 api('/api/brand').then(r=>{try{$('#title').textContent=JSON.parse(r.text).channel.name+' · dashboard'}catch{}});

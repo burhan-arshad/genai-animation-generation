@@ -18,7 +18,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from pydantic import BaseModel
 
-from . import analytics,autopilot, automation, brand, cleanup, launch, niche, settings, store, styles
+from . import analytics,autopilot, automation, brand, cleanup, launch, niche, settings, store, styles, series
 from .config import HOME, REPO, _path
 from .pipeline import FLOW, STAGE_NAME
 from .uploader import CLIENT, TOKEN
@@ -33,6 +33,7 @@ COMMANDS = {
     "login": ["-m", "shorts_agent.uploader", "login"],
     "preview": ["-m", "shorts_agent.preview"],
     "assistant": ["-m", "shorts_agent.autopilot", "--once", "--force"],
+    "series": ["-m", "shorts_agent.series", "plan"],
 }
 VOICES = ["am_adam", "am_michael", "bf_emma", "bm_daniel", "bm_fable", "bm_george", "bm_lewis"]
 PROTECTED = {"history"}
@@ -361,6 +362,8 @@ class Start(BaseModel):
     cmd: str
     job: int | None = None
     mode: str | None = None
+    topic: str | None = None
+    eps: int | None = None
 
 
 @app.post("/api/worker/start")
@@ -378,6 +381,10 @@ def worker_start(b: Start):
         args += ["--job", str(b.job)]
     if b.cmd == "upload" and b.mode in ("now", "private", "schedule"):
         args += ["--mode", b.mode]
+    if b.cmd == "series":
+        if not (b.topic or "").strip():
+            raise HTTPException(400, "give a topic")
+        args += ["--topic", b.topic.strip()] + (["--eps", str(b.eps)] if b.eps else [])
     LOG.parent.mkdir(exist_ok=True)
     f = open(LOG, "wb")
     f.write(f"$ python {' '.join(args)}\n".encode())
@@ -462,6 +469,7 @@ def job_plan(job_id: int):
 # ───────────── assistant ─────────────
 @app.get("/api/assistant")
 def assistant_get():
+    os.environ.update(autopilot.env_overrides())
     return {"fields": autopilot.fields(), "status": autopilot.status(), "task": automation.status(),
             "supported": automation.supported(), "youtube_ready": TOKEN.exists()}
 
@@ -471,6 +479,7 @@ def assistant_put(b: Values):
     errs = autopilot.save(b.values)
     if errs:
         raise HTTPException(400, "; ".join(errs))
+    os.environ.update(autopilot.env_overrides())
     return {"saved": True}
 
 
@@ -508,6 +517,7 @@ class Pub(BaseModel):
 
 @app.post("/api/approvals/{job_id}/publish")
 def approval_publish(job_id: int, b: Pub):
+    os.environ.update(autopilot.env_overrides())
     try:
         return {"note": launch.publish(job_id, b.when)}
     except Exception as e:
@@ -522,6 +532,18 @@ def job_thumb(job_id: int):
         raise HTTPException(404, "no thumbnail")
     return FileResponse(f, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
 
+@app.get("/api/series")
+def series_list():
+    return series.overview()
+
+
+class SeriesId(BaseModel):
+    id: int
+
+
+@app.post("/api/series/remove")
+def series_remove(b: SeriesId):
+    return {"removed": series.remove(b.id)}
 
 # ───────────── analytics: what the videos did and what the assistant learns from it ─────────────
 @app.get("/api/analytics")

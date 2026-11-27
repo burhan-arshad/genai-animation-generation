@@ -95,7 +95,7 @@ def test_missing_objects_motion_and_callouts_are_fixed_in_code():
     assert sum(1 for s in body for p in s["props"] if p["move"] not in ("pop", "none")) >= 2
     assert any(s["callouts"] for s in body) and warns
 
-    
+
 def test_people_are_still_required():
     d = good_draft()
     for s in d.shots:
@@ -189,3 +189,23 @@ def test_only_a_coin_may_spin():
     story, _, _ = F.build(d, timing())
     moves = {p["name"]: p["move"] for s in story["shots"] for p in s["props"] if p["name"] in ("globe", "coin")}
     assert moves["globe"] == "grow" and moves["coin"] == "spin"
+
+def test_extra_mystery_objects_need_no_ai_drawing():
+    d = good_draft()
+    d.shots[0].props[0].name = "lifeboat"
+    d.shots[1].props[0].name = "boat"                       # an alias of lifeboat
+    d.intro_prop = "lantern"
+    story, problems, warns = F.build(d, timing())
+    assert not any("lifeboat" in w or "'boat'" in w for w in warns)
+    names = {p["name"] for s in story["shots"] for p in s["props"]}
+    assert "lifeboat" in names and "boat" not in names
+    assert story["custom"]["lifeboat"]["parts"] and "lantern" in story["custom"]
+
+
+def test_the_extra_objects_follow_the_blueprint_rules():
+    for n, c in F.EXTRA_PROPS.items():
+        assert c["name"] == n and 60 <= c["span"] <= 700 and len(c["parts"]) >= 3
+        for p in c["parts"]:
+            assert p["shape"] in F.SHAPES and re.fullmatch(r"#[0-9a-fA-F]{6}", p["color"])
+            assert -60 <= p["x"] <= 60 and -10 <= p["y"] <= 160
+            assert p["shape"] != "poly" or len(p["pts"]) >= 3

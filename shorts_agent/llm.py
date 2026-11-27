@@ -132,6 +132,10 @@ def _blocked_until(spec: str) -> float:
         r = con.execute("SELECT until FROM llm_blocks WHERE spec=?", (spec,)).fetchone()
     return float(r[0]) if r and float(r[0]) > time.time() else 0.0
 
+def _block_kind(spec: str) -> str:
+    with _con() as con:
+        r = con.execute("SELECT kind FROM llm_blocks WHERE spec=? AND until>?", (spec, time.time())).fetchone()
+    return r[0] if r else ""
 
 def clear_blocks() -> None:
     with _con() as con:
@@ -383,8 +387,15 @@ def _try_model(spec: str, req: dict, task: str):
                     print(f"[llm] {spec}: 429, waiting {wait:.0f}s, trying the next model")
                 return None, BudgetExceeded(f"{spec}: provider returned 429")
             if kind == "fatal":
-                _bad[spec] = time.time() + 600
-                print(f"[llm] {spec}: {str(e)[:140]} (skipping this model for 10 min)")
+                code = getattr(e, "code", None)
+                if code in (401, 402, 403, 404):                      # key, plan or model name problem: it will not fix itself in minutes
+                    until = time.time() + 6 * 3600
+                    _bad[spec] = until
+                    _block(spec, until, "account", str(e))
+                    print(f"[llm] {spec}: {str(e)[:140]} (not used for 6 hours: check the key, the plan or the model name; 'Clear waiting states' tries it again)")
+                else:
+                    _bad[spec] = time.time() + 600
+                    print(f"[llm] {spec}: {str(e)[:140]} (skipping this model for 10 min)")
                 return None, e
             last = e
             if attempt < tries - 1:
@@ -406,7 +417,8 @@ def _call(req: dict, task: str, validate=None):
                 soonest = min(soonest, blocked)
                 if blocked - now > 300 and spec not in _warned:
                     _warned.add(spec)
-                    print(f"[llm] {spec}: out of quota until {_when(blocked)} (this computer's time), skipping it")
+                    why = {"day": "daily limit", "none": "no quota on your plan", "account": "key, plan or model problem"}.get(_block_kind(spec), "resting")
+                    print(f"[llm] {spec}: not used until {_when(blocked)} ({why}; this computer's time)")
                 continue
             used, limit = _used_today(spec), _daily_limit(spec)
             if used >= limit - SAFETY_MARGIN:

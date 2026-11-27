@@ -1,7 +1,7 @@
 {
   "enabled": "1",
   "mode": "schedule",
-  "buffer": "2",
+  "buffer": "5",
   "run_time": "18:00",
   "use_my_queue": "1",
   "topic_tries": "3",
@@ -29,8 +29,15 @@
   "sched_tz": "UTC",
   "sched_times": "18:00",
   "sched_days": "mon,tue,wed,thu,fri,sat,sun",
-  "videos_per_day": "2",
+  "videos_per_day": "3",
   "tokens_per_video": "150000",
   "failed_per_day": "3",
-  "stage_failures": "2"
+  "stage_failures": "2",
+  "topic_min_pages": "2",
+  "topic_min_chars": "2500",
+  "hook_agent": "1",
+  "learn": "1",
+  "learn_min_videos": "8",
+  "learn_explore": "25",
+  "budget_gate": "1"
 }

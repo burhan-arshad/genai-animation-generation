@@ -60,6 +60,9 @@ FIELDS = [
     ("hold_below", "Hold a video below the minimum", "select:1,0", "1", "1 = it is not uploaded; you see why and press Upload now or Schedule yourself.", "quality", None),
     ("sched_tz", "Time zone of the schedule", "text", "UTC", "For example UTC, America/New_York, Europe/London, Asia/Karachi.", "publish", "SCHEDULE_TZ"),
     ("sched_times", "Publish times (24-hour, in that time zone)", "text", "18:00", "Comma separated, for example 18:00 or 09:30, 18:00.", "publish", "SCHEDULE_TIMES"),
+    ("sched_window", "Spread extra publish times inside", "text", "09:00-22:00",
+     "Used when 'Publish times' has fewer times than 'Videos per day': the missing times are spread evenly inside this window.", "publish", "SCHEDULE_WINDOW"),
+    ("videos_per_day", "Videos per day", "number", "1", "With one publish time and 3 videos a day you get 09:00, 13:30 and 18:00 (the missing times are spread by themselves).", "publish", "SCHEDULE_PER_DAY"),
     ("sched_days", "Publish days", "text", "mon,tue,wed,thu,fri,sat,sun", "Comma separated.", "publish", "SCHEDULE_DAYS"),
     ("videos_per_day", "Videos per day", "number", "1", "", "publish", "SCHEDULE_PER_DAY"),
     ("tokens_per_video", "Most tokens one video may cost", "number", "150000", "A video above this is dropped and another topic is tried.", "safety", None),
@@ -73,6 +76,11 @@ FIELDS = [
     ("learn_explore", "Choices that stay random (%)", "number", "25", "Keeps trying new things so the channel does not get stuck. 0 = always follow the data.", "learn", "LEARN_EXPLORE"),
     ("budget_gate", "Do not start a video the AI budget cannot finish", "select:1,0", "1",
      "Needs DAILY_TOKENS in .env (tokens per day of each Groq model). A video that stops half way wastes the tokens already spent.", "safety", None),
+    ("content", "What the assistant makes", "select:shorts,series", "shorts",
+     "shorts = one Short per run. series = the episodes of a mystery series (a new series is planned when none is left).", "main", None),
+    ("series_eps", "Episodes per series", "number", "3", "2-6.", "series", "SERIES_EPS"),
+    ("series_minutes", "Minutes per episode", "number", "7", "3-12. Longer = more AI tokens and a longer render (about 40 minutes for 7).", "series", "SERIES_MINUTES"),
+    ("series_wide", "Widescreen 16:9 (the film in the middle, blurred sides)", "select:0,1", "0", "0 = vertical 9:16.", "series", "SERIES_WIDE"),
 ]
 KIND = {f[0]: f[2] for f in FIELDS}
 
@@ -106,6 +114,8 @@ def _check(key: str, kind: str, v: str) -> str | None:
         return "must look like 12:30"
     if key == "sched_times" and not all(re.fullmatch(r"([01]?\d|2[0-3]):[0-5]\d", t) for t in re.split(r"[,; ]+", v) if t):
         return "times like 18:00 or 09:30, 18:00"
+    if key == "sched_window" and not re.fullmatch(r"([01]?\d|2[0-3]):[0-5]\d-([01]?\d|2[0-3]):[0-5]\d", v.replace(" ", "")):
+        return "like 09:00-22:00"
     if key == "sched_days" and not all(d[:3] in schedule.DAYS for d in re.split(r"[,; ]+", v.lower()) if d):
         return "days like mon,tue,wed"
     if key == "sched_tz":
@@ -206,7 +216,7 @@ def status() -> dict:
     except (OSError, ValueError):
         last = None
     return {"enabled": cfg["enabled"] == "1", "mode": cfg["mode"], "working_on": {k: cur[k] for k in ("id", "topic", "status")} if cur else None,
-            "ready": ready,"budget": budget_left(), "scheduled": sched, "target": int(cfg["buffer"]), "next_slots": slots, "last_run": last}
+            "ready": ready,"budget": budget_left(), "scheduled": sched,"target": max(int(cfg["buffer"]), int(cfg["videos_per_day"])),"next_slots": slots, "last_run": last}
 
 
 # ───────────── the work ─────────────
@@ -220,7 +230,7 @@ def work_job(job_id: int, cfg: dict, notes: list[str]) -> str:
             return "ready"
         if st not in WORKING:
             return st
-        if int(job.get("tokens") or 0) > cap:
+        if int(job.get("tokens") or 0) > cap * (2 if job.get("kind") == "episode" else 1):
             store.set_job(job_id, status="dropped", error=f"assistant: this video used more than {cap} tokens")
             notes.append(f"Dropped job {job_id} ({job['topic']}): more than {cap} tokens spent.")
             return "dropped"
@@ -298,7 +308,7 @@ def _cycle(cfg: dict, notes: list[str], made: list[int]) -> int:
             return code[r]
         job = next_job(cfg)
         if job is None:
-            if ahead() >= int(cfg["buffer"]):
+            if ahead() >= max(int(cfg["buffer"]), int(cfg["videos_per_day"])):
                 notes.append(f"{ahead()} video(s) are ready or scheduled: nothing to make.")
                 return 0
             if failed_today() >= int(cfg["failed_per_day"]):
@@ -310,6 +320,9 @@ def _cycle(cfg: dict, notes: list[str], made: list[int]) -> int:
                     notes.append(f"Not starting a new video: about {b['left']} tokens are left today and a video needs about {need}. "
                                  f"The next run after {time.strftime('%a %H:%M', time.localtime(b['resets']))} continues.")
                     return 0
+            if cfg.get("content") == "series":
+                from . import series
+                return series.next_for_assistant(cfg, notes)
             jid = new_topic_job(cfg, notes)
             if jid is None:
                 return 0

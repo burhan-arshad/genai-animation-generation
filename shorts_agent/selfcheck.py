@@ -55,6 +55,15 @@ HAS = [
     ("llm.py", "def usage_rows", "limits table with reset times"),
     ("llm.py", "def _quota_wait", "429 understood and remembered"),
     ("autopilot.py", "def budget_left", "budget gate for new videos"),
+    ("filmboard.py", "EXTRA_PROPS", "ready-made mystery objects"),
+    ("schedule.py", "def _fill", "publish times spread over the day"),
+    ("propsheet.py", "def main", "picture sheet of the extra objects"),
+    ("llm.py", "def _block_kind", "key and plan errors remembered"),
+    ("series.py", "def create_series", "mystery series planning"),
+    ("series.py", "def build_story", "episode film from scene cards"),
+    ("pipeline.py", "series.write_episode", "pipeline makes episodes"),
+    ("finalize.py", "LONGFORM_WIDE", "widescreen option"),
+    ("qa.py", "QA_MIN_DUR", "duration limits per kind of video"),
 ]
 GONE = [
     ("filmboard.py", "has no shot of its own", "the old line check (must be deleted)"),

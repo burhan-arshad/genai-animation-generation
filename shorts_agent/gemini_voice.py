@@ -329,7 +329,7 @@ def synthesize(project: Path) -> float:
     (project / "data").mkdir(exist_ok=True)
     wav = project / "data" / "narration.wav"
     write_wav(wav, pcm)
-    fit_duration(wav)
+    fit_duration(wav, float(os.getenv("VOICE_MAX_SECONDS", MAX_TOTAL)) or 1e9)
     for f in ("lines.json", "words.json", "words.txt"):          # words.py rebuilds them from the audio
         (project / "data" / f).unlink(missing_ok=True)
     (project / "data" / "voice_plan.json").write_text(json.dumps({"actor": s["voice"], "intensity": s["intensity"], "directed": directed, "scenes": cut,

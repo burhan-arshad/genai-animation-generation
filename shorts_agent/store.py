@@ -9,7 +9,9 @@ from pathlib import Path
 DB = Path(__file__).resolve().parent.parent / "jobs.db"
 EXTRA_COLUMNS = {"style": "TEXT DEFAULT 'history'", "fact_status": "TEXT", "qa_status": "TEXT",
                  "approved": "INTEGER DEFAULT 0", "note": "TEXT", "youtube_id": "TEXT",
-                 "tries": "INTEGER DEFAULT 0", "vision_status": "TEXT", "hook_type": "TEXT", "end_type": "TEXT",                 "publish_at": "TEXT", "tokens": "INTEGER DEFAULT 0", "score": "INTEGER", "source": "TEXT"}
+                 "tries": "INTEGER DEFAULT 0", "vision_status": "TEXT", "hook_type": "TEXT", "end_type": "TEXT",
+                 "publish_at": "TEXT", "tokens": "INTEGER DEFAULT 0", "score": "INTEGER", "source": "TEXT",
+                 "series_id": "INTEGER", "ep_no": "INTEGER", "kind": "TEXT"}
 
 
 def db() -> sqlite3.Connection:
@@ -24,6 +26,8 @@ def db() -> sqlite3.Connection:
             con.execute(f"ALTER TABLE jobs ADD COLUMN {col} {decl}")
     con.execute("""CREATE TABLE IF NOT EXISTS events(
         id INTEGER PRIMARY KEY, job_id INTEGER, stage TEXT, started REAL, ended REAL, ok INTEGER, error TEXT)""")
+    con.execute("""CREATE TABLE IF NOT EXISTS series(
+        id INTEGER PRIMARY KEY, title TEXT, topic TEXT, status TEXT DEFAULT 'active', bible TEXT, playlist_id TEXT, created REAL, updated REAL)""")
     con.commit()
     return con
 

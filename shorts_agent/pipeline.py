@@ -58,14 +58,24 @@ def _reached(status: str, until: str | None) -> bool:
     return bool(until) and status in FLOW and until in FLOW and FLOW.index(status) >= FLOW.index(until)
 
 
-
 def advance(job: dict) -> str:
+    if (job.get("kind") or "") == "episode":
+        from . import series
+        with series.episode_env():
+            return _advance(job)
+    return _advance(job)
+
+def _advance(job: dict) -> str:
     """Run exactly one stage; return the new status."""
     styles.set_active(job["style"] or styles.default_key())
     project = ROOT / job["slug"]
     s = job["status"]
     if s == "queued":
-        generate(job["topic"], project)
+        if job.get("kind") == "episode":
+            from . import series
+            series.write_episode(job, project)
+        else:
+            generate(job["topic"], project)
         return "scripted"
     if s == "scripted":
         store.set_job(job["id"], fact_status=verify_project(project))
@@ -74,7 +84,11 @@ def advance(job: dict) -> str:
         run_pipeline(project, "final", only=["voice", "words"])
         return "timed"
     if s == "timed":
-        build_shots(project)
+        if job.get("kind") == "episode":
+            from . import series
+            series.build_story(project, job)
+        else:
+            build_shots(project)
         return "storyboarded"
     if s == "storyboarded":
         why = _stale_storyboard(project)
